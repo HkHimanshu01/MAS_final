@@ -26,6 +26,54 @@ A CLI tool (`rca-mas.sh`) that reads the bug report, runs bash-based triage, the
 | Human always decides | System proposes, never applies to working tree |
 | Sequential agents | Each feeds the next; no parallelism possible |
 | Context isolation | Each agent sees less than the previous one |
+| All parameters in one place | `config/defaults.env` — override any value by exporting before running |
+
+---
+
+## Repo Structure
+
+```
+rca-mas/
+├── rca-mas.sh                    ← entry point (arg parsing, prereq checks)
+├── config/
+│   └── defaults.env              ← ALL tunable parameters in one place
+├── scripts/
+│   ├── orchestrator.sh           ← pipeline controller (owns run lifecycle)
+│   ├── briefing.sh               ← pure bash repo scan (zero LLM calls)
+│   ├── claude_json.sh            ← shared Claude Code invocation helper
+│   └── report.sh                 ← JSON → report.md
+├── lib/
+│   ├── log.sh                    ← structured JSONL logging + info/warn/die
+│   ├── json.sh                   ← jq helpers (extract_structured, assert_valid_json)
+│   ├── paths.sh                  ← run directory init + path variables
+│   └── cleanup.sh                ← worktree + temp file cleanup trap
+├── collectors/
+│   ├── git.sh
+│   ├── deps.sh
+│   ├── errors.sh
+│   └── testrunner.sh
+├── prompts/
+│   ├── diagnosis.md
+│   ├── solution.md
+│   └── validation.md
+├── schemas/
+│   ├── diagnosis.schema.json
+│   ├── solution.schema.json
+│   └── validation.schema.json
+├── docs/                         ← 8 docs (see docs/ section)
+├── examples/
+│   ├── bug.md                    ← smoke test sample
+│   └── sample-report.md
+├── tests/
+│   ├── fixtures/
+│   ├── test_briefing.sh
+│   ├── test_collectors.sh
+│   ├── test_json_schemas.sh
+│   └── test_smoke_report_only.sh
+├── Makefile
+├── README.md
+└── CLAUDE.md
+```
 
 ---
 
@@ -51,6 +99,27 @@ bug.md (QA report)
   │
   ▼
 report.md  →  Developer
+```
+
+## File Dependency Map
+
+```
+rca-mas.sh
+  sources: config/defaults.env
+  execs:   scripts/orchestrator.sh
+              sources: lib/log.sh  lib/json.sh  lib/paths.sh  lib/cleanup.sh
+              calls:   scripts/briefing.sh
+                         runs: collectors/git.sh
+                               collectors/deps.sh
+                               collectors/errors.sh
+                               collectors/testrunner.sh
+              calls:   scripts/claude_json.sh  (run_claude_schema)
+                         uses: prompts/diagnosis.md + schemas/diagnosis.schema.json → Agent 1
+                               prompts/solution.md  + schemas/solution.schema.json  → Agent 2
+                               prompts/validation.md + schemas/validation.schema.json → Agent 2.5
+              calls:   scripts/report.sh
+                         reads: diagnosis.json, solution.json, validation.json
+                         writes: report.md
 ```
 
 ---
@@ -84,14 +153,14 @@ report.md  →  Developer
 
 **Tunable parameters — Briefing:**
 
-| Parameter | Location | Default | What to change |
-|---|---|---|---|
-| `MAX_TURNS` tier table | `scripts/briefing.sh` | 15 / 25 / 35 / 50 | Raise all tiers if agents consistently hit turn limits; lower to reduce cost |
-| `TIMEOUT` tier table | `scripts/briefing.sh` | 180 / 300 / 420 / 600 s | Raise if agents time out on large repos; lower to fail fast |
-| Collector timeout | `scripts/briefing.sh` | `timeout 10` per collector | Raise on slow disks or large git histories |
-| Git lookback window | `collectors/git.sh` | `--since="14 days ago"` | Widen for bugs in older code; narrow for speed |
-| Error grep line limit | `collectors/errors.sh` | `head -50` per error string | Raise if context is being truncated; lower to save tokens |
-| File count tier boundaries | `scripts/briefing.sh` | 100 / 500 / 2000 | Adjust to match your typical repo sizes |
+| Parameter | Variable | Location | Default | What to change |
+|---|---|---|---|---|
+| `MAX_TURNS` per tier | `RCA_TURNS_XS/S/M/L` | `config/defaults.env` | 15 / 25 / 35 / 50 | Raise if agents hit turn limits; lower to reduce cost |
+| `TIMEOUT` per tier | `RCA_TIMEOUT_XS/S/M/L` | `config/defaults.env` | 180 / 300 / 420 / 600 s | Raise if agents time out; lower to fail fast |
+| Collector timeout | `RCA_COLLECTOR_TIMEOUT` | `config/defaults.env` | 10 s per collector | Raise on slow disks or large git histories |
+| Git lookback window | `RCA_GIT_LOOKBACK` | `config/defaults.env` | `"14 days ago"` | Widen for bugs in older code |
+| Error grep line limit | `RCA_ERROR_GREP_LIMIT` | `config/defaults.env` | 50 lines per error | Raise if key locations are being truncated |
+| File count tier boundaries | `RCA_TIER_XS/S/M` | `config/defaults.env` | 100 / 500 / 2000 | Adjust to match your typical repo sizes |
 
 ---
 
@@ -160,17 +229,17 @@ report.md  →  Developer
 
 **Tunable parameters — Agent 1:**
 
-| Parameter | Location | Default | Effect |
-|---|---|---|---|
-| `--max-turns` | `scripts/orchestrator.sh` (set from briefing metadata) | 15–50 (tier-based) | More turns = deeper investigation, more tokens, higher cost. Primary lever for quality vs speed |
-| `CLAUDE_TIMEOUT` | `scripts/orchestrator.sh` | 180–600 s (tier-based) | Hard wall-clock limit. Set slightly above `MAX_TURNS × avg-seconds-per-turn` |
-| Minimum hypotheses | `prompts/diagnosis.md` | 2 | Raise to 3 for ambiguous bugs; costs 1–2 extra turns |
-| Confidence stop threshold | `prompts/diagnosis.md` | `> 0.7` | Lower to get faster (shallower) diagnoses; raise for higher certainty before stopping |
-| Checkpoint trigger | `prompts/diagnosis.md` | after 10 files examined | Lower for faster recovery on timeout; raise to reduce write overhead |
-| Progressive narrowing depth | `prompts/diagnosis.md` | max 3 call-chain levels | Raise for deeply nested codebases; lower to keep focus |
-| Self-critique count | `prompts/diagnosis.md` | 3 ways hypothesis could be wrong | Raise for higher-stakes bugs; each adds ~0.5 turns |
-| Model | `scripts/claude_json.sh` | default (claude-sonnet-4-6) | Switch to claude-opus-4-7 for highest quality; claude-haiku-4-5 for speed/cost |
-| Checkpoint recovery confidence override | `scripts/orchestrator.sh` | 0.4 | If checkpoint is used after timeout, this is the confidence stamped on the output |
+| Parameter | Variable | Location | Default | Effect |
+|---|---|---|---|---|
+| `--max-turns` | `RCA_TURNS_*` tiers | `config/defaults.env` | 15–50 (tier-based) | More turns = deeper investigation, more cost. Primary lever for quality vs speed |
+| `CLAUDE_TIMEOUT` | `RCA_TIMEOUT_*` tiers | `config/defaults.env` | 180–600 s (tier-based) | Hard wall-clock limit |
+| Minimum hypotheses | (prompt text) | `prompts/diagnosis.md` | 2 | Raise to 3 for ambiguous bugs |
+| Confidence stop threshold | `RCA_CONFIDENCE_STOP` | `config/defaults.env` | 0.7 | Lower for faster/cheaper; raise for higher certainty |
+| Checkpoint trigger | (prompt text) | `prompts/diagnosis.md` | after 10 files | Lower for faster timeout recovery |
+| Call-chain depth | (prompt text) | `prompts/diagnosis.md` | 3 levels | Raise for deeply nested codebases |
+| Self-critique count | (prompt text) | `prompts/diagnosis.md` | 3 | Each adds ~0.5 turns |
+| Model (all agents) | `RCA_MODEL` | `config/defaults.env` | empty (sonnet-4-6) | Set `claude-opus-4-7` for highest quality |
+| Checkpoint recovery confidence | `RCA_CONFIDENCE_CHECKPOINT` | `config/defaults.env` | 0.4 | Stamped on output when checkpoint is used after timeout |
 
 ---
 
@@ -222,14 +291,14 @@ No Bash. No Edit. No Write.
 
 **Tunable parameters — Agent 2:**
 
-| Parameter | Location | Default | Effect |
-|---|---|---|---|
-| `--max-turns` | `scripts/orchestrator.sh` | 1 | Single-pass by design. Raise to 3 if agent needs to re-read files before producing diff |
-| `CLAUDE_TIMEOUT` | `scripts/orchestrator.sh` | 180 s | Raise if large files cause slow reads |
-| NO_FIX confidence threshold | `prompts/solution.md` | `< 0.5` | Raise (e.g. `< 0.65`) to be more conservative about suggesting fixes when diagnosis is uncertain |
-| Fix scope instruction | `prompts/solution.md` | "one focused fix" | Can add "list up to 2 alternate fixes" to get multiple options |
-| Risk labelling guidance | `prompts/solution.md` | low/medium/high descriptions | Tighten definitions if risk labels are inconsistent across runs |
-| Model | `scripts/claude_json.sh` | default (claude-sonnet-4-6) | Switch to claude-opus-4-7 for better diffs on complex logic |
+| Parameter | Variable | Location | Default | Effect |
+|---|---|---|---|---|
+| `--max-turns` | `RCA_AGENT2_TURNS` | `config/defaults.env` | 1 | Single-pass by design. Raise to 3 if agent needs file re-reads before producing diff |
+| `CLAUDE_TIMEOUT` | `RCA_AGENT2_TIMEOUT` | `config/defaults.env` | 180 s | Raise if large files cause slow reads |
+| NO_FIX confidence threshold | `RCA_CONFIDENCE_NOFX` | `config/defaults.env` | 0.5 | Raise to 0.65 to be more conservative |
+| Fix scope instruction | (prompt text) | `prompts/solution.md` | "one focused fix" | Change to "up to 2" for multiple options |
+| Risk labelling guidance | (prompt text) | `prompts/solution.md` | low/medium/high | Tighten definitions if labels are inconsistent |
+| Model (all agents) | `RCA_MODEL` | `config/defaults.env` | empty (sonnet-4-6) | Set `claude-opus-4-7` for better diffs |
 
 ---
 
@@ -295,15 +364,15 @@ No Bash. No Edit. No Write.
 
 **Tunable parameters — Agent 2.5:**
 
-| Parameter | Location | Default | Effect |
-|---|---|---|---|
-| `--max-turns` | `scripts/orchestrator.sh` | 15 | Raise for complex test writing or multi-file fixes; lower to reduce cost |
-| `CLAUDE_TIMEOUT` | `scripts/orchestrator.sh` | 300 s | Raise if test suite is slow; lower to fail fast |
-| Test execution timeout | `prompts/validation.md` / orchestrator | 120 s | Raise for large test suites; lower for fast unit-test repos |
-| New test count | `prompts/validation.md` | "exactly one focused test" | Change to "up to 2 tests" if the bug scenario has multiple entry points |
-| Test label | `prompts/validation.md` | `GENERATED_BUT_NOT_VERIFIED` | Change to trigger red-green verification when that stretch goal is implemented |
-| `RCA_MAS_KEEP_WORKTREE` | env var | unset (removes worktree) | Set to `1` to keep worktree for manual inspection after run |
-| Model | `scripts/claude_json.sh` | default (claude-sonnet-4-6) | Switch to claude-opus-4-7 for better test generation |
+| Parameter | Variable | Location | Default | Effect |
+|---|---|---|---|---|
+| `--max-turns` | `RCA_AGENT25_TURNS` | `config/defaults.env` | 15 | Raise for complex test writing; lower to reduce cost |
+| `CLAUDE_TIMEOUT` | `RCA_AGENT25_TIMEOUT` | `config/defaults.env` | 300 s | Raise if test suite is slow |
+| Test execution timeout | `RCA_AGENT25_TEST_TIMEOUT` | `config/defaults.env` | 120 s | Raise for large test suites |
+| New test count | (prompt text) | `prompts/validation.md` | "exactly one focused test" | Change to "up to 2" for multiple entry points |
+| Keep worktree | `RCA_KEEP_WORKTREE` | `config/defaults.env` or env var | 0 | Set to `1` to inspect worktree after run |
+| Worktree parent dir | `RCA_WORKTREE_DIR` | `config/defaults.env` | `../.rca-mas-worktrees` | Change if sibling dir is not writable |
+| Model (all agents) | `RCA_MODEL` | `config/defaults.env` | empty (sonnet-4-6) | Set `claude-opus-4-7` for better test generation |
 
 ---
 
@@ -351,7 +420,7 @@ bug.md
   │             validation.json
   │             patches/fix_and_test.diff
   │             patches/generated_test.diff
-  │     removes: worktree (unless RCA_MAS_KEEP_WORKTREE=1)
+  │     removes: worktree (unless RCA_KEEP_WORKTREE=1)
   │
   └── [report.sh]
         reads:  diagnosis.json, solution.json, validation.json
@@ -362,61 +431,84 @@ bug.md
 
 ## All Tunable Parameters — Quick Reference
 
-This table consolidates every parameter you are likely to adjust. All confidence values are floats 0.0–1.0.
+**All parameters live in `config/defaults.env`.** Override any of them by exporting before running:
+```bash
+RCA_MODEL=claude-opus-4-7 RCA_TURNS_L=70 ./rca-mas.sh bug.md
+```
+Prompt-text parameters require editing the prompt file directly.
 
-### Turn and timeout budgets
+### Turn and timeout budgets — all in `config/defaults.env`
 
-| Parameter | File | Default | Notes |
-|---|---|---|---|
-| `MAX_TURNS` (< 100 files) | `scripts/briefing.sh` | 15 | |
-| `MAX_TURNS` (100–500 files) | `scripts/briefing.sh` | 25 | |
-| `MAX_TURNS` (500–2000 files) | `scripts/briefing.sh` | 35 | |
-| `MAX_TURNS` (> 2000 files) | `scripts/briefing.sh` | 50 | |
-| `TIMEOUT` (< 100 files) | `scripts/briefing.sh` | 180 s | |
-| `TIMEOUT` (100–500 files) | `scripts/briefing.sh` | 300 s | |
-| `TIMEOUT` (500–2000 files) | `scripts/briefing.sh` | 420 s | |
-| `TIMEOUT` (> 2000 files) | `scripts/briefing.sh` | 600 s | |
-| Agent 2 `--max-turns` | `scripts/orchestrator.sh` | 1 | |
-| Agent 2 `CLAUDE_TIMEOUT` | `scripts/orchestrator.sh` | 180 s | |
-| Agent 2.5 `--max-turns` | `scripts/orchestrator.sh` | 15 | |
-| Agent 2.5 `CLAUDE_TIMEOUT` | `scripts/orchestrator.sh` | 300 s | |
-| Agent 2.5 test exec timeout | `prompts/validation.md` | 120 s | `timeout 120 $TEST_COMMAND` |
+| Variable | Default | Tier |
+|---|---|---|
+| `RCA_TURNS_XS` | 15 | repos < 100 files |
+| `RCA_TURNS_S` | 25 | 100–500 files |
+| `RCA_TURNS_M` | 35 | 500–2000 files |
+| `RCA_TURNS_L` | 50 | > 2000 files |
+| `RCA_TIMEOUT_XS` | 180 s | repos < 100 files |
+| `RCA_TIMEOUT_S` | 300 s | 100–500 files |
+| `RCA_TIMEOUT_M` | 420 s | 500–2000 files |
+| `RCA_TIMEOUT_L` | 600 s | > 2000 files |
+| `RCA_TIER_XS` | 100 | file count breakpoint |
+| `RCA_TIER_S` | 500 | file count breakpoint |
+| `RCA_TIER_M` | 2000 | file count breakpoint |
+| `RCA_AGENT2_TURNS` | 1 | Agent 2 max turns |
+| `RCA_AGENT2_TIMEOUT` | 180 s | Agent 2 wall-clock limit |
+| `RCA_AGENT25_TURNS` | 15 | Agent 2.5 max turns |
+| `RCA_AGENT25_TIMEOUT` | 300 s | Agent 2.5 wall-clock limit |
+| `RCA_AGENT25_TEST_TIMEOUT` | 120 s | Test execution timeout inside worktree |
 
-### Confidence thresholds
+### Confidence thresholds — all in `config/defaults.env`
 
-| Parameter | File | Default | Effect |
-|---|---|---|---|
-| Agent 1 stop threshold | `prompts/diagnosis.md` | 0.7 | Stop early if confidence exceeds this after checkpoint |
-| Checkpoint recovery override | `scripts/orchestrator.sh` | 0.4 | Confidence stamped when checkpoint is used after timeout |
-| Agent 2 NO_FIX gate | `prompts/solution.md` | 0.5 | Return NO_FIX if `diagnosis.confidence` is below this |
+| Variable | Default | Effect |
+|---|---|---|
+| `RCA_CONFIDENCE_STOP` | 0.7 | Agent 1 stops early when confidence exceeds this |
+| `RCA_CONFIDENCE_CHECKPOINT` | 0.4 | Stamped on output when checkpoint recovery is used after timeout |
+| `RCA_CONFIDENCE_NOFX` | 0.5 | Agent 2 returns NO_FIX if `diagnosis.confidence` is below this |
 
 ### Search and investigation depth
 
-| Parameter | File | Default | Effect |
+| Variable / Prompt text | Location | Default | Effect |
 |---|---|---|---|
-| Git lookback window | `collectors/git.sh` | `--since="14 days ago"` | Widen for older bugs |
-| Collector timeout | `scripts/briefing.sh` | 10 s each | Raise on slow disks |
-| Error grep line limit | `collectors/errors.sh` | 50 lines per error string | Raise if key locations are being truncated |
-| Call-chain depth limit | `prompts/diagnosis.md` | 3 levels | Raise for deeply nested code |
-| Checkpoint file trigger | `prompts/diagnosis.md` | after 10 files examined | Lower for faster timeout recovery |
-| Minimum hypotheses | `prompts/diagnosis.md` | 2 | Raise for ambiguous bugs |
-| Self-critique items | `prompts/diagnosis.md` | 3 | Each adds ~0.5 turns |
+| `RCA_GIT_LOOKBACK` | `config/defaults.env` | `"14 days ago"` | Widen for older bugs |
+| `RCA_COLLECTOR_TIMEOUT` | `config/defaults.env` | 10 s | Raise on slow disks |
+| `RCA_ERROR_GREP_LIMIT` | `config/defaults.env` | 50 lines | Raise if locations are being truncated |
+| "3 levels deep" | `prompts/diagnosis.md` | 3 levels | Raise for deeply nested code |
+| "10 files" (checkpoint) | `prompts/diagnosis.md` | 10 files | Lower for faster timeout recovery |
+| "at least 2" (hypotheses) | `prompts/diagnosis.md` | 2 | Raise for ambiguous bugs |
+| "3 ways" (self-critique) | `prompts/diagnosis.md` | 3 | Each adds ~0.5 turns |
 
-### Model selection
+### Model — `config/defaults.env`
 
-| Agent | File | Default model | Upgrade to |
-|---|---|---|---|
-| Agent 1 | `scripts/claude_json.sh` | claude-sonnet-4-6 | claude-opus-4-7 for deeper reasoning |
-| Agent 2 | `scripts/claude_json.sh` | claude-sonnet-4-6 | claude-opus-4-7 for complex diffs |
-| Agent 2.5 | `scripts/claude_json.sh` | claude-sonnet-4-6 | claude-opus-4-7 for better test writing |
+| Variable | Default | Options |
+|---|---|---|
+| `RCA_MODEL` | empty (sonnet-4-6) | `claude-opus-4-7` for all agents; `claude-haiku-4-5-20251001` for speed |
 
-### Validation worktree
+One variable controls all 3 agents. Set it in defaults.env or export before running.
 
-| Parameter | Location | Default | Effect |
-|---|---|---|---|
-| `RCA_MAS_KEEP_WORKTREE` | env var | unset | Set to `1` to inspect worktree after run |
-| Worktree parent | `scripts/orchestrator.sh` | `../.rca-mas-worktrees/` | Change if repo is in a location where sibling dirs are not writable |
-| New test count | `prompts/validation.md` | 1 | Raise if bug has multiple entry points |
+### Validation worktree — `config/defaults.env`
+
+| Variable | Default | Effect |
+|---|---|---|
+| `RCA_KEEP_WORKTREE` | 0 | Set to `1` to keep worktree for manual inspection after run |
+| `RCA_WORKTREE_DIR` | `../.rca-mas-worktrees` | Change if sibling dir is not writable |
+
+---
+
+## docs/ Contents
+
+8 documentation files. All are required deliverables.
+
+| File | Content |
+|---|---|
+| `docs/index.md` | Reading order, one-line summary of each doc |
+| `docs/architecture.md` | This file — pipeline, components, parameters, data flow |
+| `docs/briefing-flow.md` | `briefing.sh` + 4 collectors: inputs, outputs, failure behaviour, tier table |
+| `docs/agent-flow.md` | Agent 1 + 2 + 2.5: roles, tool restrictions, schemas, confidence rules |
+| `docs/validation-flow.md` | Worktree lifecycle, patch application, test generation, cleanup |
+| `docs/runbook.md` | How to run, all CLI flags, env var overrides, output files |
+| `docs/troubleshooting.md` | Common failures with exact fixes: Claude not logged in, jq error, empty diagnosis, timeout |
+| `docs/testing-real-github-bugs.md` | Step-by-step guide for testing against real repos with known fix commits |
 
 ---
 
@@ -475,25 +567,45 @@ Every run writes to `.rca-mas/runs/{RUN_ID}/`. The `latest` symlink always point
 
 | File | Written by | Purpose |
 |---|---|---|
-| `manifest.json` | orchestrator | Run metadata, tool versions, mode |
+| `manifest.json` | orchestrator | Run metadata — see fields below |
 | `bug.md` | orchestrator | Normalized bug input |
+| `issue.json` | orchestrator | Raw GitHub issue payload (only with `--issue`) |
 | `briefing.md` | briefing.sh | Repo map for Agent 1 |
 | `errors.txt` | briefing.sh | Extracted error strings |
 | `agent1_prompt.md` | orchestrator | Assembled Agent 1 prompt (debug) |
 | `diagnosis.raw.json` | Agent 1 | Full Claude wrapper response |
 | `diagnosis.json` | orchestrator | `.structured_output` extracted |
-| `checkpoint.json` | Agent 1 | Mid-run state on timeout |
+| `checkpoint.json` | Agent 1 | Mid-run state written after 10 files (used for recovery on timeout) |
 | `agent2_prompt.md` | orchestrator | Assembled Agent 2 prompt (debug) |
 | `solution.raw.json` | Agent 2 | Full Claude wrapper response |
 | `solution.json` | orchestrator | `.structured_output` extracted |
 | `patches/fix.diff` | orchestrator | Unified diff from solution |
-| `agent25_prompt.md` | orchestrator | Assembled Agent 2.5 prompt (debug) |
+| `agent25_prompt.md` | orchestrator | Assembled Agent 2.5 prompt (debug) — only with `--validate` |
 | `validation.raw.json` | Agent 2.5 | Full Claude wrapper response |
-| `validation.json` | orchestrator | `.structured_output` extracted |
+| `validation.json` | orchestrator | `.structured_output` extracted (always written, SKIPPED if report-only) |
 | `patches/generated_test.diff` | Agent 2.5 | New test only |
 | `patches/fix_and_test.diff` | Agent 2.5 | Fix + test combined |
 | `report.md` | report.sh | Final developer-readable report |
-| `log.jsonl` | orchestrator | Structured event log per stage |
+| `log.jsonl` | orchestrator | Structured JSONL event log per stage |
 | `agent1.log` | orchestrator | Agent 1 stderr |
 | `agent2.log` | orchestrator | Agent 2 stderr |
 | `agent25.log` | orchestrator | Agent 2.5 stderr |
+
+### `manifest.json` fields
+
+| Field | Value | Purpose |
+|---|---|---|
+| `run_id` | `<timestamp>-<sha>` | Unique run identifier |
+| `mode` | `report-only` or `validate` | How the run was invoked |
+| `repo_root` | absolute path | Where the tool was run from |
+| `repo_remote_url` | git remote origin URL | Cross-reference run against GitHub repo |
+| `git_head_sha` | HEAD SHA | Exact code state at time of run |
+| `git_branch` | branch name | |
+| `bug_source` | `file` or `github_issue` | Input type |
+| `bug_source_file` | path to bug.md | Traceability |
+| `issue_url` | GitHub issue URL | Only when `--issue` used |
+| `expected_fix_commit` | SHA or null | Set via `EXPECTED_FIX_SHA=abc ./rca-mas.sh bug.md` — for comparing agent output against known fix |
+| `started_at` | ISO 8601 | |
+| `ended_at` | ISO 8601 or null | null if run crashed before completion |
+| `stage_statuses` | `{briefing, agent1, agent2, validation, report}` | Updated as each stage completes — partial runs are inspectable |
+| `tool_versions` | claude, git, jq, gh | Reproducibility |
