@@ -1,0 +1,12 @@
+{
+  "run_id": "fixture-run",
+  "status": "SKIPPED",
+  "worktree_path": null,
+  "applied_patch": false,
+  "generated_test": false,
+  "test_command": null,
+  "commands_run": [],
+  "failures": [],
+  "regression_risk": "unknown",
+  "notes": ["Run with --validate to apply patch in a worktree and run tests."]
+}

@@ -1,6 +1,10 @@
-# RCA Compression MAS — Locked v1 Build Plan
+# RCA Compression MAS — Build Plan
 
-> **LOCKED.** Architecture and plan are approved for v1 implementation. Do not add new agents, folders, integrations, dashboards, databases, retry loops, or plugin systems before v1 delivery. Allowed changes: bug fixes, safer shell handling, clearer prompts, better report wording, config tuning, docs improvements.
+> **STATUS: LOCKED FOR V1.**
+> Architecture and plan are final. Implementation must follow this exactly.
+> No new agents, folders, integrations, dashboards, databases, retry loops, or plugin systems.
+> Allowed changes only: bug fixes, safer shell handling, clearer prompts, better report wording, config tuning, docs improvements.
+> Future ideas go in `potential_changes.md`, not here.
 
 ---
 

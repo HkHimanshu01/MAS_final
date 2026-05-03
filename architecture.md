@@ -1,6 +1,10 @@
-# RCA Compression MAS — Locked Architecture Reference
+# RCA Compression MAS — Architecture Reference
 
-> **V1 ARCHITECTURE LOCKED.** Do not add new agents, folders, integrations, dashboards, databases, retry loops, or plugin systems before v1 delivery. Allowed changes: bug fixes, safer shell handling, clearer prompts, better report wording, config tuning, docs improvements.
+> **STATUS: LOCKED FOR V1.**
+> This is the authoritative architecture. Implementation must match this exactly.
+> No new agents, stages, folders, or external dependencies.
+> Allowed changes only: bug fixes, safer shell handling, clearer prompts, config tuning, docs improvements.
+> Future ideas go in `potential_changes.md`, not here.
 
 ---
 

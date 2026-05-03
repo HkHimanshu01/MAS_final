@@ -1,0 +1,62 @@
+{
+  "run_id": "fixture-run",
+  "root_cause": "apply_discount() dereferences discount.discount_value without checking if discount is None, introduced in commit abc1234 when the discount schema was changed.",
+  "selected_hypothesis_id": "h1",
+  "hypotheses": [
+    {
+      "id": "h1",
+      "summary": "None-check missing after discount lookup",
+      "supporting_evidence": [
+        {
+          "type": "code",
+          "path": "src/cart/pricing.py",
+          "lines": "42-48",
+          "note": "discount_value accessed without None guard"
+        }
+      ],
+      "contradicting_evidence": [
+        {
+          "type": "test",
+          "path": "tests/test_pricing.py",
+          "lines": "10-20",
+          "note": "Existing tests only test valid discount codes, not missing ones"
+        }
+      ],
+      "confidence": 0.82
+    },
+    {
+      "id": "h2",
+      "summary": "Discount lookup returns wrong type after schema change",
+      "supporting_evidence": [
+        {
+          "type": "git",
+          "path": "src/cart/pricing.py",
+          "lines": "1",
+          "note": "File modified in recent merge abc1234"
+        }
+      ],
+      "contradicting_evidence": [
+        {
+          "type": "code",
+          "path": "src/cart/discount.py",
+          "lines": "15",
+          "note": "Return type annotation still matches original schema"
+        }
+      ],
+      "confidence": 0.3
+    }
+  ],
+  "rejected_hypotheses": [
+    {
+      "id": "h3",
+      "reason": "Cart total calculation is separate from discount application — ruled out by tracing call chain"
+    }
+  ],
+  "affected_files": ["src/cart/pricing.py"],
+  "call_chain": ["checkout() -> calculate_total() -> apply_discount()"],
+  "files_examined": ["src/cart/pricing.py", "src/cart/discount.py", "tests/test_pricing.py"],
+  "unknowns": ["Whether other callers of apply_discount() have the same issue"],
+  "confidence": 0.82,
+  "introducing_commit": "abc1234",
+  "next_best_action": "Add None guard before accessing discount.discount_value in src/cart/pricing.py:45"
+}

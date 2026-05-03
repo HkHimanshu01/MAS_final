@@ -1,0 +1,5 @@
+.rca-mas/runs/
+.rca-mas/tmp/
+.rca-mas-worktrees/
+*.log
+.DS_Store

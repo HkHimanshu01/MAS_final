@@ -1,0 +1,28 @@
+{
+  "run_id": "fixture-run",
+  "mode": "report-only",
+  "model": "claude-sonnet-4-6",
+  "repo_tier": "S",
+  "agent1_max_turns": 25,
+  "agent1_turns_used": 18,
+  "agent2_max_turns": 1,
+  "stage_durations_seconds": {
+    "briefing": 3,
+    "agent1": 142,
+    "agent2": 34,
+    "validation": 0,
+    "report": 1
+  },
+  "total_duration_seconds": 180,
+  "validation_run": false,
+  "token_counts": {
+    "agent1_input": null,
+    "agent1_output": null,
+    "agent2_input": null,
+    "agent2_output": null,
+    "note": "populated if Claude raw output exposes usage fields; null otherwise"
+  },
+  "cost_level": "LOW",
+  "authoritative": false,
+  "note": "No exact dollar pricing. Cost level is relative based on model, tier, and turns used."
+}

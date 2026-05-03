@@ -1,5 +1,9 @@
 # RCA Compression MAS — Plain English File Guide
 
+> **STATUS: LOCKED FOR V1.**
+> Locked pipeline:
+> `bug.md / --issue → briefing.sh → Agent 1 diagnosis → Agent 2 solution → Agent 2.5 validation (optional) → report.md`
+
 This document explains every file in the repo in plain English, what it does, and how it grows across build sessions. Use this as your map when you open any file and want to understand what you're looking at.
 
 ---

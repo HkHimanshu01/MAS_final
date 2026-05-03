@@ -1,0 +1,7 @@
+{
+  "run_id": "fixture-run",
+  "recommendation": "NO_FIX",
+  "no_fix_reason": "Diagnosis confidence too low (0.3) to safely propose a fix. More investigation required.",
+  "recommended_fix_id": null,
+  "fixes": []
+}
