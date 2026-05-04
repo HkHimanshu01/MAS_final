@@ -573,6 +573,7 @@ Each prints PASS/FAIL per assertion, exits 1 if any fail. No Claude required.
 | 2 | `orchestrator.sh` infrastructure: run dir, manifest (all fields), symlink, logs | manifest has all fields, symlink updates |
 | 3 | stub pipeline: stub functions write fixture JSON to run dir | full command exits 0, 4 JSON files + cost_summary exist |
 | 4 | `briefing.sh` + 4 collectors | `make test`, briefing useful on Flask |
+| 4.5 | real GitHub repo fixture (`pallets/click`, 5 bugs) + `tests/test_real_repo_briefing.sh` + `make test-real-briefing` | `make test-real-briefing` PASS on Bug 1 (Easy) — fixture reused at Steps 6/7/8/11/12 |
 | 5 | 3 JSON schemas | `make test`, all schemas parse cleanly |
 | 6 | `claude_json.sh` + `prompts/diagnosis.md` + Agent 1 wiring | plausible `diagnosis.json` on one real bug |
 | 7 | `prompts/solution.md` + Agent 2 wiring + patch extraction | fix.diff present, recommendation in report |

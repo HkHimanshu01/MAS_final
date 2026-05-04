@@ -1,0 +1,21 @@
+{
+  "bug_number": 5,
+  "issue_number": 3019,
+  "issue_url": "https://github.com/pallets/click/issues/3019",
+  "pr_url": "https://github.com/pallets/click/pull/3021",
+  "title": "click.prompt and click.confirm prompt_suffix no longer works when suffix is empty",
+  "difficulty": "Hard",
+  "fix_sha": "8533c966b84783718e74286aa7b098f3ff1e9221",
+  "pre_fix_ref": "5f86603a84e12bdec1584c15c9f982740e613c45",
+  "fix_source_files": ["src/click/_termui_impl.py", "src/click/termui.py"],
+  "fix_test_files": ["tests/test_utils.py"],
+  "issue_body_has_double_quoted_strings": false,
+  "issue_body_has_backtick_strings": true,
+  "issue_body_mentions_file_path": false,
+  "file_path_is_tracked": false,
+  "source_string_in_codebase": true,
+  "source_string_example": "prompt_suffix",
+  "root_cause_summary": "prompt() and confirm() used echo(text.rstrip(' ')) then return f(' ') to work around a readline issue. When prompt_suffix was empty string, this still appended a space. Fix changes approach: echo(text[:-1]) then return f(text[-1:]) so the last character of the prompt (which may be empty) is handled correctly.",
+  "expected_briefing_score": "PARTIAL",
+  "notes": "No double-quoted strings, no file path in issue. Backtick strings include prompt_suffix, click.prompt, click.confirm, rstrip. Error Sources will find prompt_suffix in termui.py. Hard case: requires behavioral reasoning about prompt rendering. 2-source-file fix."
+}

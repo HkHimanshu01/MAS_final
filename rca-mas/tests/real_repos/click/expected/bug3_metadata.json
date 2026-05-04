@@ -1,0 +1,21 @@
+{
+  "bug_number": 3,
+  "issue_number": 3071,
+  "issue_url": "https://github.com/pallets/click/issues/3071",
+  "pr_url": "https://github.com/pallets/click/pull/3079",
+  "title": "default=True on feature flags is order-sensitive",
+  "difficulty": "Medium",
+  "fix_sha": "27aaed3fe5bcd6adedd6e91de234914af9859cf1",
+  "pre_fix_ref": "2ed395b0b5ac4d56553ff715335f456f812cdc78",
+  "fix_source_files": ["src/click/core.py"],
+  "fix_test_files": ["tests/test_defaults.py"],
+  "issue_body_has_double_quoted_strings": true,
+  "issue_body_has_backtick_strings": true,
+  "issue_body_mentions_file_path": false,
+  "file_path_is_tracked": false,
+  "source_string_in_codebase": true,
+  "source_string_example": "flag_value",
+  "root_cause_summary": "UNSET normalization for flag values was applied eagerly during option processing instead of being deferred. When --green appeared after --red, its default=True was overwritten by --red's UNSET default before normalization ran. Fix defers UNSET normalization to after all options are processed.",
+  "expected_briefing_score": "PASS",
+  "notes": "Double-quoted strings are CLI option names like 'green', 'red'. Backtick strings include flag_value, default=True. Error Sources will find flag_value and UNSET in core.py. Behavioral ordering bug — harder to diagnose but good Agent 1 test."
+}

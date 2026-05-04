@@ -1,0 +1,21 @@
+{
+  "bug_number": 4,
+  "issue_number": 3066,
+  "issue_url": "https://github.com/pallets/click/issues/3066",
+  "pr_url": "https://github.com/pallets/click/pull/3068",
+  "title": "ctx.invoke passes Sentinel to command",
+  "difficulty": "Medium/Hard",
+  "fix_sha": "6a1c0d077311f180b356965914e2de5b9e0fdb44",
+  "pre_fix_ref": "7d7183604158f064390539d83d4a19a978c6b08a",
+  "fix_source_files": ["src/click/core.py"],
+  "fix_test_files": ["tests/test_commands.py"],
+  "issue_body_has_double_quoted_strings": false,
+  "issue_body_has_backtick_strings": true,
+  "issue_body_mentions_file_path": false,
+  "file_path_is_tracked": false,
+  "source_string_in_codebase": true,
+  "source_string_example": "Sentinel",
+  "root_cause_summary": "ctx.invoke() was passing UNSET sentinel values through to the invoked command instead of resolving them to their actual defaults. The fix adds a check to hide UNSET values before passing kwargs to the command.",
+  "expected_briefing_score": "PARTIAL",
+  "notes": "No double-quoted strings. Backtick strings in issue include ctx.invoke, Sentinel. TypeError message in body. Pre-fix ref is same commit as C2 fix (chained bugs). Error Sources will find Sentinel and UNSET in core.py. Good Agent 1 stress case requiring call-chain reasoning."
+}

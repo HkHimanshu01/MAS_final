@@ -1,0 +1,21 @@
+{
+  "bug_number": 2,
+  "issue_number": 3039,
+  "issue_url": "https://github.com/pallets/click/issues/3039",
+  "pr_url": "https://github.com/pallets/click/pull/3055",
+  "title": "Pager Popen() should not use shell=True now that the command is a list",
+  "difficulty": "Easy",
+  "fix_sha": "7d7183604158f064390539d83d4a19a978c6b08a",
+  "pre_fix_ref": "35e6a78646c58a8cc1ba3cda603a6bd4fb87f9d5",
+  "fix_source_files": ["src/click/_termui_impl.py"],
+  "fix_test_files": [],
+  "issue_body_has_double_quoted_strings": false,
+  "issue_body_has_backtick_strings": true,
+  "issue_body_mentions_file_path": false,
+  "file_path_is_tracked": false,
+  "source_string_in_codebase": true,
+  "source_string_example": "shell=True",
+  "root_cause_summary": "After Popen command arg was changed from string to list, shell=True was not updated to shell=False. On POSIX with shell=True and a sequence, shell only runs the first item and treats the rest as shell arguments, effectively swallowing command args.",
+  "expected_briefing_score": "PASS",
+  "notes": "No double-quoted strings in issue but backtick strings present (shell=True, shell=False). With backtick extraction, errors.txt will contain shell=True. Error Sources will find it in _termui_impl.py. Most focused fix: 1 source file, 1 line changed."
+}

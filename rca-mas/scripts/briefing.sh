@@ -12,13 +12,15 @@ source "${TOOL_ROOT}/lib/log.sh"
 info "Briefing: scanning repo..."
 
 # ---------------------------------------------------------------------------
-# 1. Extract quoted error strings from bug report → errors.txt
+# 1. Extract quoted strings from bug report → errors.txt
 # ---------------------------------------------------------------------------
-# Match double-quoted strings of 5–200 chars (preserves spaces and punctuation)
+# Match double-quoted strings "..." and backtick-quoted strings `...` of 5-200 chars.
+# Real GitHub issues use both styles: "TypeError: ..." and `shell=True`.
+# Extracting both gives errors.sh more search anchors on real-world bug reports.
 : > "$ERRORS_TXT"
 if [ -s "${BUG_FILE:-}" ]; then
-  grep -oE '"[^"]{5,200}"' "$BUG_FILE" 2>/dev/null \
-    | sed 's/^"//; s/"$//' \
+  grep -oE '"[^"]{5,200}"|`[^`]{5,200}`' "$BUG_FILE" 2>/dev/null \
+    | sed 's/^"//; s/"$//; s/^`//; s/`$//' \
     | sort -u \
     >> "$ERRORS_TXT" || true
 fi

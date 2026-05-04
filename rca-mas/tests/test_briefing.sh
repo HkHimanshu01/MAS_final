@@ -65,13 +65,14 @@ cat > "${TINY_REPO}/src/cart/untracked.py" <<'PYEOF'
 # This file is intentionally untracked
 PYEOF
 
-# Bug report that mentions src/cart/pricing.py and contains a quoted error string
-# The error string also appears in the source file (pricing.py mentions discount_value)
+# Bug report that mentions src/cart/pricing.py and contains both double-quoted
+# and backtick-quoted strings. Both should appear in errors.txt.
 cat > "${TINY_REPO}/bug.md" <<'BUGEOF'
 # Bug: discount not applied
 
 User reports cart total is wrong.
 Error observed: "TypeError: discount_value not found"
+Also seen: `discount_value` is None when code is not recognised.
 
 File: src/cart/pricing.py
 BUGEOF
@@ -141,8 +142,13 @@ grep -q "^## Briefing Warnings" "$BRIEFING" && pass "## Briefing Warnings presen
   || fail "errors.txt empty — no quoted strings extracted"
 
 grep -qF "TypeError: discount_value not found" "$ERRORS_TXT" \
-  && pass "Multi-word quoted string preserved intact in errors.txt" \
-  || fail "Multi-word quoted string not preserved in errors.txt"
+  && pass "Double-quoted multi-word string preserved intact in errors.txt" \
+  || fail "Double-quoted multi-word string not preserved in errors.txt"
+
+# Backtick-quoted strings must also be extracted
+grep -qF "discount_value" "$ERRORS_TXT" \
+  && pass "Backtick-quoted string extracted into errors.txt" \
+  || fail "Backtick-quoted string not extracted — briefing.sh backtick regex missing"
 
 # ---------------------------------------------------------------------------
 # Tracked file accepted — untracked file rejected

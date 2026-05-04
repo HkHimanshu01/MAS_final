@@ -3,3 +3,4 @@
 .rca-mas-worktrees/
 *.log
 .DS_Store
+test-repos/

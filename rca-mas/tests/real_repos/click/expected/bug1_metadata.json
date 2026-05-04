@@ -1,0 +1,21 @@
+{
+  "bug_number": 1,
+  "issue_number": 2971,
+  "issue_url": "https://github.com/pallets/click/issues/2971",
+  "pr_url": "https://github.com/pallets/click/pull/2972",
+  "title": "Error hint shows env var when one doesn't exist",
+  "difficulty": "Easy",
+  "fix_sha": "0be2bd385064053bb75f92db317de128db729d52",
+  "pre_fix_ref": "c88f333de440c5066ff563f784a6561f4713cf78",
+  "fix_source_files": ["src/click/core.py"],
+  "fix_test_files": ["tests/test_options.py"],
+  "issue_body_has_double_quoted_strings": true,
+  "issue_body_has_backtick_strings": true,
+  "issue_body_mentions_file_path": true,
+  "file_path_is_tracked": false,
+  "source_string_in_codebase": true,
+  "source_string_example": "envvar",
+  "root_cause_summary": "get_error_hint() in Option class did not check whether envvar is None before including it in the error message. Added guard: `if self.show_envvar and self.envvar is not None`.",
+  "expected_briefing_score": "PASS",
+  "notes": "File path in issue (click-test.py) is a user script not tracked by git. MENTIONED_FILES will be empty. But errors.txt will have quoted strings and Error Sources will find envvar-related code in core.py."
+}

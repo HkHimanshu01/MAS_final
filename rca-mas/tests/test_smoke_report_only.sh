@@ -14,6 +14,11 @@ fail() { printf 'FAIL: %s\n' "$1"; (( FAIL++ )) || true; }
 # this keeps briefing fast (no rg scans) for the smoke test.
 # Real briefing quality is tested in test_briefing.sh and test_collectors.sh.
 cd "$TOOL_ROOT"
+
+# Snapshot which source files are already dirty before the pipeline runs.
+# The pipeline must not ADD new modifications — pre-existing changes are irrelevant.
+_pre_dirty="$(git status --porcelain -- rca-mas.sh scripts/ lib/ collectors/ prompts/ schemas/ config/ 2>/dev/null | grep -v '^??' | awk '{print $2}' | sort || true)"
+
 bash rca-mas.sh tests/fixtures/smoke_bug.md && pass "Pipeline exits 0" || fail "Pipeline exited non-zero"
 
 LATEST=".rca-mas/runs/latest"
@@ -69,9 +74,13 @@ for section in "${required_sections[@]}"; do
     fail "report.md missing '$section'"
 done
 
-# Test git status is clean (no source files modified — tracked files only, ignore untracked)
-dirty="$(git status --porcelain -- rca-mas.sh scripts/ lib/ collectors/ prompts/ schemas/ config/ 2>/dev/null | grep -v '^??' || true)"
-[ -z "$dirty" ] && pass "git status clean (no tracked source files modified)" || fail "git status dirty: $dirty"
+# Test the pipeline did not modify source files during its run.
+# Compare post-run dirty set against pre-run snapshot — only new modifications are a problem.
+_post_dirty="$(git status --porcelain -- rca-mas.sh scripts/ lib/ collectors/ prompts/ schemas/ config/ 2>/dev/null | grep -v '^??' | awk '{print $2}' | sort || true)"
+_new_dirty="$(comm -13 <(printf '%s\n' "$_pre_dirty") <(printf '%s\n' "$_post_dirty") || true)"
+[ -z "$_new_dirty" ] \
+  && pass "Pipeline did not modify source files during run" \
+  || fail "Pipeline modified source files it should not touch: $_new_dirty"
 
 # Cleanup
 rm -rf .rca-mas/runs .rca-mas-worktrees 2>/dev/null || true
