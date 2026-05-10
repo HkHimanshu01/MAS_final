@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # tests/test_collectors.sh — Tests for real collector behavior.
-# No Claude required. Uses tiny temp repos for controlled assertions.
+# No Claude required. Uses a tiny controlled temp repo — NOT the MAS source tree.
+# Each collector is tested against known, deterministic input so results are stable
+# regardless of how many commits the MAS repo has.
 set -Eeuo pipefail
 IFS=$'\n\t'
 
@@ -10,20 +12,56 @@ TOOL_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 pass() { printf 'PASS: %s\n' "$1"; (( PASS++ )) || true; }
 fail() { printf 'FAIL: %s\n' "$1"; (( FAIL++ )) || true; }
 
-_TEST_BASE="${HOME}/.rca-mas-test-$$"
+_TEST_BASE="${HOME}/.rca-mas-test-collectors-$$"
 mkdir -p "$_TEST_BASE"
 TMPDIR_RUN="${_TEST_BASE}/run"
 mkdir -p "$TMPDIR_RUN"
 trap 'rm -rf "$_TEST_BASE"' EXIT
 
-export TARGET_REPO_ROOT="$TOOL_ROOT"
+source "${TOOL_ROOT}/config/defaults.env"
+
+# ---------------------------------------------------------------------------
+# Build a tiny controlled target repo — collectors run against THIS, not $TOOL_ROOT
+# ---------------------------------------------------------------------------
+TINY_REPO="${_TEST_BASE}/repo"
+mkdir -p "${TINY_REPO}/src" "${TINY_REPO}/tests"
+
+git config --global --add safe.directory "$TINY_REPO" 2>/dev/null || true
+git init -q "$TINY_REPO"
+git -C "$TINY_REPO" config user.email "test@test.com"
+git -C "$TINY_REPO" config user.name "Test"
+
+cat > "${TINY_REPO}/src/main.py" <<'PYEOF'
+import os
+import sys
+from pathlib import Path
+
+def process(item):
+    return item
+PYEOF
+
+cat > "${TINY_REPO}/tests/test_main.py" <<'PYEOF'
+def test_process():
+    pass
+PYEOF
+
+printf '[pytest]\n' > "${TINY_REPO}/pytest.ini"
+
+git -C "$TINY_REPO" add src/main.py tests/test_main.py pytest.ini
+git -C "$TINY_REPO" commit -q -m "init"
+
+# Known error string that exists in src/main.py
+MATCH_STR="UniqueMatchableSearchString"
+printf '# %s\n' "$MATCH_STR" >> "${TINY_REPO}/src/main.py"
+git -C "$TINY_REPO" add src/main.py
+git -C "$TINY_REPO" commit -q -m "add marker string"
+
+export TARGET_REPO_ROOT="$TINY_REPO"
 export TOOL_ROOT
 export ERRORS_TXT="${TMPDIR_RUN}/errors.txt"
 export TEST_CMD_FILE="${TMPDIR_RUN}/test_command.txt"
-export MENTIONED_FILES=""
+export MENTIONED_FILES="src/main.py"
 export BUG_SOURCE_FILE=""
-
-source "${TOOL_ROOT}/config/defaults.env"
 
 orig_target="$TARGET_REPO_ROOT"
 
@@ -70,7 +108,7 @@ printf '%s\n' "$out" | grep -qF "TypeError: Cannot read properties" \
 # ---------------------------------------------------------------------------
 # errors.sh — output is bounded
 # ---------------------------------------------------------------------------
-printf 'rca-mas\n' > "$ERRORS_TXT"
+printf 'src\n' > "$ERRORS_TXT"
 out="$(bash "${TOOL_ROOT}/collectors/errors.sh" 2>/dev/null || true)"
 lc="$(printf '%s\n' "$out" | wc -l | tr -d ' ')"
 max=$(( RCA_ERROR_GREP_LIMIT + 10 ))
@@ -79,17 +117,13 @@ max=$(( RCA_ERROR_GREP_LIMIT + 10 ))
   || fail "errors.sh output unbounded (${lc} lines > ${max})"
 
 # ---------------------------------------------------------------------------
-# errors.sh — no matches outside bug report → correct message
+# errors.sh — string found only in bug report → "no matches outside bug report"
 # ---------------------------------------------------------------------------
-# Use a string that exists ONLY in the bug file and nowhere in the target repo
-TINY_REPO_ERR="${_TEST_BASE}/tiny_err"
-mkdir -p "$TINY_REPO_ERR"
 BUG_ONLY_STR="xXThisStringExistsOnlyInBugReportXx"
 printf '%s\n' "$BUG_ONLY_STR" > "${TMPDIR_RUN}/errors_nomatch.txt"
 BUG_ABS="${TMPDIR_RUN}/bug_nomatch.md"
 printf 'Bug report mentions "%s"\n' "$BUG_ONLY_STR" > "$BUG_ABS"
 
-export TARGET_REPO_ROOT="$TINY_REPO_ERR"
 export ERRORS_TXT="${TMPDIR_RUN}/errors_nomatch.txt"
 export BUG_SOURCE_FILE="$BUG_ABS"
 
@@ -98,28 +132,20 @@ printf '%s\n' "$out" | grep -q "no matches outside bug report" \
   && pass "errors.sh reports 'no matches outside bug report' when string found only in bug" \
   || fail "errors.sh did not report 'no matches outside bug report'"
 
-export TARGET_REPO_ROOT="$orig_target"
 export ERRORS_TXT="${TMPDIR_RUN}/errors.txt"
 export BUG_SOURCE_FILE=""
 
 # ---------------------------------------------------------------------------
 # errors.sh — bug.md excluded from results when BUG_SOURCE_FILE is set
 # ---------------------------------------------------------------------------
-TINY_REPO2="${_TEST_BASE}/tiny2"
-mkdir -p "${TINY_REPO2}/src"
-MATCH_STR="UniqueMatchableSearchString"
-# Put string in both a source file and a bug file
-printf '# source\n%s here\n' "$MATCH_STR" > "${TINY_REPO2}/src/main.py"
 BUG2="${TMPDIR_RUN}/bug2.md"
 printf 'Bug: "%s" observed\n' "$MATCH_STR" > "$BUG2"
 printf '%s\n' "$MATCH_STR" > "${TMPDIR_RUN}/errors2.txt"
 
-export TARGET_REPO_ROOT="$TINY_REPO2"
 export ERRORS_TXT="${TMPDIR_RUN}/errors2.txt"
 export BUG_SOURCE_FILE="$BUG2"
 
 out="$(bash "${TOOL_ROOT}/collectors/errors.sh" 2>/dev/null || true)"
-# Should find main.py but NOT bug2.md
 printf '%s\n' "$out" | grep -qF "src/main.py" \
   && pass "errors.sh finds match in source file" \
   || fail "errors.sh did not find match in source file"
@@ -127,7 +153,6 @@ printf '%s\n' "$out" | grep -qF "bug2.md" \
   && fail "errors.sh should exclude bug.md but it appeared in output" \
   || pass "errors.sh correctly excludes bug.md from results"
 
-export TARGET_REPO_ROOT="$orig_target"
 export ERRORS_TXT="${TMPDIR_RUN}/errors.txt"
 export BUG_SOURCE_FILE=""
 

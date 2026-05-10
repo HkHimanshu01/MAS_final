@@ -20,7 +20,21 @@ init_run_dir() {
   export LOG_FILE="${RUN_DIR}/log.jsonl"
   export BRIEFING="${RUN_DIR}/briefing.md"
   export ERRORS_TXT="${RUN_DIR}/errors.txt"
-  export AGENT1_PROMPT="${RUN_DIR}/agent1_prompt.md"
+
+  # Agent 1a — investigation phase (free-text, no schema)
+  export AGENT1A_PROMPT="${RUN_DIR}/agent1a_prompt.md"
+  export AGENT1A_OUTPUT="${RUN_DIR}/agent1a_output.txt"
+  export AGENT1A_LOG="${RUN_DIR}/agent1a.log"
+  export CHECKPOINT="${RUN_DIR}/checkpoint.json"
+
+  # Agent 1b — conclusion phase (schema-enforced, reads checkpoint)
+  export AGENT1B_PROMPT="${RUN_DIR}/agent1b_prompt.md"
+  export AGENT1B_LOG="${RUN_DIR}/agent1b.log"
+
+  # Legacy name kept for downstream compatibility (diagnosis.json is still the output)
+  export AGENT1_PROMPT="${RUN_DIR}/agent1a_prompt.md"
+  export AGENT1_LOG="${RUN_DIR}/agent1a.log"
+
   export AGENT2_PROMPT="${RUN_DIR}/agent2_prompt.md"
   export AGENT25_PROMPT="${RUN_DIR}/agent25_prompt.md"
   export DIAGNOSIS_RAW="${RUN_DIR}/diagnosis.raw.json"
@@ -32,7 +46,6 @@ init_run_dir() {
   export FIX_DIFF="${RUN_DIR}/patches/fix.diff"
   export REPORT="${RUN_DIR}/report.md"
   export COST_SUMMARY="${RUN_DIR}/cost_summary.json"
-  export AGENT1_LOG="${RUN_DIR}/agent1.log"
   export AGENT2_LOG="${RUN_DIR}/agent2.log"
   export AGENT25_LOG="${RUN_DIR}/agent25.log"
 }

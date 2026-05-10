@@ -57,11 +57,13 @@ RCA_REAL_REPO_ROOT=/path/to/click bash tests/test_real_repo_briefing.sh
 
 ---
 
-## Running the briefing test (Step 4.5)
+## Running the briefing test (Step 4.5+)
 
 ```bash
-make test-real-briefing
+make test-real-repo
 ```
+
+(`make test-real-briefing` is a backward-compatible alias for the same target.)
 
 This runs `tests/test_real_repo_briefing.sh` which:
 1. Checks out each bug's pre-fix commit in the clone

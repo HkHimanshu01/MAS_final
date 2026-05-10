@@ -28,6 +28,21 @@ source "${TOOL_ROOT}/config/defaults.env"
 source "${TOOL_ROOT}/lib/log.sh"
 
 # ---------------------------------------------------------------------------
+# Which bugs to run — default all 5, override with RCA_REAL_REPO_BUGS=1,4
+# ---------------------------------------------------------------------------
+_bugs_raw="${RCA_REAL_REPO_BUGS:-1,2,3,4,5}"
+IFS=',' read -ra BUGS_TO_RUN <<< "$_bugs_raw"
+
+# Validate: each entry must be 1–5
+for _b in "${BUGS_TO_RUN[@]}"; do
+  case "$_b" in
+    1|2|3|4|5) ;;
+    *) printf 'ERROR: invalid bug number "%s" in RCA_REAL_REPO_BUGS — must be 1-5\n' "$_b" >&2
+       exit 1 ;;
+  esac
+done
+
+# ---------------------------------------------------------------------------
 # Scoring helpers
 # ---------------------------------------------------------------------------
 TOTAL_PASS=0; TOTAL_PARTIAL=0; TOTAL_FAIL=0
@@ -66,7 +81,7 @@ score_bug() {
 
     # bug.md must not appear in Error Sources
     if grep -q "^## Error Sources" "$briefing"; then
-      err_section="$(awk '/^## Error Sources/,/^## [A-Z]/' "$briefing" | head -40)"
+      err_section="$(awk '/^## Error Sources/{flag=1;next} /^## /&&flag{flag=0} flag' "$briefing" | head -40)"
       printf '%s\n' "$err_section" | grep -qF "bug${bug_num}.md" \
         && fail_hard "bug.md appeared in Error Sources (circular evidence)" \
         || pass_hard "bug.md excluded from Error Sources"
@@ -82,13 +97,13 @@ score_bug() {
     done < "$fix_files_path"
 
     # Error Sources section non-empty
-    err_section="$(awk '/^## Error Sources/,/^## [A-Z]/' "$briefing" | grep -v '^##' | grep -v '^$' || true)"
+    err_section="$(awk '/^## Error Sources/{flag=1;next} /^## /&&flag{flag=0} flag' "$briefing" | grep -v '^$' || true)"
     [ -n "$err_section" ] \
       && pass_quality "Error Sources section has content" \
       || skip_quality "Error Sources section is empty"
 
     # Git History non-empty
-    git_section="$(awk '/^## Git History/,/^## [A-Z]/' "$briefing" | grep -v '^##' | grep -v '^(no files\|not a git)' | grep -v '^$' || true)"
+    git_section="$(awk '/^## Git History/{flag=1;next} /^## /&&flag{flag=0} flag' "$briefing" | grep -v '^\(no files\|not a git\)' | grep -v '^$' || true)"
     [ -n "$git_section" ] \
       && pass_quality "Git History section has content" \
       || skip_quality "Git History section empty"
@@ -172,12 +187,12 @@ run_briefing_for_bug() {
 printf 'RCA MAS — Real-Repo Briefing Test\n'
 printf 'Repo:    %s\n' "$REPO"
 printf 'Fixture: %s\n' "$FIXTURE_DIR"
-printf 'Bugs:    5 (pallets/click)\n\n'
+printf 'Bugs:    %s (pallets/click)\n\n' "$_bugs_raw"
 
 # Save current HEAD to restore after tests
 _orig_head="$(git -C "$REPO" rev-parse HEAD 2>/dev/null || echo 'UNKNOWN')"
 
-for bug_num in 1 2 3 4 5; do
+for bug_num in "${BUGS_TO_RUN[@]}"; do
   run_briefing_for_bug "$bug_num"
 done
 
@@ -189,9 +204,9 @@ git -C "$REPO" checkout "$_orig_head" -q 2>/dev/null || \
 # Summary
 # ---------------------------------------------------------------------------
 printf '\n============================================================\n'
-printf ' SUMMARY: %d PASS  %d PARTIAL  %d FAIL\n' \
-  "$TOTAL_PASS" "$TOTAL_PARTIAL" "$TOTAL_FAIL"
-printf ' Expected: Bug1=PASS Bug2=PASS Bug3=PASS/PARTIAL Bug4=PARTIAL Bug5=PARTIAL\n'
+printf ' SUMMARY: %d PASS  %d PARTIAL  %d FAIL  (bugs: %s)\n' \
+  "$TOTAL_PASS" "$TOTAL_PARTIAL" "$TOTAL_FAIL" "$_bugs_raw"
+printf ' Expected: Bug1=PASS Bug2=PASS Bug3=PASS Bug4=PASS Bug5=PASS\n'
 printf '============================================================\n'
 
 # Save scorecard

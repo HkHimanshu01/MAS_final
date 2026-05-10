@@ -1,0 +1,15 @@
+{
+  "run_id": "fixture-run",
+  "status": "TESTS_PASSED",
+  "worktree_path": "../.rca-mas-worktrees/fixture-run",
+  "applied_patch": true,
+  "generated_test": true,
+  "test_command": "pytest tests/test_pricing.py::test_apply_discount_unknown_code",
+  "commands_run": [
+    "git apply patches/fix.diff",
+    "pytest tests/test_pricing.py::test_apply_discount_unknown_code"
+  ],
+  "failures": [],
+  "regression_risk": "low",
+  "notes": ["All targeted tests passed after patch application."]
+}

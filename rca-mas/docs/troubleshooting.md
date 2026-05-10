@@ -1,5 +1,233 @@
 # Troubleshooting
 
-Symptoms, likely causes, and exact fixes for common failures.
+Symptoms, likely causes, and exact fix steps for common failures.
 
-> Full content added at Step 9.
+---
+
+## Briefing Problems
+
+### `briefing.md` is empty or missing
+
+**Symptom:** Run completes but `briefing.md` is 0 bytes or absent.
+
+**Causes and fixes:**
+1. `BUG_FILE` not set or points to wrong path → check that `rca-mas.sh` received the correct bug file argument
+2. `TARGET_REPO_ROOT` is wrong → confirm you `cd`'d into the target repo before running
+3. Script exited early due to permission error → check `log.jsonl` for ERROR-level events
+
+```bash
+cat .rca-mas/runs/latest/log.jsonl | jq 'select(.level=="error")'
+```
+
+---
+
+### `TEST_COMMAND: UNKNOWN` in briefing.md
+
+**Symptom:** Briefing completes but `TEST_COMMAND` is `UNKNOWN`.
+
+**Causes and fixes:**
+1. No test framework config file found → the target repo uses an unconventional test setup; manually set `TEST_COMMAND` in briefing.md before running agents, or add detection logic to `collectors/testrunner.sh`
+2. `testrunner.sh` timed out → check `## Briefing Warnings` section in briefing.md; increase `RCA_COLLECTOR_TIMEOUT`
+
+```bash
+grep "TEST_COMMAND\|Briefing Warnings" .rca-mas/runs/latest/briefing.md
+```
+
+---
+
+### `MENTIONED_FILES: (none)` when bug report mentions files
+
+**Symptom:** Briefing runs fine but no files appear in `MENTIONED_FILES`.
+
+**Causes and fixes:**
+1. The file mentioned in the bug report is not git-tracked (e.g. it's a user's script, not repo code) → expected behavior; Agent 1 will find the file via Grep instead
+2. The file has an unrecognised extension → add the extension to the allowed list in `briefing.sh` Phase 2
+3. The file path in the bug report uses Windows-style backslashes → briefing.sh uses POSIX regex; convert to forward slashes in the bug report
+
+---
+
+### Collector warnings in briefing
+
+**Symptom:** `## Briefing Warnings` section lists one or more collector failures.
+
+```
+## Briefing Warnings
+- collector git: timeout after 30s
+- collector deps: exit 1
+```
+
+**For timeout:**
+- Increase `RCA_COLLECTOR_TIMEOUT` (default 30s): `RCA_COLLECTOR_TIMEOUT=60 bash rca-mas.sh bug.md`
+- On Windows/MSYS2, collector startup is slow. 60s is a reasonable value for large repos.
+
+**For non-zero exit:**
+- Run the collector directly to see the error:
+
+```bash
+TARGET_REPO_ROOT=/path/to/repo \
+  MENTIONED_FILES="src/foo.py" \
+  ERRORS_TXT=/tmp/errors.txt \
+  BRIEFING=/tmp/b.md \
+  bash scripts/collectors/deps.sh
+```
+
+---
+
+## Agent Problems
+
+### `diagnosis.json` has `status: PARTIAL` and `confidence: 0.4`
+
+**Symptom:** Agent 1 timed out. This is checkpoint recovery output.
+
+**Causes and fixes:**
+1. Repo is large and the tier budget was too low → increase turns or timeout:
+   ```bash
+   RCA_TURNS_L=70 RCA_TIMEOUT_L=900 bash rca-mas.sh bug.md
+   ```
+2. Bug is complex (requires tracing many call chains) → expected for hard bugs; try `claude-opus-4-7`:
+   ```bash
+   RCA_MODEL=claude-opus-4-7 bash rca-mas.sh bug.md
+   ```
+3. Claude Code hit a rate limit → wait and retry
+
+Check how many turns were used before timeout:
+```bash
+jq '.turns_used' .rca-mas/runs/latest/diagnosis.json
+cat .rca-mas/runs/latest/log.jsonl | jq 'select(.stage=="agent1")'
+```
+
+---
+
+### `solution.json` has `status: NO_FIX`
+
+**Symptom:** Agent 2 refused to produce a patch.
+
+**Cause:** `diagnosis.json` confidence was below `RCA_CONFIDENCE_NOFX` (default 0.5). This is intentional — a bad patch is worse than no patch.
+
+**Fix:** The diagnosis quality is insufficient. Options:
+1. Review `diagnosis.json` manually. If the root cause looks correct despite the low score, you can lower the threshold: `RCA_CONFIDENCE_NOFX=0.35 bash rca-mas.sh bug.md`
+2. Add more context to the bug report and re-run
+3. Switch to `claude-opus-4-7` for better diagnosis quality
+
+```bash
+jq '{status, confidence, root_cause}' .rca-mas/runs/latest/diagnosis.json
+```
+
+---
+
+### Agent output is not valid JSON
+
+**Symptom:** `jq` errors on `diagnosis.json` or schema validation fails.
+
+**Cause:** Claude produced text that the orchestrator failed to parse as JSON.
+
+**Fix:**
+1. Check the raw output:
+   ```bash
+   cat .rca-mas/runs/latest/raw_agent1_output.txt
+   ```
+2. If the JSON is present but wrapped in markdown fences (```json ... ```), the orchestrator's extraction regex failed → check the extraction logic in `rca-mas.sh`
+3. If the JSON is genuinely malformed, re-run (usually transient)
+
+---
+
+## Patch / Validation Problems
+
+### `validation.json` has `status: ERROR` (patch didn't apply)
+
+**Symptom:** Agent 2.5 could not apply the patch.
+
+**Causes and fixes:**
+1. Base commit mismatch — the patch was written against a different version of the file → re-run the full pipeline from scratch against the current HEAD
+2. Patch format issue — check the diff:
+   ```bash
+   cat .rca-mas/runs/latest/patches/*.diff
+   git apply --check .rca-mas/runs/latest/patches/*.diff
+   ```
+3. File path in patch is wrong → inspect `raw_agent2_output.txt` and manually edit the diff header
+
+---
+
+### `validation.json` has `status: FAIL` (tests failed)
+
+**Symptom:** Patch applied cleanly but tests failed.
+
+**This is expected information, not a tool failure.** The patch is likely incomplete or wrong. Options:
+1. Read `test_output_summary` in `validation.json` to see which tests failed
+2. Keep the worktree to investigate: `RCA_KEEP_WORKTREE=1 bash rca-mas.sh bug.md --validate`
+3. The patch is a starting point — apply it manually, fix the remaining failures, and commit
+
+```bash
+jq '{status, test_command, test_output_summary}' .rca-mas/runs/latest/validation.json
+```
+
+---
+
+## Test Suite Problems
+
+### `make test` fails on `test_briefing.sh`
+
+```bash
+bash tests/test_briefing.sh 2>&1 | grep FAIL
+```
+
+Common causes:
+- Briefing logic changed without updating the test assertions
+- `git` not available in PATH
+- Temp directory from previous failed test not cleaned up: `rm -rf /tmp/rca-mas-test-*`
+
+### `make lint` fails
+
+```bash
+bash -n scripts/briefing.sh
+```
+
+Run `bash -n` on each script until you find the syntax error.
+
+---
+
+## Platform-Specific
+
+### Windows / MSYS2: collectors are slow
+
+Briefing takes 15–30s on Windows due to bash and git process startup overhead. This is expected. Increase `RCA_COLLECTOR_TIMEOUT`:
+
+```bash
+RCA_COLLECTOR_TIMEOUT=60 bash rca-mas.sh bug.md
+```
+
+### Windows: `latest` symlink not found
+
+Windows may not support symlinks without developer mode. Check:
+
+```powershell
+ls .rca-mas\runs\
+```
+
+If `latest` is a file rather than a symlink, the orchestrator fell back to writing `latest` as a text file containing the RUN_ID. Read it with:
+
+```bash
+cat .rca-mas/runs/latest
+# Then read the actual run:
+cat .rca-mas/runs/$(cat .rca-mas/runs/latest)/report.md
+```
+
+---
+
+## Reading the Log
+
+`log.jsonl` is the most complete record of what happened:
+
+```bash
+# All events, formatted
+cat .rca-mas/runs/latest/log.jsonl | jq .
+
+# Warnings only
+cat .rca-mas/runs/latest/log.jsonl | jq 'select(.level == "warn")'
+
+# Timeline of stages
+cat .rca-mas/runs/latest/log.jsonl | jq '{ts, stage, msg}'
+
+# How long each stage took
+cat .rca-mas/runs/latest/log.jsonl | jq 'select(.duration_seconds != null) | {stage, duration_seconds}'
+```

@@ -1,0 +1,5 @@
+{
+  "run_id": "fixture-run",
+  "root_cause": "missing required fields to trigger schema failure",
+  "confidence": 1.5
+}

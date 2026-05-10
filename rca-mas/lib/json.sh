@@ -3,6 +3,38 @@
 # Inputs: file paths passed as arguments.
 # Outputs: extracted values or exits 1 on invalid JSON.
 
+# Extract the last valid JSON object from free-text output.
+# Agent 1a outputs prose then a JSON block; we want that block.
+# Strategy: find the last line starting with '{', read from there to EOF,
+# try progressively shorter suffixes until jq accepts it.
+extract_json_from_text() {
+  local text_file="$1" out_file="$2"
+  local text line_count last_json_line candidate
+
+  [ -f "$text_file" ] || return 1
+
+  # Find the last line that starts with '{' (the JSON object start)
+  last_json_line="$(grep -n '^{' "$text_file" | tail -1 | cut -d: -f1)"
+  [ -n "$last_json_line" ] || return 1
+
+  # Extract from that line to EOF and try to parse as JSON
+  candidate="$(tail -n +"$last_json_line" "$text_file")"
+  if printf '%s\n' "$candidate" | jq -e . > /dev/null 2>&1; then
+    printf '%s\n' "$candidate" | jq -e . > "$out_file"
+    return 0
+  fi
+
+  # If multi-line JSON is wrapped in markdown fences, strip them and retry
+  candidate="$(tail -n +"$last_json_line" "$text_file" \
+    | sed '/^```/d')"
+  if printf '%s\n' "$candidate" | jq -e . > /dev/null 2>&1; then
+    printf '%s\n' "$candidate" | jq -e . > "$out_file"
+    return 0
+  fi
+
+  return 1
+}
+
 # Extract .structured_output from Claude wrapper; fall back to .result if null.
 extract_structured() {
   local raw_file="$1" out_file="$2"

@@ -76,9 +76,45 @@ while IFS= read -r str; do
   fi
 
   if [ -n "$filtered" ]; then
-    printf '%s\n' "$filtered"
+    # Exclude changelog/doc files — they add noise, not diagnostic signal.
+    filtered="$(printf '%s\n' "$filtered" \
+      | grep -vE '\.(rst|md|txt|changelog|CHANGES|NEWS|HISTORY)' \
+      || true)"
+  fi
+
+  if [ -n "$filtered" ]; then
+    # Prioritise: src/ hits first, then tests, then everything else (mutually exclusive).
+    _src="$(printf '%s\n'  "$filtered" | grep -E '[/\\]src[/\\]'              || true)"
+    _tst="$(printf '%s\n'  "$filtered" | grep -vE '[/\\]src[/\\]' | grep -E '[/\\]test' || true)"
+    _rest="$(printf '%s\n' "$filtered" | grep -vE '[/\\]src[/\\]|[/\\]test'  || true)"
+    # Concatenate in priority order, drop empty sections.
+    _ordered="$(printf '%s\n' "$_src" "$_tst" "$_rest" | grep -v '^$' || true)"
+    printf '%s\n' "$_ordered"
   else
     printf '(no matches outside bug report)\n'
   fi
+
+  # If the search term looks like a method call (x.method or obj.method), also
+  # emit definition hits from src/ so Agent 1 sees the implementation, not just callers.
+  # Use a fixed path instead of mktemp to avoid one extra subprocess on Windows.
+  if printf '%s' "$str" | grep -qE '^\w+\.\w+$' && [ -d "${TARGET_REPO_ROOT}/src" ]; then
+    _method="$(printf '%s' "$str" | sed 's/.*\.//')"
+    _def_out=""
+    if command -v rg > /dev/null 2>&1; then
+      _def_out="$(rg -nF --glob '!.git' --glob '!.rca-mas' \
+        -- "def ${_method}" "${TARGET_REPO_ROOT}/src" \
+        2>/dev/null | head -10 || true)"
+    else
+      _def_out="$(grep -RFn --exclude-dir='.git' --exclude-dir='.rca-mas' \
+        -- "def ${_method}" "${TARGET_REPO_ROOT}/src" \
+        2>/dev/null | head -10 || true)"
+    fi
+    if [ -n "$_def_out" ]; then
+      printf '### Definition: def %s (in src/)\n' "$_method"
+      printf '%s\n' "$_def_out"
+      printf '\n'
+    fi
+  fi
+
   printf '\n'
 done < "$ERRORS_TXT"

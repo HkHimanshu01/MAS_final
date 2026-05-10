@@ -1,0 +1,110 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Diagnosis",
+  "description": "Agent 1 root-cause diagnosis output.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "run_id",
+    "root_cause",
+    "selected_hypothesis_id",
+    "hypotheses",
+    "rejected_hypotheses",
+    "affected_files",
+    "call_chain",
+    "files_examined",
+    "unknowns",
+    "confidence",
+    "introducing_commit",
+    "next_best_action"
+  ],
+  "properties": {
+    "run_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "root_cause": {
+      "type": "string",
+      "minLength": 1
+    },
+    "selected_hypothesis_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "hypotheses": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "summary", "supporting_evidence", "contradicting_evidence", "confidence"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "summary": { "type": "string", "minLength": 1 },
+          "supporting_evidence": {
+            "type": "array",
+            "items": { "$ref": "#/definitions/evidence_item" }
+          },
+          "contradicting_evidence": {
+            "type": "array",
+            "items": { "$ref": "#/definitions/evidence_item" }
+          },
+          "confidence": { "type": "number", "minimum": 0, "maximum": 1 }
+        }
+      }
+    },
+    "rejected_hypotheses": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "reason"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "reason": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "affected_files": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "call_chain": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "files_examined": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "unknowns": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "introducing_commit": {
+      "type": ["string", "null"]
+    },
+    "next_best_action": {
+      "type": "string",
+      "minLength": 1
+    }
+  },
+  "definitions": {
+    "evidence_item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "path", "lines", "note"],
+      "properties": {
+        "type": { "type": "string", "minLength": 1 },
+        "path": { "type": "string", "minLength": 1 },
+        "lines": { "type": "string" },
+        "note": { "type": "string" }
+      }
+    }
+  }
+}
