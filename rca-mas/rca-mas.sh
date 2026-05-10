@@ -111,9 +111,14 @@ if [ -n "$BUG_FILE" ] && [ ! -f "$BUG_FILE" ]; then
 fi
 
 # --- Prerequisite checks ---
-command -v git >/dev/null 2>&1 || die "git is required but not found. Install git."
-command -v jq  >/dev/null 2>&1 || die "jq is required but not found. Install jq."
+command -v git    >/dev/null 2>&1 || die "git is required but not found. Install git."
+command -v jq     >/dev/null 2>&1 || die "jq is required but not found. Install jq."
 command -v claude >/dev/null 2>&1 || die "Claude Code CLI is required but not found. Run: claude auth login"
+
+# rg (ripgrep) is strongly recommended — errors collector falls back to git grep without it,
+# but rg is significantly faster on Windows/MSYS2.
+command -v rg >/dev/null 2>&1 \
+  || warn "rg (ripgrep) not found — errors collector will use git grep (slower). Install ripgrep for best performance."
 
 if [ -n "$ISSUE_NUM" ]; then
   command -v gh >/dev/null 2>&1 || die "gh (GitHub CLI) is required for --issue. Install gh and run: gh auth login"

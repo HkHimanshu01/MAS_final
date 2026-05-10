@@ -190,20 +190,22 @@ Current status: **Steps 1–4.5 complete and locked.** Steps 5–6 in progress (
 
 | Situation | Command | Time | What it runs |
 | --- | --- | --- | --- |
-| Writing code, want fast feedback | `make test-fast` | ~2 min | lint + schemas + smoke |
-| Changed `briefing.sh` or a collector | `make test-briefing` | ~4 min | briefing + collectors |
-| Want quick real-repo signal | `make test-real-repo-quick` | ~40s | bugs 1 and 4 only |
-| Before moving to the next step | `make lint && make test` | ~6 min | all 4 synthetic suites |
-| Before locking a step as complete | `make test-full` | ~9 min | all synthetic + all 5 real-repo bugs |
+| Writing code, want fast feedback | `bash run.sh test-fast` | ~2 min | lint + schemas + smoke |
+| Changed `briefing.sh` or a collector | `bash run.sh test-briefing` | ~4 min | briefing + collectors |
+| Want quick real-repo signal | `bash run.sh test-real-repo-quick` | ~40s | bugs 1 and 4 only |
+| Before moving to the next step | `bash run.sh lint && bash run.sh test` | ~6 min | all 4 synthetic suites |
+| Before locking a step as complete | `bash run.sh test-full` | ~9 min | all synthetic + all 5 real-repo bugs |
 
 ### Step gate (required before each new step)
 ```bash
-make lint && make test
+bash run.sh lint && bash run.sh test
+# or if make is installed: make lint && make test
 ```
 
 ### Pre-lock gate (required before declaring a step complete)
 ```bash
-make test-full
+bash run.sh test-full
+# or if make is installed: make test-full
 ```
 
 ### Real-repo test setup
@@ -211,9 +213,9 @@ Requires the pallets/click clone at `C:/MAS_final/test-repos/click`:
 ```bash
 git clone https://github.com/pallets/click C:/MAS_final/test-repos/click
 ```
-Override location: `RCA_REAL_REPO_ROOT=/path/to/click make test-real-repo`
+Override location: `RCA_REAL_REPO_ROOT=/path/to/click bash run.sh test-real-repo`
 
-Run specific bugs only: `RCA_REAL_REPO_BUGS=1,4 make test-real-repo`
+Run specific bugs only: `RCA_REAL_REPO_BUGS=1,4 bash run.sh test-real-repo`
 
 ### What each suite tests
 
@@ -229,6 +231,8 @@ Run specific bugs only: `RCA_REAL_REPO_BUGS=1,4 make test-real-repo`
 
 ## Key commands
 
+If `make` is installed:
+
 ```bash
 make lint                    # bash -n syntax check on all scripts
 make test-fast               # lint + schemas + smoke (~2 min, use while coding)
@@ -242,4 +246,21 @@ make run                     # ./rca-mas.sh examples/bug.md
 make run-validate            # ./rca-mas.sh examples/bug.md --validate
 make report                  # cat .rca-mas/runs/latest/report.md
 make clean                   # rm -rf .rca-mas/runs .rca-mas-worktrees
+```
+
+If `make` is **not** installed (Windows/MSYS2 without make — use `run.sh`):
+
+```bash
+bash run.sh lint
+bash run.sh test-fast
+bash run.sh test-briefing
+bash run.sh test-schemas
+bash run.sh test
+bash run.sh test-real-repo-quick
+bash run.sh test-real-repo
+bash run.sh test-full
+bash run.sh run
+bash run.sh run-validate
+bash run.sh report
+bash run.sh clean
 ```

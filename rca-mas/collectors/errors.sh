@@ -199,9 +199,16 @@ printf -- '- Suppressed doc hits: %s\n' "$_doc_total"
 printf -- '- Suppressed test hits: %s\n' "$_tst_total"
 printf '\n'
 
+printf '### Patterns searched\n\n'
+while IFS= read -r _str; do
+  [ -z "$_str" ] && continue
+  printf '### Search: %s\n' "$_str"
+done < "$ERRORS_TXT"
+printf '\n'
+
 printf '### Source hits\n\n'
 if [ "$_shown" = "0" ]; then
-  printf '(no source hits found)\n'
+  printf '(no matches outside bug report)\n'
 else
   cat "$_ranked"
 fi
