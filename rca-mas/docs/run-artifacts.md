@@ -18,10 +18,18 @@ Every file produced under `.rca-mas/runs/{RUN_ID}/` during a run. What created i
             ├── briefing.md
             ├── errors.txt
             ├── test_command.txt
-            ├── agent1a_prompt.md        ← assembled investigation prompt
-            ├── agent1a_output.txt       ← raw text output from Agent 1a
-            ├── agent1a.log              ← Agent 1a stdout+stderr
-            ├── checkpoint.json          ← written by Agent 1a; read by Agent 1b
+            ├── agent1a_prompt.md              ← assembled investigation prompt
+            ├── agent1a_output.txt.stream      ← raw stream-json JSONL from claude
+            ├── agent1a_stderr.txt             ← stderr from claude (separate)
+            ├── agent1a_output.txt             ← extracted assistant text + finalization
+            ├── agent1a_evidence.txt           ← tool calls, tool results, result meta
+            ├── agent1a_findings.md            ← canonical FINAL FINDINGS (checkpoint writer input)
+            ├── agent1a_meta.env               ← session_id, stop_reason, exit_code
+            ├── agent1a_quality.env            ← quality=ok|weak, finalization, recovery status
+            ├── agent1a.log                    ← bash-level orchestrator log for Agent 1a stage
+            ├── agent1a_forced_summary.json    ← raw json from finalization claude call
+            ├── agent1a_write_prompt.md        ← checkpoint-write phase prompt
+            ├── checkpoint.json                ← written by checkpoint-write phase; read by Agent 1b
             ├── agent1b_prompt.md        ← assembled conclusion prompt
             ├── agent1b.log              ← Agent 1b stdout+stderr
             ├── diagnosis.raw.json       ← full Claude JSON wrapper from Agent 1b
@@ -148,31 +156,107 @@ Contains the detected test command on a single line, e.g. `pytest` or `go test .
 **Created by:** Orchestrator before Agent 1a runs
 **Read by:** Agent 1a (via `-p` flag), debugging
 
-The assembled investigation prompt: `prompts/investigation.md` + bug report + briefing + run metadata including `CHECKPOINT_PATH`.
+The assembled investigation prompt: `prompts/investigation.md` + bug report + briefing + run metadata.
+
+---
+
+### `agent1a_output.txt.stream`
+**Created by:** `claude --output-format stream-json` invocation — raw JSONL stdout
+**Read by:** `scripts/extract_agent1a_stream.sh`, debugging
+
+Raw stream-json events from the Agent 1a claude run. One JSON object per line. Stderr is kept separate in `agent1a_stderr.txt`. Use `jq -Rr 'fromjson?'` to parse — malformed lines are skipped silently.
+
+---
+
+### `agent1a_stderr.txt`
+**Created by:** Claude invocation stderr redirect
+**Read by:** Debugging only
+
+Stderr from the Agent 1a claude process. Must not contain stream-json events — those belong in `.stream`.
 
 ---
 
 ### `agent1a_output.txt`
-**Created by:** `run_claude_freetext()` — raw text output from Agent 1a
-**Read by:** Debugging only
+**Created by:** `scripts/extract_agent1a_stream.sh` (assistant text) + `scripts/finalize_agent1a_summary.sh` (appended finalization)
+**Read by:** `scripts/recover_agent1a_findings.sh`, debugging
 
-Free-text output from the investigation phase. Not structured JSON. The useful output is `checkpoint.json`, not this file.
+All assistant text turns extracted from the stream, with forced finalization output appended. Contains FINDINGS LEDGER entries and FINAL FINDINGS if the agent wrote them. Not the primary checkpoint input — use `agent1a_findings.md` for that.
+
+---
+
+### `agent1a_evidence.txt`
+**Created by:** `scripts/extract_agent1a_stream.sh`
+**Read by:** Checkpoint-write phase, `scripts/recover_agent1a_findings.sh`, debugging
+
+Full evidence transcript: assistant text, tool calls, tool results (clipped at 4096 bytes each), and run result metadata. This is the raw evidence record — prefer it over assistant narration when synthesising findings.
+
+---
+
+### `agent1a_findings.md`
+**Created by:** `scripts/finalize_agent1a_summary.sh` (primary), `scripts/recover_agent1a_findings.sh` (fallback)
+**Read by:** Checkpoint-write phase (primary input)
+
+Canonical FINAL FINDINGS in structured markdown. Always exists after Agent 1a stage. Quality gate verifies it has Root cause, Recommended fix, Confidence sections, and concrete code references before passing it to the checkpoint writer.
+
+---
+
+### `agent1a_meta.env`
+**Created by:** `scripts/extract_agent1a_stream.sh`
+**Read by:** `scripts/finalize_agent1a_summary.sh`, orchestrator
+
+Shell-sourceable key=value file. Always written even if claude exits non-zero or stream is empty.
+
+```
+session_id=<uuid or empty>
+stop_reason=<tool_use|end_turn|max_turns|empty>
+result_subtype=<value or empty>
+exit_code=<integer>
+```
+
+---
+
+### `agent1a_quality.env`
+**Created by:** `scripts/check_agent1a_quality.sh`
+**Read by:** Orchestrator (decides whether to run recovery), debugging
+
+```
+agent1a_quality=ok|weak
+agent1a_finalization=ok|failed|skipped
+agent1a_recovery=ok|failed|skipped
+agent1a_quality_reasons=<semicolon-separated reasons if weak>
+```
 
 ---
 
 ### `agent1a.log`
-**Created by:** Orchestrator (stdout+stderr from the Agent 1a subprocess)
+**Created by:** Orchestrator (bash-level log for Agent 1a stage helper scripts)
 **Read by:** Debugging only
 
-Contains bash-level logging from the Agent 1a invocation. Inspect this to diagnose tool permission errors or Claude exit codes.
+Contains output from `extract_agent1a_stream.sh`, `finalize_agent1a_summary.sh`, `check_agent1a_quality.sh`, and `recover_agent1a_findings.sh`.
+
+---
+
+### `agent1a_forced_summary.json`
+**Created by:** `scripts/finalize_agent1a_summary.sh`
+**Read by:** Debugging only
+
+Raw `--output-format json` response from the forced finalization claude call. Text extracted from `.result` and written to `agent1a_findings.md`.
+
+---
+
+### `agent1a_write_prompt.md`
+**Created by:** Orchestrator (checkpoint-write phase prompt assembly)
+**Read by:** Checkpoint-write phase claude call
+
+Contains: investigation_write.md + agent1a_findings.md + agent1a_evidence.txt + run metadata including `CHECKPOINT_PATH`.
 
 ---
 
 ### `checkpoint.json`
-**Created by:** Agent 1a (written at least twice during investigation)
-**Read by:** Agent 1b, orchestrator (timeout recovery)
+**Created by:** Checkpoint-write phase (claude call with Write tool)
+**Read by:** Agent 1b, orchestrator (seed fallback)
 
-The investigation's durable output. Agent 1a writes this early and updates it as findings accumulate. If Agent 1a is SIGKILL'd, the last-written checkpoint survives. The orchestrator writes a seed checkpoint before Agent 1a starts so there is always something to read.
+The investigation's durable structured output. Written by the checkpoint-write phase from `agent1a_findings.md` and `agent1a_evidence.txt`. If the write phase fails, the orchestrator writes a seed checkpoint pointing to the findings and evidence files.
 
 ```json
 {

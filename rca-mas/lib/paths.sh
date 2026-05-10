@@ -21,10 +21,19 @@ init_run_dir() {
   export BRIEFING="${RUN_DIR}/briefing.md"
   export ERRORS_TXT="${RUN_DIR}/errors.txt"
 
-  # Agent 1a — investigation phase (free-text, no schema)
+  # Agent 1a — investigation phase (toolful, no schema, no file writes)
   export AGENT1A_PROMPT="${RUN_DIR}/agent1a_prompt.md"
   export AGENT1A_OUTPUT="${RUN_DIR}/agent1a_output.txt"
   export AGENT1A_LOG="${RUN_DIR}/agent1a.log"
+
+  # Agent 1a stream artifacts (set -e safe extraction)
+  export AGENT1A_STREAM="${RUN_DIR}/agent1a_output.txt.stream"
+  export AGENT1A_STDERR="${RUN_DIR}/agent1a_stderr.txt"
+  export AGENT1A_EVIDENCE="${RUN_DIR}/agent1a_evidence.txt"
+  export AGENT1A_META_ENV="${RUN_DIR}/agent1a_meta.env"
+  export AGENT1A_QUALITY_ENV="${RUN_DIR}/agent1a_quality.env"
+  export AGENT1A_FINDINGS="${RUN_DIR}/agent1a_findings.md"
+
   export CHECKPOINT="${RUN_DIR}/checkpoint.json"
 
   # Agent 1b — conclusion phase (schema-enforced, reads checkpoint)

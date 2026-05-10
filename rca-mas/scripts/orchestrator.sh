@@ -139,7 +139,17 @@ source "${TOOL_ROOT}/scripts/briefing.sh"
 stage_end "briefing" "ok"
 
 # ============================================================
-# STAGE: Agent 1a — Investigation (freetext; JSON checkpoint extracted from output)
+# STAGE: Agent 1a — Investigation
+# Flow:
+#   1. Assemble prompt
+#   2. Run toolful investigation (set -e safe exit capture)
+#   3. Extract stream: text, evidence, metadata
+#   4. Run forced no-tool finalization via --resume
+#   5. Quality gate (first pass)
+#   6. If weak, run recovery from evidence
+#   7. Quality gate (second pass, final)
+#   8. Write checkpoint from findings + evidence
+# Non-zero Claude exit is recoverable — never stops this flow.
 # ============================================================
 info "Agent 1a: investigation..."
 stage_begin
@@ -154,30 +164,25 @@ case "$_REPO_TIER" in
 esac
 
 # --- Assemble agent1a_prompt.md ---
-# Structure: investigation system prompt, then bug report, then briefing, then run metadata
 {
   cat "${TOOL_ROOT}/prompts/investigation.md"
   printf '\n\n---\n\n## Bug Report\n\n'
   cat "$BUG_FILE"
   printf '\n\n---\n\n## Briefing\n\n'
   cat "$BRIEFING"
-  printf '\n\n---\n\n'
-  printf '## Run Metadata\n\n'
+  printf '\n\n---\n\n## Run Metadata\n\n'
   printf 'RUN_ID: %s\n' "$RUN_ID"
   printf 'TARGET_REPO_ROOT: %s\n' "$TARGET_REPO_ROOT"
   printf 'RUN_DIR: %s\n' "$RUN_DIR"
-  printf 'CHECKPOINT_PATH: %s\n' "$CHECKPOINT"
   printf 'CONFIDENCE_STOP: %s\n' "${RCA_CONFIDENCE_STOP}"
 } > "$AGENT1A_PROMPT"
 
 log_event "info" "agent1a" "prompt assembled" "turns=${_A1A_TURNS}" "timeout=${_A1A_TIMEOUT}" "tier=${_REPO_TIER}"
 
-# --- Invoke Agent 1a under timeout ---
-# Agent 1a is split into two sub-phases:
-#   Phase 1 (investigate): Read, Grep, Glob, Bash — NO Write tool. Agent uses all turns
-#     for investigation and cannot defer or skip the checkpoint by running out of turns.
-#   Phase 2 (write): Write tool only, 2 turns. A separate invocation receives the
-#     investigation text and serialises it into checkpoint.json. Structurally guaranteed.
+# --- Step 2: Toolful investigation (set -e safe) ---
+# Agent 1a uses Read/Grep/Glob/Bash only. Never Write. Never edits files.
+# max_turns is an emergency cap — agent writes FINAL FINDINGS when confident.
+# stderr is kept separate from stream-json stdout.
 _A1A_TOOLS="Read,Grep,Glob,Bash"
 _A1A_ALLOW=(
   "Bash(git log *)"
@@ -192,120 +197,171 @@ _A1A_ALLOW=(
   "Bash(wc *)"
   "Bash(head *)"
   "Bash(tail *)"
+  "Bash(ls *)"
+  "Bash(sed *)"
 )
 
 _A1A_STATUS="ok"
-export TOOL_ROOT RUN_DIR CHECKPOINT AGENT1A_PROMPT RCA_MODEL
-export _A1A_TURNS _A1A_TOOLS
-_A1A_ALLOW_SERIAL="$(printf '%s\0' "${_A1A_ALLOW[@]}" | base64)"
-export _A1A_ALLOW_SERIAL
+_A1A_STREAM="${AGENT1A_STREAM}"         # agent1a_output.txt.stream
+_A1A_STDERR="${AGENT1A_STDERR}"         # agent1a_stderr.txt
+_A1A_OUTPUT="${AGENT1A_OUTPUT}"         # agent1a_output.txt
+_A1A_EVIDENCE="${AGENT1A_EVIDENCE}"     # agent1a_evidence.txt
+_A1A_META_ENV="${AGENT1A_META_ENV}"     # agent1a_meta.env
+_A1A_QUALITY_ENV="${AGENT1A_QUALITY_ENV}" # agent1a_quality.env
+_A1A_FINDINGS="${AGENT1A_FINDINGS}"     # agent1a_findings.md
 
-_A1A_RAW="${RUN_DIR}/agent1a_output.txt"
-export _A1A_RAW
+# Build allowed-tools flags inline (no subshell serialization needed — we call claude directly)
+_A1A_ALLOW_FLAGS=()
+for _rule in "${_A1A_ALLOW[@]}"; do
+  _A1A_ALLOW_FLAGS+=(--allowedTools "$_rule")
+done
 
-# Phase 1: investigation only (no Write tool — agent cannot defer checkpoint)
-if ! timeout "${_A1A_TIMEOUT}" bash -c '
-  source "${TOOL_ROOT}/lib/log.sh"
-  source "${TOOL_ROOT}/lib/json.sh"
-  source "${TOOL_ROOT}/scripts/claude_json.sh"
-  readarray -d "" -t _allow < <(printf "%s" "$_A1A_ALLOW_SERIAL" | base64 -d)
-  run_claude_freetext \
-    "$AGENT1A_PROMPT" \
-    "$_A1A_RAW" \
-    "$_A1A_TURNS" \
-    "$_A1A_TOOLS" \
-    "${_allow[@]}"
-' >> "$AGENT1A_LOG" 2>&1; then
+_A1A_MODEL_FLAG=()
+[ -n "${RCA_MODEL:-}" ] && _A1A_MODEL_FLAG=(--model "${RCA_MODEL}")
+
+# set -e safe capture: initialize exit_code=0, let || capture non-zero
+_A1A_EXIT=0
+timeout "${_A1A_TIMEOUT}" claude \
+  -p "$(cat "$AGENT1A_PROMPT")" \
+  --output-format stream-json \
+  --verbose \
+  --max-turns "${_A1A_TURNS}" \
+  --tools "${_A1A_TOOLS}" \
+  "${_A1A_MODEL_FLAG[@]}" \
+  "${_A1A_ALLOW_FLAGS[@]}" \
+  > "${_A1A_STREAM}" \
+  2> "${_A1A_STDERR}" \
+  || _A1A_EXIT=$?
+
+if [ "$_A1A_EXIT" -ne 0 ]; then
+  # Non-zero exit is expected on max_turns (stop_reason=tool_use) — not a fatal error.
+  # stop_reason and session_id extraction below determines recovery path.
   _A1A_STATUS="degraded"
-  warn "Agent 1a investigation phase failed or timed out"
-  log_event "warn" "agent1a" "investigation phase failed or timed out"
+  log_event "warn" "agent1a" "investigation phase exited non-zero" "exit=${_A1A_EXIT}"
 fi
 
-# Phase 1b: summary injection — if the agent hit max_turns mid-tool-use, resume with
-# 1 no-tool turn to force a findings summary before the write phase runs.
-_A1A_STREAM="${_A1A_RAW}.stream"
-_A1A_STOP_REASON="$(cat "${_A1A_RAW}.stop_reason" 2>/dev/null || true)"
-_A1A_SESSION_ID="$(cat "${_A1A_RAW}.session_id" 2>/dev/null || true)"
+# --- Step 3: Extract stream artifacts ---
+# Always runs regardless of exit code. Uses jq -Rr 'fromjson?' — malformed lines skipped.
+bash "${TOOL_ROOT}/scripts/extract_agent1a_stream.sh" \
+  "${_A1A_STREAM}" \
+  "${_A1A_OUTPUT}" \
+  "${_A1A_EVIDENCE}" \
+  "${_A1A_META_ENV}" \
+  "${_A1A_EXIT}" \
+  >> "${AGENT1A_LOG}" 2>&1 || true
 
-if [ "${_A1A_STOP_REASON}" = "tool_use" ] && [ -n "${_A1A_SESSION_ID}" ]; then
-  log_event "info" "agent1a" "resuming for summary turn" "session=${_A1A_SESSION_ID}"
-  _A1A_SUMMARY_STREAM="${RUN_DIR}/agent1a_summary.stream"
-  _A1A_SUMMARY_MODEL=()
-  [ -n "${RCA_MODEL:-}" ] && _A1A_SUMMARY_MODEL=(--model "${RCA_MODEL}")
-  if claude \
-      --resume "${_A1A_SESSION_ID}" \
-      -p "Time is up. No more tool calls. Write a plain-text findings summary now: root cause, affected files, key evidence, and recommended fix. Be specific — include file paths and line numbers." \
-      --output-format stream-json \
-      --verbose \
-      --max-turns 1 \
-      --tools "" \
-      "${_A1A_SUMMARY_MODEL[@]}" \
-      > "$_A1A_SUMMARY_STREAM" 2>&1; then
-    jq -r 'select(.type == "assistant") | .message.content[]? | select(.type == "text") | .text' \
-      "$_A1A_SUMMARY_STREAM" 2>/dev/null >> "$_A1A_RAW" || true
-    log_event "info" "agent1a" "summary turn appended"
-  else
-    log_event "warn" "agent1a" "summary resume failed — proceeding with partial text"
-  fi
+# Read metadata extracted from stream
+_A1A_SESSION_ID="$(grep '^session_id=' "${_A1A_META_ENV}" 2>/dev/null | cut -d= -f2- | head -1 || true)"
+_A1A_STOP_REASON="$(grep '^stop_reason=' "${_A1A_META_ENV}" 2>/dev/null | cut -d= -f2- | head -1 || true)"
+log_event "info" "agent1a" "stream extracted" \
+  "stop_reason=${_A1A_STOP_REASON}" \
+  "session_id_present=$([ -n "${_A1A_SESSION_ID}" ] && echo yes || echo no)"
+
+# --- Step 4: Forced no-tool finalization ---
+# Always runs when session_id is available. Standardises output regardless of stop_reason.
+# Appends FINAL FINDINGS to agent1a_output.txt and writes agent1a_findings.md.
+bash "${TOOL_ROOT}/scripts/finalize_agent1a_summary.sh" \
+  "${RUN_DIR}" \
+  "${TOOL_ROOT}" \
+  >> "${AGENT1A_LOG}" 2>&1 || true
+
+# --- Step 5: Quality gate (first pass) ---
+bash "${TOOL_ROOT}/scripts/check_agent1a_quality.sh" \
+  "${RUN_DIR}" \
+  >> "${AGENT1A_LOG}" 2>&1 || true
+
+_A1A_QUALITY="$(grep '^agent1a_quality=' "${_A1A_QUALITY_ENV}" 2>/dev/null | cut -d= -f2- | head -1 || true)"
+log_event "info" "agent1a" "quality gate (pass 1)" "quality=${_A1A_QUALITY:-unknown}"
+
+# --- Steps 6-7: Recovery + second quality gate if weak ---
+if [ "${_A1A_QUALITY}" = "weak" ] || [ -z "${_A1A_QUALITY}" ]; then
+  log_event "info" "agent1a" "quality weak — running evidence recovery"
+  bash "${TOOL_ROOT}/scripts/recover_agent1a_findings.sh" \
+    "${RUN_DIR}" \
+    "${TOOL_ROOT}" \
+    >> "${AGENT1A_LOG}" 2>&1 || true
+
+  # Re-run quality gate after recovery
+  bash "${TOOL_ROOT}/scripts/check_agent1a_quality.sh" \
+    "${RUN_DIR}" \
+    >> "${AGENT1A_LOG}" 2>&1 || true
+
+  _A1A_QUALITY="$(grep '^agent1a_quality=' "${_A1A_QUALITY_ENV}" 2>/dev/null | cut -d= -f2- | head -1 || true)"
+  log_event "info" "agent1a" "quality gate (pass 2)" "quality=${_A1A_QUALITY:-unknown}"
 fi
 
-# Phase 2: write checkpoint from investigation text (Write tool only, 2 turns)
-# Runs even if phase 1 degraded — writes whatever text was captured.
-# Outer-shell stream extraction as fallback if subshell path resolution failed.
-if [ ! -s "$_A1A_RAW" ] && [ -s "$_A1A_STREAM" ]; then
-  jq -r 'select(.type == "assistant") | .message.content[]? | select(.type == "text") | .text' \
-    "$_A1A_STREAM" 2>/dev/null > "$_A1A_RAW" || true
-fi
+# Ensure agent1a_quality.env always exists
+touch "${_A1A_QUALITY_ENV}" 2>/dev/null || true
 
+# --- Step 8: Write checkpoint from findings + evidence ---
+# Checkpoint writer receives: findings.md (primary), evidence.txt (fallback), bug.md, briefing.md
 _A1A_WRITE_PROMPT="${RUN_DIR}/agent1a_write_prompt.md"
-_A1A_WRITE_RAW="${RUN_DIR}/agent1a_write_output.txt"
-export _A1A_WRITE_PROMPT _A1A_WRITE_RAW
+_A1A_WRITE_OUTPUT="${RUN_DIR}/agent1a_write_output.txt"
 
 {
   cat "${TOOL_ROOT}/prompts/investigation_write.md"
-  printf '\n\n---\n\n## Investigation text\n\n'
-  if [ -s "$_A1A_RAW" ]; then
-    cat "$_A1A_RAW"
+  printf '\n\n---\n\n## 1. agent1a_findings.md (canonical findings)\n\n'
+  if [ -s "${_A1A_FINDINGS}" ]; then
+    cat "${_A1A_FINDINGS}"
   else
-    printf '(Agent 1a produced no output)\n'
+    printf '(agent1a_findings.md is empty — use evidence transcript below)\n'
   fi
-  printf '\n\n---\n\n'
-  printf '## Run Metadata\n\n'
+  printf '\n\n---\n\n## 2. agent1a_evidence.txt (tool calls and tool results)\n\n'
+  if [ -s "${_A1A_EVIDENCE}" ]; then
+    # Cap evidence at 8000 chars to avoid prompt overflow — prefer recent entries (tail)
+    _EV_SIZE="$(wc -c < "${_A1A_EVIDENCE}" | tr -d '[:space:]')"
+    if [ "${_EV_SIZE:-0}" -gt 8000 ]; then
+      printf '... [evidence truncated — showing last 8000 bytes]\n\n'
+      tail -c 8000 "${_A1A_EVIDENCE}"
+    else
+      cat "${_A1A_EVIDENCE}"
+    fi
+  else
+    printf '(agent1a_evidence.txt is empty)\n'
+  fi
+  printf '\n\n---\n\n## Run Metadata\n\n'
   printf 'CHECKPOINT_PATH: %s\n' "$CHECKPOINT"
   printf 'TARGET_REPO_ROOT: %s\n' "$TARGET_REPO_ROOT"
 } > "$_A1A_WRITE_PROMPT"
 
 _A1A_WRITE_TOOLS="Write"
 _A1A_WRITE_ALLOW=("Write(${RUN_DIR}/**)")
-export _A1A_WRITE_TOOLS
-_A1A_WRITE_ALLOW_SERIAL="$(printf '%s\0' "${_A1A_WRITE_ALLOW[@]}" | base64)"
-export _A1A_WRITE_ALLOW_SERIAL
+_A1A_WRITE_ALLOW_FLAGS=()
+for _rule in "${_A1A_WRITE_ALLOW[@]}"; do
+  _A1A_WRITE_ALLOW_FLAGS+=(--allowedTools "$_rule")
+done
 
-if ! timeout 120 bash -c '
-  source "${TOOL_ROOT}/lib/log.sh"
-  source "${TOOL_ROOT}/lib/json.sh"
-  source "${TOOL_ROOT}/scripts/claude_json.sh"
-  readarray -d "" -t _allow < <(printf "%s" "$_A1A_WRITE_ALLOW_SERIAL" | base64 -d)
-  run_claude_freetext \
-    "$_A1A_WRITE_PROMPT" \
-    "$_A1A_WRITE_RAW" \
-    "2" \
-    "$_A1A_WRITE_TOOLS" \
-    "${_allow[@]}"
-' >> "$AGENT1A_LOG" 2>&1; then
-  log_event "warn" "agent1a" "write phase failed — falling back to text extraction"
+_A1A_WRITE_EXIT=0
+timeout 180 claude \
+  -p "$(cat "$_A1A_WRITE_PROMPT")" \
+  --output-format stream-json \
+  --verbose \
+  --max-turns 2 \
+  --tools "${_A1A_WRITE_TOOLS}" \
+  "${_A1A_MODEL_FLAG[@]}" \
+  "${_A1A_WRITE_ALLOW_FLAGS[@]}" \
+  > "${_A1A_WRITE_OUTPUT}.stream" \
+  2> "${_A1A_WRITE_OUTPUT}.stderr" \
+  || _A1A_WRITE_EXIT=$?
+
+if [ "$_A1A_WRITE_EXIT" -ne 0 ]; then
+  log_event "warn" "agent1a" "write phase exited non-zero" "exit=${_A1A_WRITE_EXIT}"
 fi
 
-# Ensure checkpoint is valid JSON — write seed if missing or corrupt
+# --- Ensure checkpoint is valid JSON — write seed if missing or corrupt ---
 if [ ! -f "$CHECKPOINT" ] || ! jq -e . "$CHECKPOINT" > /dev/null 2>&1; then
   warn "Checkpoint missing or invalid after Agent 1a — writing seed"
+  log_event "warn" "agent1a" "checkpoint missing or invalid — writing seed"
   cat > "$CHECKPOINT" <<SEEDCP
-{"hypothesis": "Agent 1a did not complete — no checkpoint written.", "confidence": 0.0, "files_examined": [], "call_chain": [], "affected_files": [], "supporting_evidence": [], "unknowns": ["Agent 1a timed out or failed before producing output"], "introducing_commit": null, "next_best_action": "Re-run the pipeline or investigate manually."}
+{"hypothesis": "Agent 1a investigation did not produce a checkpoint. See agent1a_findings.md and agent1a_evidence.txt for raw findings.", "confidence": 0.0, "files_examined": [], "call_chain": [], "affected_files": [], "supporting_evidence": [], "unknowns": ["checkpoint writer did not produce valid JSON"], "introducing_commit": null, "next_best_action": "Inspect agent1a_findings.md and agent1a_evidence.txt in the run directory."}
 SEEDCP
 fi
 
 stage_end "agent1a" "$_A1A_STATUS"
-log_event "info" "agent1a" "investigation complete" "status=${_A1A_STATUS}"
+log_event "info" "agent1a" "investigation complete" \
+  "status=${_A1A_STATUS}" \
+  "quality=${_A1A_QUALITY:-unknown}" \
+  "stop_reason=${_A1A_STOP_REASON:-unknown}"
 
 # ============================================================
 # STAGE: Agent 1b — Conclusion (schema-enforced, reads checkpoint)

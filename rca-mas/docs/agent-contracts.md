@@ -7,9 +7,11 @@ Defines what each agent does, what it receives, what it is allowed to do, what i
 ## Agent 1a — Investigation
 
 ### Role
-Explore the codebase and determine the root cause of the bug described in the bug report. Form competing hypotheses. Gather evidence. Write a checkpoint file with all findings. Do NOT produce the final diagnosis JSON — that is Agent 1b's job.
+Explore the codebase and determine the root cause of the bug described in the bug report. Form competing hypotheses. Gather evidence. Write structured FINAL FINDINGS. Do NOT write files. Do NOT produce checkpoint JSON — that is the checkpoint-write phase's job.
 
-Agent 1a runs without a JSON schema constraint. This gives it freedom to use all its turns for investigation rather than reserving a final turn for schema-valid output. The checkpoint file is its durable output.
+Agent 1a runs without a JSON schema constraint. It uses Read/Grep/Glob/Bash tools to investigate. Every assistant turn must include a FINDINGS LEDGER updating its current hypothesis and evidence. When confidence reaches ≥0.70, it writes a FINAL FINDINGS section and stops using tools.
+
+After Agent 1a, the orchestrator runs forced finalization (no-tool resume), quality gate, optional evidence recovery, and checkpoint writing. This flow guarantees checkpoint.json is always produced — even if Agent 1a hits max_turns mid-tool-use.
 
 ### Inputs
 | Input | Source | Description |
@@ -19,61 +21,84 @@ Agent 1a runs without a JSON schema constraint. This gives it freedom to use all
 
 The prompt is assembled in `orchestrator.sh` in this order:
 
-1. `prompts/investigation.md` — role, security block, strategy, checkpoint format, output spec
+1. `prompts/investigation.md` — role, security block, FINDINGS LEDGER rule, investigation policy, FINAL FINDINGS format
 2. `## Bug Report` — contents of `bug.md`
 3. `## Briefing` — contents of `briefing.md` (metadata, error sources, git history, deps, test mapping)
-4. `## Run Metadata` — `RUN_ID`, `TARGET_REPO_ROOT`, `RUN_DIR`, `CHECKPOINT_PATH`, confidence thresholds
+4. `## Run Metadata` — `RUN_ID`, `TARGET_REPO_ROOT`, `RUN_DIR`, confidence threshold
 
 ### Allowed Tools
 
 - **Read** — read any source file in `TARGET_REPO_ROOT`
 - **Grep** — search file contents
 - **Glob** — list files matching a pattern
-- **Bash** — read-only commands: `git log`, `git show`, `git diff`, `git blame`, `git status`, `grep`, `rg`, `find`, `cat`, `wc`, `head`, `tail`
-- **Write** — only to `RUN_DIR/**` (checkpoint file only)
+- **Bash** — read-only commands: `git log`, `git show`, `git diff`, `git blame`, `git status`, `grep`, `rg`, `find`, `cat`, `wc`, `head`, `tail`, `ls`, `sed`
 
 ### Forbidden
 
+- **Write** — Agent 1a must never write any file
 - Edit source files in the repository
 - Run tests or execute application code
 - Network access (`curl`, `wget`, `ssh`)
 - Read credential files (`.env`, `.pem`, `.key`, `id_rsa`, etc.)
-- Write `diagnosis.json` — that is Agent 1b's job
+- Write `checkpoint.json` or `diagnosis.json` — those are downstream phases
 
 ### Confidence & Early Stop
-Agent 1a tracks confidence as it investigates. When confidence exceeds `RCA_CONFIDENCE_STOP` (default `0.7`), it should write a final checkpoint and stop. It does not need to emit JSON — the final checkpoint write IS its stopping action.
+Agent 1a tracks confidence in every FINDINGS LEDGER entry. When confidence reaches `RCA_CONFIDENCE_STOP` (default `0.7`), it writes FINAL FINDINGS and stops using tools. max_turns is an emergency cap, not the stopping mechanism.
 
-### Output
-File: `RUN_DIR/checkpoint.json`
+### Output text format (FINDINGS LEDGER every turn, FINAL FINDINGS at stop)
 
-Agent 1a writes this file at least twice: once early (after 2–3 files), and once as a final summary before stopping. The conclusion phase (Agent 1b) reads this file.
-
-```json
-{
-  "hypothesis": "get_error_hint() constructs the error string unconditionally when show_envvar=True, without checking whether envvar is None. The guard `if self.show_envvar and self.envvar is not None` is missing.",
-  "confidence": 0.85,
-  "files_examined": ["src/click/core.py", "src/click/_utils.py", "tests/test_basic.py"],
-  "call_chain": ["core.py:Option.type_cast_value()", "core.py:Option.get_error_hint()", "core.py:Option._resolve_envvar_value()"],
-  "affected_files": ["src/click/core.py"],
-  "supporting_evidence": [
-    {
-      "type": "code",
-      "path": "src/click/core.py",
-      "lines": "412-418",
-      "note": "get_error_hint() includes envvar in error string without None check"
-    }
-  ],
-  "rejected_hypotheses": [
-    {"id": "h2", "reason": "error formatting is correct — problem is in the guard upstream"}
-  ],
-  "unknowns": ["whether the bug exists on Python 3.8 or only 3.9+"],
-  "introducing_commit": "a3f9c12d...",
-  "next_best_action": "Add `and self.envvar is not None` to the show_envvar guard at core.py:414"
-}
+Every assistant turn must begin with a FINDINGS LEDGER:
+```
+## FINDINGS LEDGER
+- Current hypothesis:
+- Evidence found:
+- Affected files:
+- Confidence:
+- Next action:
+- Reason for next action:
 ```
 
+When ready to stop (confidence ≥0.70 or turns exhausted), write:
+```
+## FINAL FINDINGS
+
+### Root cause
+One precise paragraph.
+
+### Affected files
+- path:line/function — relevance
+
+### Key evidence
+- path:line/function — observed fact
+
+### Alternative considered
+Alternative and why less likely.
+
+### Recommended fix
+Concrete code-level change.
+
+### Confidence
+0.00–1.00
+```
+
+### Run artifacts produced
+After the orchestrator processes Agent 1a, the run directory contains:
+
+| File | Description |
+|---|---|
+| `agent1a_output.txt.stream` | Raw stream-json JSONL from claude |
+| `agent1a_stderr.txt` | stderr from claude invocation (separate from stream) |
+| `agent1a_output.txt` | Extracted assistant text + appended finalization output |
+| `agent1a_evidence.txt` | Full evidence transcript: text, tool calls, tool results, result metadata |
+| `agent1a_findings.md` | Canonical FINAL FINDINGS — primary checkpoint writer input |
+| `agent1a_meta.env` | `session_id=`, `stop_reason=`, `result_subtype=`, `exit_code=` |
+| `agent1a_quality.env` | `agent1a_quality=ok\|weak`, `agent1a_finalization=ok\|failed\|skipped`, `agent1a_recovery=ok\|failed\|skipped` |
+
+### stop_reason=tool_use is recoverable
+If max_turns is hit mid-tool-use (stop_reason=tool_use), the orchestrator resumes with `--resume <session_id> --tools "" --max-turns 1` and requests FINAL FINDINGS. This is the forced finalization step. stop_reason=tool_use is NOT a pipeline failure.
+
 ### Timeout Recovery
-If Agent 1a times out (SIGKILL), the orchestrator reads whatever checkpoint was last written. If only the seed checkpoint exists (confidence 0.0), Agent 1b will emit a minimal honest diagnosis. The pipeline never produces zero output.
+If forced finalization fails or session_id is unavailable, the recovery script synthesises findings from the evidence transcript using a no-tools no-resume Claude call. The pipeline never produces zero output.
 
 ---
 

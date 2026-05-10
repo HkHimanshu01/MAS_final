@@ -91,51 +91,52 @@ If a collector times out (exit 124) or fails (non-zero): the failure is logged t
 
 ---
 
-## Stage 2a — Agent 1a: Investigation (free-text, no schema)
+## Stage 2a — Agent 1a: Investigation (free-text, no schema, no file writes)
 
-**Script:** `orchestrator.sh` → `run_claude_freetext()` in `scripts/claude_json.sh`
+**Scripts:** `orchestrator.sh` (invokes `claude` directly) + helper scripts in `scripts/`
 
-**What happens:**
-1. Orchestrator assembles `agent1a_prompt.md` from `prompts/investigation.md` + bug report + briefing + run metadata (including `CHECKPOINT_PATH`)
-2. Orchestrator writes a seed `checkpoint.json` (confidence 0.0) as a recovery baseline
-3. Agent 1a runs under `timeout $RCA_A1A_TIMEOUT` with `--max-turns $RCA_A1A_TURNS`
-4. No `--json-schema` — Agent 1a is free to use all turns for investigation
-5. Agent 1a reads source files, traces call chains, forms hypotheses
-6. Agent 1a writes `checkpoint.json` after reading its first 2–3 files, then updates it after each major finding
-7. When confidence exceeds `RCA_CONFIDENCE_STOP` (0.7), Agent 1a writes a final checkpoint and stops
-8. On timeout (SIGKILL): whatever checkpoint was last written survives — never zero output
+**What happens (10-step flow):**
 
-**Turn budgets by tier (generous — investigation is the expensive phase):**
+1. Orchestrator assembles `agent1a_prompt.md` from `prompts/investigation.md` + bug report + briefing + run metadata
+2. Toolful investigation: `claude --output-format stream-json --max-turns $RCA_A1A_TURNS --tools "Read,Grep,Glob,Bash"` — stderr kept separate from stream stdout
+3. Stream extracted: `scripts/extract_agent1a_stream.sh` produces `agent1a_output.txt`, `agent1a_evidence.txt`, `agent1a_meta.env` (session_id, stop_reason, exit_code)
+4. Forced finalization: `scripts/finalize_agent1a_summary.sh` resumes via `--resume <session_id> --tools "" --max-turns 1` and requests FINAL FINDINGS — runs for every Agent 1a session
+5. Quality gate (pass 1): `scripts/check_agent1a_quality.sh` marks `agent1a_quality=ok|weak`
+6. If weak: `scripts/recover_agent1a_findings.sh` synthesises findings from evidence transcript using a no-tools no-resume Claude call
+7. Quality gate (pass 2): re-checks after recovery
+8. Checkpoint write: checkpoint-write phase receives `agent1a_findings.md` + `agent1a_evidence.txt` and writes `checkpoint.json`
+
+**max_turns is an emergency cap, not the stopping mechanism.** Agent 1a writes FINAL FINDINGS when confidence ≥0.70. stop_reason=tool_use is recoverable — forced finalization handles it.
+
+**Turn budgets by tier:**
+
 | Tier | Max turns | Timeout |
 |---|---|---|
-| XS | 20 | 360s |
-| S  | 30 | 900s |
-| M  | 45 | 1500s |
-| L  | 60 | 2400s |
+| XS | 15 | 900s |
+| S  | 25 | 900s |
+| M  | 30 | 900s |
+| L  | 40 | 900s |
 
-**Allowed tools:** Read, Grep, Glob, Bash (read-only commands), Write (checkpoint only)
-**Forbidden:** Edit, schema output, running tests, network access
+**Allowed tools:** Read, Grep, Glob, Bash (read-only: `git log/show/blame/diff/status`, `grep`, `rg`, `find`, `cat`, `wc`, `head`, `tail`, `ls`, `sed`)
 
-**Inputs:** `agent1a_prompt.md`, repo source files (read-only), `prompts/investigation.md`
-**Outputs:** `RUN_DIR/checkpoint.json`, `RUN_DIR/agent1a_output.txt`, `RUN_DIR/agent1a.log`
+**Forbidden:** Write, Edit, running tests, executing project code, network access
 
-**checkpoint.json shape:**
-```json
-{
-  "hypothesis": "...",
-  "confidence": 0.85,
-  "files_examined": ["src/foo.py"],
-  "call_chain": ["..."],
-  "affected_files": ["src/foo.py"],
-  "supporting_evidence": [{"type": "code", "path": "...", "lines": "...", "note": "..."}],
-  "rejected_hypotheses": [{"id": "h2", "reason": "..."}],
-  "unknowns": ["..."],
-  "introducing_commit": null,
-  "next_best_action": "..."
-}
-```
+**Inputs:** `agent1a_prompt.md`, repo source files (read-only)
 
-**Failure:** Timeout → last-written checkpoint survives. If only seed checkpoint exists, Agent 1b will emit a minimal honest diagnosis. Pipeline continues in all cases.
+**Outputs:**
+
+| File | Description |
+|---|---|
+| `agent1a_output.txt.stream` | Raw stream-json JSONL from claude |
+| `agent1a_stderr.txt` | Stderr from claude (separate from stream) |
+| `agent1a_output.txt` | Extracted assistant text + finalization output |
+| `agent1a_evidence.txt` | Tool calls, tool results, result metadata |
+| `agent1a_findings.md` | Canonical FINAL FINDINGS — primary checkpoint writer input |
+| `agent1a_meta.env` | session_id, stop_reason, result_subtype, exit_code |
+| `agent1a_quality.env` | quality=ok\|weak, finalization, recovery status |
+| `checkpoint.json` | Written by checkpoint-write phase from findings + evidence |
+
+**Failure:** stop_reason=tool_use → forced finalization resumes session. Finalization failure → evidence recovery. All paths produce `agent1a_findings.md` and `checkpoint.json`. Pipeline continues in all cases.
 
 ---
 

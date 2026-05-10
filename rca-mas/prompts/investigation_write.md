@@ -1,12 +1,26 @@
 # Agent 1a — Write checkpoint
 
-You are the write phase of a bug investigation pipeline. Another agent has already investigated a bug and produced the investigation text below. Your only job is to serialise that investigation into a structured checkpoint JSON file.
+You are the checkpoint-write phase of a bug investigation pipeline.
+
+You receive four inputs:
+
+1. **agent1a_findings.md** — canonical Agent 1a findings (FINAL FINDINGS section).
+2. **agent1a_evidence.txt** — extracted tool calls and tool results from the investigation.
+3. **briefing.md** — repo briefing (metadata, error sources, git history).
+4. **bug.md** — original bug report.
 
 **You have 2 turns. Use your first turn to call Write. That is all you need to do.**
 
-Read the investigation text, extract the findings, and write a single valid JSON object to `CHECKPOINT_PATH` (shown in Run Metadata below).
+Read the findings and evidence, extract the facts, and write a single valid JSON object to `CHECKPOINT_PATH` (shown in Run Metadata below).
 
-If the investigation text is sparse or the agent found nothing useful, still write the checkpoint — use low confidence and honest unknowns. A checkpoint with `confidence: 0.1` is infinitely more useful than no checkpoint.
+If findings are weak, incomplete, or contradictory, recover facts from the evidence transcript.
+Prefer concrete TOOL_RESULT evidence over assistant narration.
+Do not treat "I'll inspect", "Let me check", or "Now I will" as findings.
+Use source file paths, line numbers, functions, classes, symbols, and observed facts.
+If evidence conflicts with findings, prefer evidence.
+
+A checkpoint with `confidence: 0.1` is infinitely more useful than no checkpoint.
+Do not produce empty fields when evidence contains usable facts.
 
 ---
 
@@ -16,7 +30,7 @@ Write a single valid JSON object to `CHECKPOINT_PATH`. Raw JSON only — no mark
 
 ```json
 {
-  "hypothesis": "<root cause in one paragraph — synthesise from the investigation text>",
+  "hypothesis": "<root cause in one paragraph — synthesised from findings and evidence>",
   "confidence": 0.6,
   "files_examined": ["src/foo.py"],
   "call_chain": ["foo.py:bar()", "baz.py:qux()"],
@@ -35,14 +49,14 @@ Write a single valid JSON object to `CHECKPOINT_PATH`. Raw JSON only — no mark
 
 Field rules:
 
-- `hypothesis`: synthesise from the investigation text — do not invent facts not present in it
-- `confidence`: 0.0–1.0. Match the confidence level implied by the investigation text.
-- `files_examined`: every file mentioned as read in the investigation text
-- `affected_files`: only files the investigation confirmed are involved in the bug
-- `introducing_commit`: full SHA if mentioned in the investigation text, otherwise null
-- `unknowns`: anything the investigation could not confirm — be honest
-- Do not invent evidence not present in the investigation text
+- `hypothesis`: synthesise from findings and evidence — do not invent facts not present in either
+- `confidence`: 0.0–1.0. Match the confidence level in FINAL FINDINGS; use 0.1 if only evidence available
+- `files_examined`: every file mentioned in findings or evidence transcript
+- `affected_files`: only files confirmed involved in the bug
+- `introducing_commit`: full SHA if mentioned, otherwise null
+- `unknowns`: anything neither findings nor evidence could confirm
+- Do not invent evidence not present in the provided inputs
 
 ---
 
-## Run Metadata and investigation text below
+## Run Metadata and inputs below

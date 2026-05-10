@@ -84,7 +84,7 @@ Each stage receives only the previous stage's output (context funnel). Agent 1b 
 
 | Agent | Tools | Bash allowed |
 |---|---|---|
-| Agent 1a (investigation) | Read, Grep, Glob, Bash, Write | git log/blame/show/diff/status, rg, grep, find; Write only to `.rca-mas/runs/**` (checkpoint only) |
+| Agent 1a (investigation) | Read, Grep, Glob, Bash | git log/blame/show/diff/status, rg, grep, find, cat, wc, head, tail, ls, sed — read-only only. Never Write. Never edits files. |
 | Agent 1b (conclusion) | Read, Grep, Glob | none — synthesis only, no investigation |
 | Agent 2 | Read, Grep, Glob | none |
 | Agent 2.5 | Read, Grep, Glob, Edit, Bash | git status/diff/apply, test runners (pytest/go test/npm test etc.), worktree only |
