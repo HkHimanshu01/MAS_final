@@ -50,6 +50,7 @@ run_claude_freetext() {
   local raw_file
   raw_file="${output_file}.stream"
 
+  local exit_code=0
   claude \
     -p "$(cat "$prompt_file")" \
     --output-format stream-json \
@@ -58,14 +59,19 @@ run_claude_freetext() {
     --tools "$tools" \
     "${model_flag[@]}" \
     "${allowed_flags[@]}" \
-    > "$raw_file" 2>&1
-  local exit_code=$?
+    > "$raw_file" 2>&1 || exit_code=$?
 
   # Extract all assistant text blocks from the saved stream and write to output_file.
   jq -r 'select(.type == "assistant") | .message.content[]? | select(.type == "text") | .text' \
     "$raw_file" \
     2>/dev/null \
     > "$output_file" || true
+
+  # Write session_id and stop_reason sidecars so the caller can resume if needed.
+  jq -r 'select(.type == "system") | .session_id // empty' \
+    "$raw_file" 2>/dev/null | head -1 > "${output_file}.session_id" || true
+  jq -r 'select(.type == "result") | .stop_reason // empty' \
+    "$raw_file" 2>/dev/null | head -1 > "${output_file}.stop_reason" || true
 
   if [ $exit_code -ne 0 ]; then
     warn "run_claude_freetext: claude exited $exit_code (text extracted to $output_file)"

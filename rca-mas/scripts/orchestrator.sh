@@ -173,10 +173,12 @@ esac
 log_event "info" "agent1a" "prompt assembled" "turns=${_A1A_TURNS}" "timeout=${_A1A_TIMEOUT}" "tier=${_REPO_TIER}"
 
 # --- Invoke Agent 1a under timeout ---
-# Agent 1a: Read, Grep, Glob, Bash (read-only), Write (checkpoint only).
-# Primary path: agent writes checkpoint.json via Write tool.
-# Fallback: post-run extraction from agent1a_output.txt if Write was not reached.
-_A1A_TOOLS="Read,Grep,Glob,Bash,Write"
+# Agent 1a is split into two sub-phases:
+#   Phase 1 (investigate): Read, Grep, Glob, Bash — NO Write tool. Agent uses all turns
+#     for investigation and cannot defer or skip the checkpoint by running out of turns.
+#   Phase 2 (write): Write tool only, 2 turns. A separate invocation receives the
+#     investigation text and serialises it into checkpoint.json. Structurally guaranteed.
+_A1A_TOOLS="Read,Grep,Glob,Bash"
 _A1A_ALLOW=(
   "Bash(git log *)"
   "Bash(git show *)"
@@ -190,7 +192,6 @@ _A1A_ALLOW=(
   "Bash(wc *)"
   "Bash(head *)"
   "Bash(tail *)"
-  "Write(${RUN_DIR}/**)"
 )
 
 _A1A_STATUS="ok"
@@ -199,14 +200,10 @@ export _A1A_TURNS _A1A_TOOLS
 _A1A_ALLOW_SERIAL="$(printf '%s\0' "${_A1A_ALLOW[@]}" | base64)"
 export _A1A_ALLOW_SERIAL
 
-# Agent 1a raw output goes to agent1a_output.txt (plain text — no schema wrapper);
-# we then extract the JSON checkpoint from that text into $CHECKPOINT.
-# Using run_claude_freetext (no --json-schema) because schema-enforced output
-# requires the model's final action to be text, not tool_use — hitting max_turns
-# mid-investigation produces zero output when schema is enforced.
 _A1A_RAW="${RUN_DIR}/agent1a_output.txt"
 export _A1A_RAW
 
+# Phase 1: investigation only (no Write tool — agent cannot defer checkpoint)
 if ! timeout "${_A1A_TIMEOUT}" bash -c '
   source "${TOOL_ROOT}/lib/log.sh"
   source "${TOOL_ROOT}/lib/json.sh"
@@ -219,19 +216,84 @@ if ! timeout "${_A1A_TIMEOUT}" bash -c '
     "$_A1A_TOOLS" \
     "${_allow[@]}"
 ' >> "$AGENT1A_LOG" 2>&1; then
-
   _A1A_STATUS="degraded"
-  warn "Agent 1a failed or timed out"
-  log_event "warn" "agent1a" "failed or timed out — checkpoint may be absent"
+  warn "Agent 1a investigation phase failed or timed out"
+  log_event "warn" "agent1a" "investigation phase failed or timed out"
 fi
 
-# Fallback: if Agent 1a timed out or was killed before using the Write tool,
-# try to extract a JSON checkpoint from its raw text output.
-# Only runs if CHECKPOINT was not written by the agent itself.
-if [ -f "$_A1A_RAW" ] && { [ ! -f "$CHECKPOINT" ] || ! jq -e . "$CHECKPOINT" > /dev/null 2>&1; }; then
-  if extract_json_from_text "$_A1A_RAW" "$CHECKPOINT" 2>/dev/null; then
-    log_event "info" "agent1a" "checkpoint recovered from text output (Write not reached)"
+# Phase 1b: summary injection — if the agent hit max_turns mid-tool-use, resume with
+# 1 no-tool turn to force a findings summary before the write phase runs.
+_A1A_STREAM="${_A1A_RAW}.stream"
+_A1A_STOP_REASON="$(cat "${_A1A_RAW}.stop_reason" 2>/dev/null || true)"
+_A1A_SESSION_ID="$(cat "${_A1A_RAW}.session_id" 2>/dev/null || true)"
+
+if [ "${_A1A_STOP_REASON}" = "tool_use" ] && [ -n "${_A1A_SESSION_ID}" ]; then
+  log_event "info" "agent1a" "resuming for summary turn" "session=${_A1A_SESSION_ID}"
+  _A1A_SUMMARY_STREAM="${RUN_DIR}/agent1a_summary.stream"
+  _A1A_SUMMARY_MODEL=()
+  [ -n "${RCA_MODEL:-}" ] && _A1A_SUMMARY_MODEL=(--model "${RCA_MODEL}")
+  if claude \
+      --resume "${_A1A_SESSION_ID}" \
+      -p "Time is up. No more tool calls. Write a plain-text findings summary now: root cause, affected files, key evidence, and recommended fix. Be specific — include file paths and line numbers." \
+      --output-format stream-json \
+      --verbose \
+      --max-turns 1 \
+      --tools "" \
+      "${_A1A_SUMMARY_MODEL[@]}" \
+      > "$_A1A_SUMMARY_STREAM" 2>&1; then
+    jq -r 'select(.type == "assistant") | .message.content[]? | select(.type == "text") | .text' \
+      "$_A1A_SUMMARY_STREAM" 2>/dev/null >> "$_A1A_RAW" || true
+    log_event "info" "agent1a" "summary turn appended"
+  else
+    log_event "warn" "agent1a" "summary resume failed — proceeding with partial text"
   fi
+fi
+
+# Phase 2: write checkpoint from investigation text (Write tool only, 2 turns)
+# Runs even if phase 1 degraded — writes whatever text was captured.
+# Outer-shell stream extraction as fallback if subshell path resolution failed.
+if [ ! -s "$_A1A_RAW" ] && [ -s "$_A1A_STREAM" ]; then
+  jq -r 'select(.type == "assistant") | .message.content[]? | select(.type == "text") | .text' \
+    "$_A1A_STREAM" 2>/dev/null > "$_A1A_RAW" || true
+fi
+
+_A1A_WRITE_PROMPT="${RUN_DIR}/agent1a_write_prompt.md"
+_A1A_WRITE_RAW="${RUN_DIR}/agent1a_write_output.txt"
+export _A1A_WRITE_PROMPT _A1A_WRITE_RAW
+
+{
+  cat "${TOOL_ROOT}/prompts/investigation_write.md"
+  printf '\n\n---\n\n## Investigation text\n\n'
+  if [ -s "$_A1A_RAW" ]; then
+    cat "$_A1A_RAW"
+  else
+    printf '(Agent 1a produced no output)\n'
+  fi
+  printf '\n\n---\n\n'
+  printf '## Run Metadata\n\n'
+  printf 'CHECKPOINT_PATH: %s\n' "$CHECKPOINT"
+  printf 'TARGET_REPO_ROOT: %s\n' "$TARGET_REPO_ROOT"
+} > "$_A1A_WRITE_PROMPT"
+
+_A1A_WRITE_TOOLS="Write"
+_A1A_WRITE_ALLOW=("Write(${RUN_DIR}/**)")
+export _A1A_WRITE_TOOLS
+_A1A_WRITE_ALLOW_SERIAL="$(printf '%s\0' "${_A1A_WRITE_ALLOW[@]}" | base64)"
+export _A1A_WRITE_ALLOW_SERIAL
+
+if ! timeout 120 bash -c '
+  source "${TOOL_ROOT}/lib/log.sh"
+  source "${TOOL_ROOT}/lib/json.sh"
+  source "${TOOL_ROOT}/scripts/claude_json.sh"
+  readarray -d "" -t _allow < <(printf "%s" "$_A1A_WRITE_ALLOW_SERIAL" | base64 -d)
+  run_claude_freetext \
+    "$_A1A_WRITE_PROMPT" \
+    "$_A1A_WRITE_RAW" \
+    "2" \
+    "$_A1A_WRITE_TOOLS" \
+    "${_allow[@]}"
+' >> "$AGENT1A_LOG" 2>&1; then
+  log_event "warn" "agent1a" "write phase failed — falling back to text extraction"
 fi
 
 # Ensure checkpoint is valid JSON — write seed if missing or corrupt
