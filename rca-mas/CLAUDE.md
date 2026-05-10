@@ -165,7 +165,24 @@ Docs that are always in sync with code are a **hard requirement** — see `code_
 
 Follow `plan.md` steps 1–12 in sequence. Do not skip steps.
 
-Current status: **Step 6 complete (two-phase Agent 1 overhaul).** Next: Step 7 (Agent 2 — `prompts/solution.md` + solution wiring + patch extraction).
+Current status: **Steps 1–4.5 complete and locked.** Steps 5–6 in progress (schemas and Agent 1 wiring exist as files but not yet locked). Next: finish Step 6 lock gate, then Step 7 (Agent 2 — `prompts/solution.md` + solution wiring + patch extraction).
+
+### What is done (locked)
+
+- Step 1: Scaffold, `config/defaults.env`, all `lib/`, `rca-mas.sh`, `Makefile`, `examples/`, doc stubs
+- Step 2: `orchestrator.sh` infrastructure — run dir, manifest, symlink, logs
+- Step 3: Stub pipeline — fixture JSON written to run dir, full command exits 0
+- Step 4: `briefing.sh` + 4 collectors — briefing useful on real repos
+- Step 4.5: Real GitHub repo fixture (`pallets/click`, 5 bugs) + `tests/test_real_repo_briefing.sh`
+
+### What is in progress
+
+- Step 5: JSON schemas exist in `schemas/` (untracked) — not yet gate-tested
+- Step 6: `prompts/investigation.md` + `prompts/diagnosis.md` + `claude_json.sh` exist; Agent 1a/1b split is implemented; not yet locked
+
+### Known issue
+
+`collectors/errors.sh` includes hits from `.rst` docs and test files, flooding Agent 1a with low-signal noise. Tracked in memory. Fix: add exclusion patterns (`.rst`, `tests/`, `docs/`) before locking Step 6.
 
 ## Testing process
 

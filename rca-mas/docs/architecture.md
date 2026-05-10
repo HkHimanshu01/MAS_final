@@ -42,22 +42,29 @@ Each stage sees less context than the previous (context funnel). Agent 1a sees t
 
 ```
 rca-mas/
-├── rca-mas.sh                  ← CLI entry point (orchestrator)
+├── rca-mas.sh                  ← CLI entry point (arg parsing, prereq checks, execs orchestrator)
 ├── config/
-│   └── defaults.env            ← all tunable parameters
+│   └── defaults.env            ← ALL tunable parameters — change here, nowhere else
 ├── lib/
-│   └── log.sh                  ← die/warn/info/log_event helpers
+│   ├── log.sh                  ← die/warn/info/log_event (JSONL)
+│   ├── json.sh                 ← extract_structured, jq_field, assert_valid_json
+│   ├── paths.sh                ← make_run_id, init_run_dir, update_latest_symlink
+│   └── cleanup.sh              ← register_worktree, run_cleanup (trap EXIT)
 ├── scripts/
-│   ├── briefing.sh             ← phases 1-6 repo scan
-│   └── collectors/
-│       ├── git.sh              ← git history + blame
-│       ├── deps.sh             ← import tracing
-│       ├── errors.sh           ← fixed-string search across repo
-│       └── testrunner.sh       ← test framework detection + src→test mapping
+│   ├── orchestrator.sh         ← pipeline controller, owns run lifecycle
+│   ├── briefing.sh             ← pure bash repo scan, zero LLM calls
+│   ├── claude_json.sh          ← shared run_claude_schema() helper for all agents
+│   └── report.sh               ← reads JSON files, writes report.md
+├── collectors/
+│   ├── git.sh                  ← git log, blame, recent merges for mentioned files
+│   ├── deps.sh                 ← import tracing for Python, JS/TS, Go
+│   ├── errors.sh               ← fixed-string grep across repo for each error string
+│   └── testrunner.sh           ← detect test framework, map src→test files
 ├── prompts/
-│   ├── agent1.md               ← Agent 1 system prompt
-│   ├── agent2.md               ← Agent 2 system prompt
-│   └── agent2_5.md             ← Agent 2.5 system prompt
+│   ├── investigation.md        ← Agent 1a system prompt (free-text investigation)
+│   ├── diagnosis.md            ← Agent 1b system prompt (conclusion, schema-enforced)
+│   ├── solution.md             ← Agent 2 system prompt
+│   └── validation.md           ← Agent 2.5 system prompt
 ├── schemas/
 │   ├── diagnosis.schema.json
 │   ├── solution.schema.json
@@ -69,7 +76,7 @@ rca-mas/
 │   ├── test_smoke_report_only.sh
 │   ├── test_real_repo_briefing.sh
 │   ├── fixtures/
-│   └── real_repos/click/
+│   └── real_repos/click/       ← 5 known bugs with expected outputs
 ├── docs/
 ├── examples/
 │   ├── bug.md

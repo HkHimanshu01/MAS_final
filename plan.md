@@ -44,7 +44,8 @@ rca-mas/
 │   ├── errors.sh
 │   └── testrunner.sh
 ├── prompts/
-│   ├── diagnosis.md              ← Agent 1 full instructions
+│   ├── investigation.md          ← Agent 1a full instructions (free-text investigation)
+│   ├── diagnosis.md              ← Agent 1b full instructions (conclusion, schema-enforced)
 │   ├── solution.md               ← Agent 2 full instructions
 │   └── validation.md             ← Agent 2.5 instructions (optional v1)
 ├── schemas/
@@ -112,7 +113,8 @@ rca-mas.sh
                                collectors/errors.sh
                                collectors/testrunner.sh
               calls:   scripts/claude_json.sh  (run_claude_schema)
-                         uses: prompts/diagnosis.md + schemas/diagnosis.schema.json → Agent 1
+                         uses: prompts/investigation.md (no schema)               → Agent 1a
+                               prompts/diagnosis.md + schemas/diagnosis.schema.json → Agent 1b
                                prompts/solution.md  + schemas/solution.schema.json  → Agent 2
                                prompts/validation.md + schemas/validation.schema.json → Agent 2.5
               calls:   scripts/report.sh
@@ -567,21 +569,23 @@ Each prints PASS/FAIL per assertion, exits 1 if any fail. No Claude required.
 
 ## Build Order
 
-| Step | What gets built | Done when |
+| Step | What gets built | Status |
 |---|---|---|
-| 1 | scaffold, `config/defaults.env`, all `lib/`, `rca-mas.sh`, `Makefile`, `examples/`, `docs/` stubs | `./rca-mas.sh --help` works |
-| 2 | `orchestrator.sh` infrastructure: run dir, manifest (all fields), symlink, logs | manifest has all fields, symlink updates |
-| 3 | stub pipeline: stub functions write fixture JSON to run dir | full command exits 0, 4 JSON files + cost_summary exist |
-| 4 | `briefing.sh` + 4 collectors | `make test`, briefing useful on Flask |
-| 4.5 | real GitHub repo fixture (`pallets/click`, 5 bugs) + `tests/test_real_repo_briefing.sh` + `make test-real-briefing` | `make test-real-briefing` PASS on Bug 1 (Easy) — fixture reused at Steps 6/7/8/11/12 |
-| 5 | 3 JSON schemas | `make test`, all schemas parse cleanly |
-| 6 | `claude_json.sh` + `prompts/diagnosis.md` + Agent 1 wiring | plausible `diagnosis.json` on one real bug |
-| 7 | `prompts/solution.md` + Agent 2 wiring + patch extraction | fix.diff present, recommendation in report |
-| 8 | `report.sh` with all 11 sections including Cost / Runtime | all 11 sections present |
-| 9 | `README.md` + all 10 docs complete | new user can run from docs alone |
-| 10 | GitHub `--issue` input | `issue.json` created, manifest `bug_source = "github_issue"` |
-| 11 | `prompts/validation.md` + Agent 2.5 + worktree lifecycle | patches/ has 3 diff files, worktree cleaned |
-| 12 | real GitHub bug demo + final docs pass | report compared against known fix commit |
+| 1 | scaffold, `config/defaults.env`, all `lib/`, `rca-mas.sh`, `Makefile`, `examples/`, `docs/` stubs | **LOCKED** |
+| 2 | `orchestrator.sh` infrastructure: run dir, manifest (all fields), symlink, logs | **LOCKED** |
+| 3 | stub pipeline: stub functions write fixture JSON to run dir | **LOCKED** |
+| 4 | `briefing.sh` + 4 collectors | **LOCKED** |
+| 4.5 | real GitHub repo fixture (`pallets/click`, 5 bugs) + `tests/test_real_repo_briefing.sh` + `make test-real-briefing` | **LOCKED** |
+| 5 | 3 JSON schemas | in progress — files exist in `schemas/`, gate tests not run |
+| 6 | `claude_json.sh` + `prompts/investigation.md` + `prompts/diagnosis.md` + Agent 1a/1b wiring | in progress — files exist, 1a/1b split implemented, not locked. **Blocker:** `errors.sh` includes `.rst`/test noise, degrading Agent 1a signal |
+| 7 | `prompts/solution.md` + Agent 2 wiring + patch extraction | not started |
+| 8 | `report.sh` with all 11 sections including Cost / Runtime | not started |
+| 9 | `README.md` + all 10 docs complete | not started |
+| 10 | GitHub `--issue` input | not started |
+| 11 | `prompts/validation.md` + Agent 2.5 + worktree lifecycle | not started |
+| 12 | real GitHub bug demo + final docs pass | not started |
+
+**Next action:** Fix `errors.sh` noise (exclude `.rst`, `tests/`, `docs/` paths), run `make test-full`, lock Steps 5 and 6.
 
 **Priority order if time runs short:** report-only path → GitHub issue input → docs → validation polish.
 
