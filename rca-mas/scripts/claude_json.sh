@@ -6,6 +6,10 @@
 set -Eeuo pipefail
 IFS=$'\n\t'
 
+# Use CLAUDE_BIN if set by rca-mas.sh (absolute path, survives subshell PATH differences).
+# Fall back to bare 'claude' for callers that invoke claude_json.sh directly.
+_CLAUDE="${CLAUDE_BIN:-claude}"
+
 # run_claude_freetext — invoke Claude Code without a schema for free-text investigation.
 #
 # Usage:
@@ -51,7 +55,7 @@ run_claude_freetext() {
   raw_file="${output_file}.stream"
 
   local exit_code=0
-  claude \
+  "$_CLAUDE" \
     -p "$(cat "$prompt_file")" \
     --output-format stream-json \
     --verbose \
@@ -131,7 +135,8 @@ run_claude_schema() {
   # --max-turns caps agentic turns.
   # --tools declares which tools the agent may see.
   # --allowedTools (per rule) restricts Bash sub-commands and write paths.
-  claude \
+  local exit_code=0
+  "$_CLAUDE" \
     -p "$(cat "$prompt_file")" \
     --output-format json \
     --json-schema "$(cat "$schema_file")" \
@@ -139,8 +144,8 @@ run_claude_schema() {
     --tools "$tools" \
     "${model_flag[@]}" \
     "${allowed_flags[@]}" \
-    > "$raw_file" 2>&1
-  local exit_code=$?
+    > "$raw_file" 2>&1 \
+    || exit_code=$?
 
   if [ $exit_code -ne 0 ]; then
     warn "run_claude_schema: claude exited $exit_code (raw output saved to $raw_file)"

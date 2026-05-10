@@ -221,7 +221,7 @@ _A1A_MODEL_FLAG=()
 
 # set -e safe capture: initialize exit_code=0, let || capture non-zero
 _A1A_EXIT=0
-timeout "${_A1A_TIMEOUT}" claude \
+timeout "${_A1A_TIMEOUT}" "${CLAUDE_BIN:-claude}" \
   -p "$(cat "$AGENT1A_PROMPT")" \
   --output-format stream-json \
   --verbose \
@@ -324,28 +324,32 @@ _A1A_WRITE_OUTPUT="${RUN_DIR}/agent1a_write_output.txt"
   printf 'TARGET_REPO_ROOT: %s\n' "$TARGET_REPO_ROOT"
 } > "$_A1A_WRITE_PROMPT"
 
-_A1A_WRITE_TOOLS="Write"
-_A1A_WRITE_ALLOW=("Write(${RUN_DIR}/**)")
-_A1A_WRITE_ALLOW_FLAGS=()
-for _rule in "${_A1A_WRITE_ALLOW[@]}"; do
-  _A1A_WRITE_ALLOW_FLAGS+=(--allowedTools "$_rule")
-done
-
+# No Write tool needed — Claude outputs raw JSON as its response text.
+# --output-format json wraps the response; we extract .result and write it with bash.
+# This avoids interactive permission prompts entirely.
 _A1A_WRITE_EXIT=0
-timeout 180 claude \
+timeout 180 "${CLAUDE_BIN:-claude}" \
   -p "$(cat "$_A1A_WRITE_PROMPT")" \
-  --output-format stream-json \
-  --verbose \
-  --max-turns 2 \
-  --tools "${_A1A_WRITE_TOOLS}" \
+  --output-format json \
+  --max-turns 1 \
+  --tools "" \
   "${_A1A_MODEL_FLAG[@]}" \
-  "${_A1A_WRITE_ALLOW_FLAGS[@]}" \
-  > "${_A1A_WRITE_OUTPUT}.stream" \
+  > "${_A1A_WRITE_OUTPUT}.json" \
   2> "${_A1A_WRITE_OUTPUT}.stderr" \
   || _A1A_WRITE_EXIT=$?
 
 if [ "$_A1A_WRITE_EXIT" -ne 0 ]; then
   log_event "warn" "agent1a" "write phase exited non-zero" "exit=${_A1A_WRITE_EXIT}"
+fi
+
+# Extract the response text (.result field) and write it as checkpoint.json.
+# The prompt instructs Claude to output raw JSON only — validate before saving.
+_A1A_WRITE_RESULT="$(jq -r '.result // empty' "${_A1A_WRITE_OUTPUT}.json" 2>/dev/null || true)"
+if [ -n "$_A1A_WRITE_RESULT" ] && echo "$_A1A_WRITE_RESULT" | jq -e . > /dev/null 2>&1; then
+  echo "$_A1A_WRITE_RESULT" > "$CHECKPOINT"
+  log_event "info" "agent1a" "checkpoint written" "bytes=${#_A1A_WRITE_RESULT}"
+else
+  log_event "warn" "agent1a" "write phase produced no valid JSON" "exit=${_A1A_WRITE_EXIT}"
 fi
 
 # --- Ensure checkpoint is valid JSON — write seed if missing or corrupt ---

@@ -46,7 +46,7 @@ The clone is NOT committed to this repo (gitignored via `test-repos/`).
 | 2 | [#3039](https://github.com/pallets/click/issues/3039) | [#3055](https://github.com/pallets/click/pull/3055) | Easy | `7d7183604158f064390539d83d4a19a978c6b08a` | `35e6a78646c58a8cc1ba3cda603a6bd4fb87f9d5` | `src/click/_termui_impl.py` |
 | 3 | [#3071](https://github.com/pallets/click/issues/3071) | [#3079](https://github.com/pallets/click/pull/3079) | Medium | `27aaed3fe5bcd6adedd6e91de234914af9859cf1` | `2ed395b0b5ac4d56553ff715335f456f812cdc78` | `src/click/core.py` |
 | 4 | [#3066](https://github.com/pallets/click/issues/3066) | [#3068](https://github.com/pallets/click/pull/3068) | Medium/Hard | `6a1c0d077311f180b356965914e2de5b9e0fdb44` | `7d7183604158f064390539d83d4a19a978c6b08a` | `src/click/core.py` |
-| 5 | [#3019](https://github.com/pallets/click/issues/3019) | [#3021](https://github.com/pallets/click/pull/3021) | Hard | `8533c966b84783718e74286aa7b098f3ff1e9221` | `5f86603a84e12bdec1584c15c9f982740e613c45` | `src/click/_termui_impl.py`, `src/click/termui.py` |
+| 5 | [#3019](https://github.com/pallets/click/issues/3019) | [#3021](https://github.com/pallets/click/pull/3021) | Hard | `8533c966b84783718e74286aa7b098f3ff1e9221` | `5f86603a84e12bdec1584c15c9f982740e613c45` | `src/click/termui.py` |
 
 ---
 

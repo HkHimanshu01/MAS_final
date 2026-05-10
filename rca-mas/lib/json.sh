@@ -36,9 +36,13 @@ extract_json_from_text() {
 }
 
 # Extract .structured_output from Claude wrapper; fall back to .result if null.
+# .structured_output is always a JSON object — write as-is.
+# .result may be a JSON-encoded string (double-serialized) when the model emits
+# a JSON object as its text response. Detect this and unwrap with jq -r before saving.
 extract_structured() {
   local raw_file="$1" out_file="$2"
-  local val
+  local val val_type
+
   val="$(jq -e '.structured_output' "$raw_file" 2>/dev/null)" || true
   if [ -z "$val" ] || [ "$val" = "null" ]; then
     val="$(jq -e '.result' "$raw_file" 2>/dev/null)" || true
@@ -46,7 +50,14 @@ extract_structured() {
   if [ -z "$val" ] || [ "$val" = "null" ]; then
     return 1
   fi
-  printf '%s\n' "$val" > "$out_file"
+
+  # If the extracted value is a JSON string (double-serialized), unwrap it.
+  val_type="$(printf '%s\n' "$val" | jq -r 'type' 2>/dev/null || echo 'unknown')"
+  if [ "$val_type" = "string" ]; then
+    printf '%s\n' "$val" | jq -r '.' > "$out_file"
+  else
+    printf '%s\n' "$val" > "$out_file"
+  fi
 }
 
 # Read one field safely; returns empty string if missing (never errors).

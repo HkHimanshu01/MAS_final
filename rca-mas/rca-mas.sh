@@ -114,6 +114,10 @@ fi
 command -v git    >/dev/null 2>&1 || die "git is required but not found. Install git."
 command -v jq     >/dev/null 2>&1 || die "jq is required but not found. Install jq."
 command -v claude >/dev/null 2>&1 || die "Claude Code CLI is required but not found. Run: claude auth login"
+# Resolve absolute path once here so subshells invoked by orchestrator/timeout
+# never fail with "command not found" due to PATH differences.
+CLAUDE_BIN="$(command -v claude)"
+export CLAUDE_BIN
 
 # rg (ripgrep) is strongly recommended — errors collector falls back to git grep without it,
 # but rg is significantly faster on Windows/MSYS2.

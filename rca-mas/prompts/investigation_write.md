@@ -9,9 +9,9 @@ You receive four inputs:
 3. **briefing.md** — repo briefing (metadata, error sources, git history).
 4. **bug.md** — original bug report.
 
-**You have 2 turns. Use your first turn to call Write. That is all you need to do.**
+**Output only the checkpoint JSON object. No tools. No prose. No markdown fences. Just the raw JSON.**
 
-Read the findings and evidence, extract the facts, and write a single valid JSON object to `CHECKPOINT_PATH` (shown in Run Metadata below).
+Read the findings and evidence, extract the facts, and output a single valid JSON object as your entire response.
 
 If findings are weak, incomplete, or contradictory, recover facts from the evidence transcript.
 Prefer concrete TOOL_RESULT evidence over assistant narration.
@@ -26,7 +26,7 @@ Do not produce empty fields when evidence contains usable facts.
 
 ## Checkpoint format
 
-Write a single valid JSON object to `CHECKPOINT_PATH`. Raw JSON only — no markdown fences, no prose.
+Output a single valid JSON object as your entire response. Raw JSON only — no markdown fences, no prose, no explanation.
 
 ```json
 {
