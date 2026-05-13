@@ -1,7 +1,10 @@
 {
   "run_id": "fixture-run",
   "recommendation": "NO_FIX",
+  "confidence": 0.30,
   "no_fix_reason": "Diagnosis confidence too low (0.3) to safely propose a fix. More investigation required.",
   "recommended_fix_id": null,
+  "weak_evidence": true,
+  "weak_evidence_reason": "Diagnosis confidence 0.30 is below the weak-evidence threshold (0.50).",
   "fixes": []
 }

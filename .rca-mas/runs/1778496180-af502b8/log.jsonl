@@ -1,0 +1,15 @@
+{"ts":"2026-05-11T10:43:05Z","level":"info","stage":"orchestrator","msg":"run started","run_id":"1778496180-af502b8","mode":"report-only"}
+{"ts":"2026-05-11T10:43:24Z","level":"info","stage":"orchestrator","msg":"manifest written","run_id":"1778496180-af502b8"}
+{"ts":"2026-05-11T10:43:36Z","level":"info","stage":"briefing","msg":"collector ok","collector":"git","duration_seconds":"3"}
+{"ts":"2026-05-11T10:43:40Z","level":"info","stage":"briefing","msg":"collector ok","collector":"deps","duration_seconds":"3"}
+{"ts":"2026-05-11T10:44:09Z","level":"info","stage":"briefing","msg":"collector ok","collector":"errors","duration_seconds":"27"}
+{"ts":"2026-05-11T10:44:13Z","level":"info","stage":"briefing","msg":"collector ok","collector":"testrunner","duration_seconds":"2"}
+{"ts":"2026-05-11T10:44:16Z","level":"info","stage":"briefing","msg":"briefing complete","file_count":"112","tier":"S","mentioned_files":"none","error_count":"11"}
+{"ts":"2026-05-11T10:44:20Z","level":"info","stage":"briefing","msg":"stage complete","status":"ok","duration_seconds":"52"}
+{"ts":"2026-05-11T10:44:24Z","level":"info","stage":"agent1a","msg":"prompt assembled","turns":"25","timeout":"900","tier":"S"}
+{"ts":"2026-05-11T10:46:33Z","level":"info","stage":"agent1a","msg":"stream extracted","stop_reason":"end_turn","session_id_present":"yes"}
+{"ts":"2026-05-11T10:47:30Z","level":"info","stage":"agent1a","msg":"quality gate (pass 1): ok","quality":"ok"}
+{"ts":"2026-05-11T10:48:22Z","level":"info","stage":"agent1a","msg":"checkpoint written","bytes":"3963"}
+{"ts":"2026-05-11T10:48:27Z","level":"info","stage":"agent1a","msg":"stage complete","status":"ok","duration_seconds":"244"}
+{"ts":"2026-05-11T10:48:28Z","level":"info","stage":"agent1a","msg":"investigation complete","status":"ok","quality":"ok","stop_reason":"end_turn"}
+{"ts":"2026-05-11T10:48:35Z","level":"info","stage":"agent1b","msg":"prompt assembled","turns":"5","timeout":"120","checkpoint_quality":"ok"}

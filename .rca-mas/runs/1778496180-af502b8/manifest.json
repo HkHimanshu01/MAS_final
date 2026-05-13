@@ -1,0 +1,38 @@
+{
+  "run_id": "1778496180-af502b8",
+  "mode": "report-only",
+  "tool_root": "/c/MAS_final/rca-mas",
+  "target_repo_root": "/c/MAS_final",
+  "repo_remote_url": "https://github.com/HkHimanshu01/MAS_final.git",
+  "git_head_sha": "af502b86457148ff6924e7b7c5d92ac2d7534623",
+  "git_branch": "main",
+  "bug_source": "file",
+  "bug_source_file": "C:/MAS_final/rca-mas/tests/real_repos/click/bugs/bug3.md",
+  "issue_url": null,
+  "expected_fix_commit": "",
+  "started_at": "2026-05-11T10:43:23Z",
+  "ended_at": null,
+  "stage_statuses": {
+    "briefing": "ok",
+    "agent1a": "ok",
+    "agent1b": "pending",
+    "agent2": "pending",
+    "validation": "pending",
+    "report": "pending"
+  },
+  "stage_durations_seconds": {
+    "briefing": 52,
+    "agent1a": 244,
+    "agent1b": null,
+    "agent2": null,
+    "validation": null,
+    "report": null
+  },
+  "cost_summary": "/c/MAS_final/.rca-mas/runs/1778496180-af502b8/cost_summary.json",
+  "tool_versions": {
+    "claude": "2.1.138 (Claude Code)",
+    "git": "2.53.0.windows.3",
+    "jq": "jq-1.8.1",
+    "gh": "2.92.0"
+  }
+}

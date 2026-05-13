@@ -92,12 +92,12 @@ run_claude_freetext() {
 #   run_claude_schema \
 #     "$PROMPT_FILE"    # path to assembled prompt (passed via -p)
 #     "$SCHEMA_FILE"    # path to JSON schema for --json-schema
-#     "$RAW_FILE"       # where to write full Claude wrapper JSON
+#     "$RAW_FILE"       # where to write Claude wrapper JSON (stdout only)
+#     "$STDERR_FILE"    # where to write Claude stderr (separate from JSON stdout)
 #     "$FINAL_FILE"     # where to write extracted structured_output
 #     "$MAX_TURNS"      # integer max turns
-#     "$TOOLS"          # comma-separated tool list e.g. "Read,Grep,Glob,Bash"
+#     "$TOOLS"          # comma-separated tool list; pass "" for no tools
 #     ["$ALLOW_1" ...]  # optional --allowedTools rules (one string per bash arg)
-#                       #   e.g. 'Bash(git log *)' 'Bash(git blame *)' 'Write(.rca-mas/runs/**)'
 #
 # Returns: 0 on success, 1 on any failure.
 # On timeout/failure the caller is responsible for checkpoint recovery.
@@ -105,22 +105,28 @@ run_claude_schema() {
   local prompt_file="$1"
   local schema_file="$2"
   local raw_file="$3"
-  local final_file="$4"
-  local max_turns="$5"
-  local tools="$6"
-  shift 6
+  local stderr_file="$4"
+  local final_file="$5"
+  local max_turns="$6"
+  local tools="$7"
+  shift 7
   local allow_rules=("$@")   # zero or more allowedTools rules
 
   # Validate inputs
   [ -f "$prompt_file" ]  || { warn "run_claude_schema: prompt_file not found: $prompt_file"; return 1; }
   [ -f "$schema_file" ]  || { warn "run_claude_schema: schema_file not found: $schema_file"; return 1; }
   [ -n "$max_turns" ]    || { warn "run_claude_schema: max_turns is empty"; return 1; }
-  [ -n "$tools" ]        || { warn "run_claude_schema: tools is empty"; return 1; }
 
   # Resolve model flag: use RCA_MODEL if set
   local model_flag=()
   if [ -n "${RCA_MODEL:-}" ]; then
     model_flag=(--model "${RCA_MODEL}")
+  fi
+
+  # Build tools flag — omit --tools entirely when empty (no tool access)
+  local tools_flag=()
+  if [ -n "$tools" ]; then
+    tools_flag=(--tools "$tools")
   fi
 
   # Build allowedTools flags (one --allowedTools per rule)
@@ -130,21 +136,21 @@ run_claude_schema() {
   done
 
   # Invoke Claude.
-  # Prompt passed via -p; --output-format json gives us a JSON wrapper with structured_output.
+  # stdout (JSON wrapper) and stderr are separated so JSON is never contaminated.
+  # --output-format json gives a JSON wrapper with structured_output.
   # --json-schema enforces the output shape.
   # --max-turns caps agentic turns.
-  # --tools declares which tools the agent may see.
-  # --allowedTools (per rule) restricts Bash sub-commands and write paths.
   local exit_code=0
   "$_CLAUDE" \
     -p "$(cat "$prompt_file")" \
     --output-format json \
     --json-schema "$(cat "$schema_file")" \
     --max-turns "$max_turns" \
-    --tools "$tools" \
+    "${tools_flag[@]}" \
     "${model_flag[@]}" \
     "${allowed_flags[@]}" \
-    > "$raw_file" 2>&1 \
+    > "$raw_file" \
+    2> "${stderr_file:-/dev/null}" \
     || exit_code=$?
 
   if [ $exit_code -ne 0 ]; then
@@ -158,15 +164,15 @@ run_claude_schema() {
     return 1
   fi
 
-  # Extract structured output; fall back to .result if .structured_output is null
-  if ! extract_structured "$raw_file" "$final_file"; then
-    warn "run_claude_schema: could not extract structured_output or result from $raw_file"
+  # Extract and normalise structured output
+  if ! extract_normalize_json "$raw_file" "$final_file"; then
+    warn "run_claude_schema: could not extract/normalise structured output from $raw_file"
     return 1
   fi
 
-  # Validate extracted output is valid JSON
-  if ! jq -e . "$final_file" > /dev/null 2>&1; then
-    warn "run_claude_schema: extracted output is not valid JSON: $final_file"
+  # Validate extracted output is a JSON object
+  if ! jq -e 'type == "object"' "$final_file" > /dev/null 2>&1; then
+    warn "run_claude_schema: extracted output is not a JSON object: $final_file"
     return 1
   fi
 

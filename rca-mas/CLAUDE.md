@@ -165,7 +165,7 @@ Docs that are always in sync with code are a **hard requirement** — see `code_
 
 Follow `plan.md` steps 1–12 in sequence. Do not skip steps.
 
-Current status: **Steps 1–4.5 complete and locked.** Steps 5–6 in progress (schemas and Agent 1 wiring exist as files but not yet locked). Next: finish Step 6 lock gate, then Step 7 (Agent 2 — `prompts/solution.md` + solution wiring + patch extraction).
+Current status: **Steps 1–6 complete and locked.** Next: Step 7 (Agent 2 — `prompts/solution.md` + solution wiring + patch extraction).
 
 ### What is done (locked)
 
@@ -174,15 +174,12 @@ Current status: **Steps 1–4.5 complete and locked.** Steps 5–6 in progress (
 - Step 3: Stub pipeline — fixture JSON written to run dir, full command exits 0
 - Step 4: `briefing.sh` + 4 collectors — briefing useful on real repos
 - Step 4.5: Real GitHub repo fixture (`pallets/click`, 5 bugs) + `tests/test_real_repo_briefing.sh`
-
-### What is in progress
-
-- Step 5: JSON schemas exist in `schemas/` (untracked) — not yet gate-tested
-- Step 6: `prompts/investigation.md` + `prompts/diagnosis.md` + `claude_json.sh` exist; Agent 1a/1b split is implemented; not yet locked
+- Step 5: JSON schemas (`diagnosis`, `solution`, `validation`) gated by `test_json_schemas.sh`
+- Step 6: Agent 1a (toolful investigation) + checkpoint-write phase + Agent 1b (schema-enforced synthesis with one-shot repair, fail-closed). Verified end-to-end on real-repo bugs 3, 4, and 5 with confidence 0.82–0.92 matching upstream fixes. Data flow contract: Agent 1a's checkpoint emits fields that map 1:1 onto `diagnosis.schema.json` so Agent 1b can pass through verbatim. See [docs/agent-contracts.md](docs/agent-contracts.md) for the field mapping and [docs/pipeline-flow.md](docs/pipeline-flow.md) for the 8-step Agent 1a flow.
 
 ### Known issue
 
-`collectors/errors.sh` includes hits from `.rst` docs and test files, flooding Agent 1a with low-signal noise. Tracked in memory. Fix: add exclusion patterns (`.rst`, `tests/`, `docs/`) before locking Step 6.
+`collectors/errors.sh` includes hits from `.rst` docs and test files, which can flood Agent 1a with low-signal noise on docs-heavy repos. Pre-existing memory entry tracks this. Despite the noise, Agent 1a quality gate + recovery still produced ok diagnoses on bugs 3/4/5. Refinement deferred to a follow-up.
 
 ## Testing process
 

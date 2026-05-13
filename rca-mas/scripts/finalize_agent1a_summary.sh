@@ -52,7 +52,7 @@ fi
 
 # If no session_id, skip resume — quality gate and recovery handle the rest
 if [ -z "$_SESSION_ID" ]; then
-  printf 'finalize_agent1a_summary.sh: no session_id — skipping resume finalization\n' >&2
+  printf 'finalize_agent1a_summary.sh: no session_id in agent1a_meta.env — skipping resume finalization (recovery will run)\n' >&2
   _FINALIZATION_STATUS="skipped"
 else
   # Load model flag
@@ -68,7 +68,7 @@ else
   else
     # Run no-tool finalization via --resume
     _FINALIZE_EXIT=0
-    claude \
+    "${CLAUDE_BIN:-claude}" \
       --resume "$_SESSION_ID" \
       -p "$(cat "$_FORCE_SUMMARY_PROMPT")" \
       --output-format json \
@@ -81,6 +81,11 @@ else
 
     if [ "$_FINALIZE_EXIT" -ne 0 ] || [ ! -s "$_SUMMARY_JSON" ]; then
       printf 'finalize_agent1a_summary.sh: finalization call failed (exit=%s)\n' "$_FINALIZE_EXIT" >&2
+      # Surface the stderr so it appears in agent1a.log for diagnosis
+      if [ -s "$_SUMMARY_STDERR" ]; then
+        printf 'finalize_agent1a_summary.sh: claude stderr follows:\n' >&2
+        cat "$_SUMMARY_STDERR" >&2
+      fi
       printf '## FORCED FINALIZATION FAILED\nExit code: %s\n' "$_FINALIZE_EXIT" >> "$_OUTPUT_TXT" || true
       _FINALIZATION_STATUS="failed"
     else

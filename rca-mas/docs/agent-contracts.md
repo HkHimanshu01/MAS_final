@@ -119,17 +119,36 @@ Agent 1b does **not** receive the full briefing. It works from the checkpoint an
 
 ### Allowed Tools
 
-- **Read** — checkpoint file and (sparingly) source files to verify a specific line
-- **Grep** — only to confirm a single fact left ambiguous by the checkpoint
-- **Glob** — only to locate a file the checkpoint named without a full path
+Agent 1b runs with no tools enabled (`--tools ""`). It is a pure synthesis step: read the checkpoint, emit the diagnosis JSON. No Read, no Grep, no Glob, no Bash.
 
 ### Forbidden
 
 - Write to any file
-- Bash commands
+- All tools (Read, Grep, Glob, Bash) — Agent 1b is synthesis-only
 - Network access
 - Read credential files
 - Re-investigate beyond what the checkpoint already contains
+
+### Checkpoint contract (data flow from Agent 1a)
+
+The checkpoint that Agent 1a writes (via the checkpoint-write phase) is structured to map 1:1 onto the diagnosis schema. Agent 1b is expected to copy fields through verbatim with minimal transformation. Specifically:
+
+| Checkpoint field | Diagnosis field | Action |
+|---|---|---|
+| `root_cause` | `root_cause` | Copy verbatim (preferred) |
+| `hypothesis` (legacy fallback) | `root_cause` | Copy if `root_cause` is absent |
+| `hypotheses[]` | `hypotheses[]` | Copy verbatim with id/summary/supporting_evidence/contradicting_evidence/confidence |
+| `selected_hypothesis_id` | `selected_hypothesis_id` | Copy verbatim |
+| `affected_files`, `call_chain`, `files_examined`, `unknowns`, `rejected_hypotheses` | same | Copy verbatim |
+| `confidence` | `confidence` | Copy, then orchestrator caps at 0.4 if `agent1a_quality` is weak/failed |
+| `introducing_commit` | `introducing_commit` | Copy verbatim (string or null) |
+| `next_best_action` | `next_best_action` | Copy verbatim |
+| `run_id` (from Run Metadata, not checkpoint) | `run_id` | Set to the orchestrator-supplied RUN_ID |
+| `supporting_evidence` (top-level) | — | Backup source for `hypotheses[].supporting_evidence` when checkpoint lacks the hypotheses array |
+
+If the checkpoint only has the legacy shape (`hypothesis` singular string + top-level `supporting_evidence`), Agent 1b synthesises exactly one hypothesis with id `"h1"` containing the supporting_evidence and uses `hypothesis` as `root_cause`. See `prompts/diagnosis.md` for the explicit mapping rules.
+
+The orchestrator logs the checkpoint shape (`log.jsonl` event `agent1b checkpoint shape`) so operators can see whether the checkpoint is rich or legacy before diagnosis runs.
 
 ### Output
 File: `RUN_DIR/diagnosis.json` (schema-validated by `schemas/diagnosis.schema.json`)
@@ -163,15 +182,29 @@ File: `RUN_DIR/diagnosis.json` (schema-validated by `schemas/diagnosis.schema.js
 }
 ```
 
-### Timeout Recovery
-If Agent 1b times out or fails, the orchestrator synthesises `diagnosis.json` directly from `checkpoint.json` using bash, setting confidence to `RCA_CONFIDENCE_CHECKPOINT` (default `0.4`) if the checkpoint was at seed level (0.0), or preserving the checkpoint's confidence otherwise.
+### Failure handling
 
-### Status Values
+Agent 1b is **fail-closed**: if Claude's output cannot be extracted, normalised, or validated against the schema, and a one-shot repair attempt also fails, the orchestrator writes a placeholder diagnosis with `confidence: 0.0` and `root_cause: "Agent 1b failed to produce valid diagnosis. <reason>"`. No diagnosis is fabricated from the checkpoint by bash.
+
+The chain inside Agent 1b stage:
+
+1. Assert checkpoint gates: file exists → valid JSON object → not a `_degraded_seed` → has at least one useful field (`hypothesis`, `root_cause`, `call_chain`, or `files_examined` non-empty). Any gate failure marks the stage `failed` and writes a placeholder diagnosis.
+2. Log the checkpoint shape (see `log.jsonl` for `agent1b checkpoint shape` event) so operators see what fields are present before diagnosis runs.
+3. Assemble prompt: `prompts/diagnosis.md` + bug report + checkpoint inline + run metadata (RUN_ID, CHECKPOINT_QUALITY, CONFIDENCE_STOP).
+4. Call Claude with `--json-schema` enforced and `--max-turns 5`.
+5. Extract via `extract_normalize_json` (handles structured_output object/string, .result object/string, raw top-level object, fenced markdown JSON).
+6. Stamp `run_id` and cap confidence at 0.4 if `agent1a_quality` was weak or failed.
+7. Validate against `diagnosis.schema.json` via `validate_diagnosis_json`.
+8. If invalid, run one repair pass with `prompts/agent1b_repair.md` + the prior invalid output + the validation error.
+9. Atomic write to `diagnosis.json` only after schema validation passes. On total failure, write the placeholder diagnosis described above.
+
+### Stage statuses
+
 | Value | Meaning |
 |---|---|
-| `ok` | Diagnosis produced normally |
-| `partial` | Agent 1b timed out; diagnosis synthesised from checkpoint (confidence preserved) |
-| `failed` | Agent 1b timed out and only the seed checkpoint existed; confidence is `RCA_CONFIDENCE_CHECKPOINT` |
+| `ok` | Diagnosis produced, schema-valid, written atomically |
+| `degraded` | Diagnosis produced via repair attempt or after Claude exited non-zero with usable output |
+| `failed` | All extraction/validation paths exhausted; placeholder diagnosis written with confidence 0.0 |
 
 ---
 

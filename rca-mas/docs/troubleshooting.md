@@ -75,26 +75,61 @@ TARGET_REPO_ROOT=/path/to/repo \
 
 ## Agent Problems
 
-### `diagnosis.json` has `status: PARTIAL` and `confidence: 0.4`
+### `diagnosis.json` has `confidence: 0.4` and capped
 
-**Symptom:** Agent 1 timed out. This is checkpoint recovery output.
+**Symptom:** Agent 1b produced a diagnosis but confidence is exactly 0.4.
 
-**Causes and fixes:**
-1. Repo is large and the tier budget was too low → increase turns or timeout:
-   ```bash
-   RCA_TURNS_L=70 RCA_TIMEOUT_L=900 bash rca-mas.sh bug.md
-   ```
-2. Bug is complex (requires tracing many call chains) → expected for hard bugs; try `claude-opus-4-7`:
-   ```bash
-   RCA_MODEL=claude-opus-4-7 bash rca-mas.sh bug.md
-   ```
-3. Claude Code hit a rate limit → wait and retry
+**Cause:** The orchestrator caps confidence at 0.4 whenever `agent1a_quality` is `weak` or `failed` (see `agent1a_quality.env`). The diagnosis itself may still be high quality — Claude returned 0.8+ — but the cap is applied because the upstream evidence was thin.
 
-Check how many turns were used before timeout:
+**Action:**
+
 ```bash
-jq '.turns_used' .rca-mas/runs/latest/diagnosis.json
-cat .rca-mas/runs/latest/log.jsonl | jq 'select(.stage=="agent1")'
+# See why quality was weak:
+cat .rca-mas/runs/latest/agent1a_quality.env
+grep "quality gate" .rca-mas/runs/latest/log.jsonl | jq -r '.msg'
+
+# See the actual checkpoint shape passed to Agent 1b:
+grep "checkpoint shape" .rca-mas/runs/latest/log.jsonl | jq -r '.info // .msg'
 ```
+
+If the quality was weak due to a hard bug, options:
+
+1. Bump turn budget: `RCA_A1A_TURNS_S=40 bash rca-mas.sh bug.md`
+2. Try Opus: `RCA_MODEL=claude-opus-4-7 bash rca-mas.sh bug.md`
+
+---
+
+### `diagnosis.json` has `confidence: 0.0` and `root_cause: "Agent 1b failed to produce valid diagnosis..."`
+
+**Symptom:** The placeholder fail-closed diagnosis. Agent 1b could not produce a schema-valid response, even after one repair attempt.
+
+**Cause:** Either (a) the checkpoint was a degraded seed (Agent 1a write phase failed — Claude returned no valid JSON), or (b) Agent 1b's Claude call returned output that could not be normalised or validated, and the repair attempt also failed.
+
+**Investigation:**
+
+```bash
+RUN=.rca-mas/runs/latest
+
+# What did Agent 1a hand to 1b?
+jq '._degraded_seed // false' $RUN/checkpoint.json
+jq 'keys' $RUN/checkpoint.json
+
+# Agent 1b meta tells you the failure mode:
+cat $RUN/agent1b_meta.env
+
+# Look at the invalid output if it was preserved:
+cat $RUN/diagnosis.invalid.json 2>/dev/null || echo "no invalid file"
+cat $RUN/diagnosis.invalid.txt 2>/dev/null
+
+# Was the raw output even non-empty?
+wc -c $RUN/agent1b_raw.json
+```
+
+**Fixes:**
+
+1. If `_degraded_seed=true`, Agent 1a's write phase failed. Re-run with `RCA_MODEL=claude-opus-4-7` for a more deterministic JSON writer.
+2. If `agent1b_raw.json` is empty, the Claude call timed out or hit a rate limit. Re-run.
+3. If `agent1b_raw.json` is non-empty but validation failed, inspect `diagnosis.invalid.txt` for the schema error and consider whether the prompt or schema needs adjustment.
 
 ---
 
@@ -119,15 +154,18 @@ jq '{status, confidence, root_cause}' .rca-mas/runs/latest/diagnosis.json
 
 **Symptom:** `jq` errors on `diagnosis.json` or schema validation fails.
 
-**Cause:** Claude produced text that the orchestrator failed to parse as JSON.
+**Cause:** Claude produced text that `extract_normalize_json` could not parse.
 
 **Fix:**
-1. Check the raw output:
+
+1. Check the raw Agent 1b output:
+
    ```bash
-   cat .rca-mas/runs/latest/raw_agent1_output.txt
+   cat .rca-mas/runs/latest/agent1b_raw.json | jq '.'
    ```
-2. If the JSON is present but wrapped in markdown fences (```json ... ```), the orchestrator's extraction regex failed → check the extraction logic in `rca-mas.sh`
-3. If the JSON is genuinely malformed, re-run (usually transient)
+
+2. The extractor handles: `.structured_output` (object or stringified), `.result` (object or stringified), fenced markdown, and raw top-level objects. If none of those match (e.g. the response is pure prose), the orchestrator runs one repair pass with `prompts/agent1b_repair.md`. Check `agent1b_repair_raw.json` if present.
+3. If both attempts failed, see the "Agent 1b failed to produce valid diagnosis" section above.
 
 ---
 

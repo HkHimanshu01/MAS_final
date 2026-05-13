@@ -95,27 +95,29 @@ If a collector times out (exit 124) or fails (non-zero): the failure is logged t
 
 **Scripts:** `orchestrator.sh` (invokes `claude` directly) + helper scripts in `scripts/`
 
-**What happens (10-step flow):**
+**What happens (8-step flow):**
 
 1. Orchestrator assembles `agent1a_prompt.md` from `prompts/investigation.md` + bug report + briefing + run metadata
 2. Toolful investigation: `claude --output-format stream-json --max-turns $RCA_A1A_TURNS --tools "Read,Grep,Glob,Bash"` — stderr kept separate from stream stdout
-3. Stream extracted: `scripts/extract_agent1a_stream.sh` produces `agent1a_output.txt`, `agent1a_evidence.txt`, `agent1a_meta.env` (session_id, stop_reason, exit_code)
-4. Forced finalization: `scripts/finalize_agent1a_summary.sh` resumes via `--resume <session_id> --tools "" --max-turns 1` and requests FINAL FINDINGS — runs for every Agent 1a session
-5. Quality gate (pass 1): `scripts/check_agent1a_quality.sh` marks `agent1a_quality=ok|weak`
+3. **Validate stream is non-empty and contains a `result` event** — partial streams (timeout mid-investigation) are flagged immediately. Then `scripts/extract_agent1a_stream.sh` produces `agent1a_output.txt`, `agent1a_evidence.txt`, `agent1a_meta.env` (session_id, stop_reason, exit_code)
+4. Forced finalization: `scripts/finalize_agent1a_summary.sh` resumes via `--resume <session_id> --tools "" --max-turns 1` and requests FINAL FINDINGS — runs whenever session_id is non-empty
+5. Quality gate (pass 1): `scripts/check_agent1a_quality.sh` marks `agent1a_quality=ok` or `agent1a_quality=weak`. Weak quality is logged at `warn` level (visible in terminal) so the operator knows
 6. If weak: `scripts/recover_agent1a_findings.sh` synthesises findings from evidence transcript using a no-tools no-resume Claude call
-7. Quality gate (pass 2): re-checks after recovery
-8. Checkpoint write: checkpoint-write phase receives `agent1a_findings.md` + `agent1a_evidence.txt` and writes `checkpoint.json`
+7. Quality gate (pass 2): re-checks after recovery. If still weak, the stage is marked `degraded` and the operator is warned that Agent 1b will cap confidence at 0.4
+8. Checkpoint write: a single Claude call (`--tools "" --max-turns 1 --output-format json`) reads `agent1a_findings.md` + `agent1a_evidence.txt` (capped at 8000 bytes from the tail) and emits the JSON checkpoint into `checkpoint.json`. If extraction fails, `extract_normalize_json` retries on the raw output. If still no valid JSON, a **degraded seed** with `_degraded_seed: true` is written and the stage is marked `degraded`. Agent 1b detects the marker and refuses to synthesise from it.
 
 **max_turns is an emergency cap, not the stopping mechanism.** Agent 1a writes FINAL FINDINGS when confidence ≥0.70. stop_reason=tool_use is recoverable — forced finalization handles it.
+
+**All script failures are visible.** Earlier versions used `|| true` to suppress errors silently. The current orchestrator captures every non-zero exit (`_A1A_EXTRACT_FAILED`, `_A1A_FINALIZE_FAILED`, `_A1A_RECOVER_FAILED`, `_A1A_QUALITY_FAILED`) and emits `log_event warn` for each, so failures surface in `log.jsonl` and `agent1a.log` rather than being silently swallowed.
 
 **Turn budgets by tier:**
 
 | Tier | Max turns | Timeout |
 |---|---|---|
-| XS | 15 | 900s |
-| S  | 25 | 900s |
-| M  | 30 | 900s |
-| L  | 40 | 900s |
+| XS | 30 | 900s |
+| S  | 50 | 900s |
+| M  | 60 | 900s |
+| L  | 80 | 900s |
 
 **Allowed tools:** Read, Grep, Glob, Bash (read-only: `git log/show/blame/diff/status`, `grep`, `rg`, `find`, `cat`, `wc`, `head`, `tail`, `ls`, `sed`)
 
@@ -142,25 +144,49 @@ If a collector times out (exit 124) or fails (non-zero): the failure is logged t
 
 ## Stage 2b — Agent 1b: Conclusion (schema-enforced, reads checkpoint)
 
-**Script:** `orchestrator.sh` → `run_claude_schema()` in `scripts/claude_json.sh`
+**Script:** `orchestrator.sh` — calls `claude` directly with `--output-format json --json-schema diagnosis.schema.json --tools ""`.
 
 **What happens:**
-1. Orchestrator assembles `agent1b_prompt.md` from `prompts/diagnosis.md` + bug report + run metadata (with checkpoint path)
-2. Agent 1b does NOT receive the full briefing — it reads the checkpoint and bug report only
-3. Agent 1b runs under `timeout $RCA_A1B_TIMEOUT` (default 120s) with `--max-turns $RCA_A1B_TURNS` (default 5)
-4. `--json-schema diagnosis.schema.json` is enforced — output must be valid JSON
-5. Agent 1b reads the checkpoint, reads the bug report, and synthesises the final `diagnosis.json`
-6. If the checkpoint is the seed (confidence 0.0): Agent 1b emits a minimal honest diagnosis stating the investigation failed
+
+1. **Checkpoint gates** — before invoking Claude, the orchestrator checks:
+   - `checkpoint.json` exists and is a JSON object
+   - is not a `_degraded_seed` (write phase failed earlier)
+   - has at least one useful field non-empty: `hypothesis`, `root_cause`, `call_chain`, or `files_examined`
+   Any gate failure marks the stage `failed` and writes a placeholder diagnosis without calling Claude.
+2. **Log checkpoint shape** — emits `log.jsonl` event `agent1b checkpoint shape` listing whether the checkpoint has `root_cause`, `hypotheses[]`, `selected_hypothesis_id`, etc., so operators see what Agent 1b is receiving.
+3. **Assemble prompt** — `agent1b_prompt.md` = `prompts/diagnosis.md` + bug report + checkpoint inline + run metadata (`RUN_ID`, `CHECKPOINT_QUALITY`, `CONFIDENCE_STOP`).
+4. **Call Claude** — `timeout $RCA_A1B_TIMEOUT claude -p ... --output-format json --json-schema ... --max-turns $RCA_A1B_TURNS --tools ""`. Stdout to `agent1b_raw.json`, stderr to `agent1b_stderr.txt` (kept separate).
+5. **Extract** via `extract_normalize_json` from `lib/json.sh`. Handles `.structured_output` (object or stringified JSON), `.result` (object or stringified JSON or fenced markdown), and raw top-level objects.
+6. **Stamp `run_id` and cap confidence** — if `agent1a_quality` is `weak` or `failed`, confidence is capped at 0.4.
+7. **Validate** against `schemas/diagnosis.schema.json` via `validate_diagnosis_json`.
+8. **Repair** — if validation fails, one repair pass: `prompts/agent1b_repair.md` + checkpoint + bug + the invalid output + validation error. Re-validate.
+9. **Atomic write** — `diagnosis.json` is written only after schema validation passes. On total failure, a placeholder diagnosis with `confidence: 0.0` and `root_cause: "Agent 1b failed to produce valid diagnosis. <reason>"` is written.
+
+**Data flow contract (1a → 1b):** Agent 1a's checkpoint-write phase emits fields that map 1:1 onto the diagnosis schema (`root_cause`, `hypotheses[]`, `selected_hypothesis_id`, etc.) so Agent 1b can copy them through verbatim. See [agent-contracts.md](agent-contracts.md#checkpoint-contract-data-flow-from-agent-1a) for the field-by-field mapping table.
 
 **Turn budget:** Always small (default 5 turns, 120s). The investigation is already done.
 
-**Allowed tools:** Read (checkpoint + optionally a few source lines), Grep (disambiguation only), Glob (file location only)
-**Forbidden:** Write, Bash, Edit, running tests, network access
+**Allowed tools:** None — Agent 1b runs with `--tools ""`. Pure synthesis from the checkpoint.
 
-**Inputs:** `agent1b_prompt.md`, `checkpoint.json`, `prompts/diagnosis.md`, `schemas/diagnosis.schema.json`
-**Outputs:** `RUN_DIR/diagnosis.raw.json` (full Claude wrapper), `RUN_DIR/diagnosis.json` (extracted, validated)
+**Forbidden:** All tools (Read, Grep, Glob, Bash, Write, Edit), network access
+
+**Inputs:** `agent1b_prompt.md`, `checkpoint.json`, `prompts/diagnosis.md`, `schemas/diagnosis.schema.json`, `agent1a_quality.env`
+
+**Outputs:**
+
+| File | When |
+|---|---|
+| `agent1b_raw.json` | Always (raw Claude response) |
+| `agent1b_stderr.txt` | Always |
+| `agent1b_meta.env` | Always (exit_code, normalized, schema_valid, repair_attempted, repair_success, failure_reason) |
+| `agent1b_quality.env` | Always (`agent1b_quality=ok` or `agent1b_quality=failed`) |
+| `agent1b_repair_*.json` | Only when repair was triggered |
+| `diagnosis.invalid.json` / `.txt` | Only on validation failure (debug aid) |
+| `diagnosis.raw.json` | Copy of `agent1b_raw.json` on success, or placeholder on failure |
+| `diagnosis.json` | Schema-validated diagnosis or 0.0-confidence placeholder |
 
 **diagnosis.json shape:**
+
 ```json
 {
   "run_id": "1778052942-fed9049",
@@ -178,7 +204,7 @@ If a collector times out (exit 124) or fails (non-zero): the failure is logged t
 }
 ```
 
-**Failure:** If Agent 1b times out, the orchestrator synthesises `diagnosis.json` from `checkpoint.json` using bash, preserving checkpoint confidence or falling back to `RCA_CONFIDENCE_CHECKPOINT` (0.4).
+**Failure handling:** Fail-closed. If extraction, validation, and the one repair attempt all fail, the placeholder diagnosis (confidence 0.0) is written instead of fabricating from the checkpoint. Agent 2 sees the low confidence and emits `NO_FIX`.
 
 ---
 

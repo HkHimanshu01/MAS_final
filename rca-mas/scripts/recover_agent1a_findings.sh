@@ -75,7 +75,7 @@ else
   fi
 
   _RECOVER_EXIT=0
-  claude \
+  "${CLAUDE_BIN:-claude}" \
     -p "$_ASSEMBLED_PROMPT" \
     --output-format json \
     --max-turns 1 \

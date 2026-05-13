@@ -576,8 +576,8 @@ Each prints PASS/FAIL per assertion, exits 1 if any fail. No Claude required.
 | 3 | stub pipeline: stub functions write fixture JSON to run dir | **LOCKED** |
 | 4 | `briefing.sh` + 4 collectors | **LOCKED** |
 | 4.5 | real GitHub repo fixture (`pallets/click`, 5 bugs) + `tests/test_real_repo_briefing.sh` + `make test-real-briefing` | **LOCKED** |
-| 5 | 3 JSON schemas | in progress — files exist in `schemas/`, gate tests not run |
-| 6 | `claude_json.sh` + `prompts/investigation.md` + `prompts/diagnosis.md` + Agent 1a/1b wiring | in progress — files exist, 1a/1b split implemented, not locked. **Blocker:** `errors.sh` includes `.rst`/test noise, degrading Agent 1a signal |
+| 5 | 3 JSON schemas | **LOCKED** |
+| 6 | `claude_json.sh` + `prompts/investigation.md` + `prompts/diagnosis.md` + `prompts/investigation_write.md` + `prompts/agent1a_force_summary.md` + `prompts/agent1a_recover_from_evidence.md` + `prompts/agent1b_repair.md` + Agent 1a/1b wiring (stream extraction, finalization, quality gate, evidence recovery, checkpoint write with degraded-seed fallback, schema-validated 1b with one-shot repair) | **LOCKED** — all 3 real-repo bugs (3, 4, 5) produce schema-valid diagnoses with confidence 0.82–0.92 matching upstream fixes |
 | 7 | `prompts/solution.md` + Agent 2 wiring + patch extraction | not started |
 | 8 | `report.sh` with all 11 sections including Cost / Runtime | not started |
 | 9 | `README.md` + all 10 docs complete | not started |
@@ -585,7 +585,7 @@ Each prints PASS/FAIL per assertion, exits 1 if any fail. No Claude required.
 | 11 | `prompts/validation.md` + Agent 2.5 + worktree lifecycle | not started |
 | 12 | real GitHub bug demo + final docs pass | not started |
 
-**Next action:** Fix `errors.sh` noise (exclude `.rst`, `tests/`, `docs/` paths), run `make test-full`, lock Steps 5 and 6.
+**Next action:** Step 7 — build `prompts/solution.md`, Agent 2 wiring, and patch extraction. Agent 2 receives `diagnosis.json` + `briefing.md` (no raw repo) and emits `solution.json` with unified-diff patches or `status: NO_FIX` if confidence < `RCA_CONFIDENCE_NOFX`.
 
 **Priority order if time runs short:** report-only path → GitHub issue input → docs → validation polish.
 

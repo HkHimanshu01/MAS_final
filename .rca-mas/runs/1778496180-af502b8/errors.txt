@@ -1,0 +1,11 @@
+ option in the script, click 8.3.0 will output 
+ option is moved above the 
+ — but if the 
+'green'
+--blue
+--green
+--red
+__main__
+color
+default=True
+green

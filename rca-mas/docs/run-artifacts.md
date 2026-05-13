@@ -28,12 +28,26 @@ Every file produced under `.rca-mas/runs/{RUN_ID}/` during a run. What created i
             ├── agent1a_quality.env            ← quality=ok|weak, finalization, recovery status
             ├── agent1a.log                    ← bash-level orchestrator log for Agent 1a stage
             ├── agent1a_forced_summary.json    ← raw json from finalization claude call
+            ├── agent1a_forced_summary.stderr  ← stderr from finalization call
+            ├── agent1a_recovery_summary.json  ← raw json from evidence-recovery call (if run)
+            ├── agent1a_recovery_summary.stderr
             ├── agent1a_write_prompt.md        ← checkpoint-write phase prompt
+            ├── agent1a_write_output.txt.json  ← raw json from checkpoint-write call
+            ├── agent1a_write_output.txt.stderr
             ├── checkpoint.json                ← written by checkpoint-write phase; read by Agent 1b
-            ├── agent1b_prompt.md        ← assembled conclusion prompt
-            ├── agent1b.log              ← Agent 1b stdout+stderr
-            ├── diagnosis.raw.json       ← full Claude JSON wrapper from Agent 1b
-            ├── diagnosis.json           ← extracted, schema-validated diagnosis
+            ├── agent1b_prompt.md              ← assembled conclusion prompt
+            ├── agent1b.log                    ← bash-level log for Agent 1b stage
+            ├── agent1b_raw.json               ← raw json from Agent 1b claude call
+            ├── agent1b_stderr.txt             ← stderr from Agent 1b claude call
+            ├── agent1b_meta.env               ← exit_code, normalized, schema_valid, repair_attempted, etc.
+            ├── agent1b_quality.env            ← agent1b_quality=ok|failed
+            ├── agent1b_repair_prompt.md       ← (if repair was triggered)
+            ├── agent1b_repair_raw.json        ← (if repair was triggered)
+            ├── agent1b_repair_stderr.txt      ← (if repair was triggered)
+            ├── diagnosis.invalid.json         ← (if schema validation failed)
+            ├── diagnosis.invalid.txt          ← (if schema validation failed)
+            ├── diagnosis.raw.json             ← full Claude JSON wrapper from Agent 1b
+            ├── diagnosis.json                 ← extracted, schema-validated diagnosis
             ├── solution.json
             ├── solution.raw.json
             ├── patches/
@@ -253,29 +267,57 @@ Contains: investigation_write.md + agent1a_findings.md + agent1a_evidence.txt + 
 ---
 
 ### `checkpoint.json`
-**Created by:** Checkpoint-write phase (claude call with Write tool)
-**Read by:** Agent 1b, orchestrator (seed fallback)
+**Created by:** Checkpoint-write phase (`claude --output-format json --max-turns 1 --tools ""`, output extracted from `.result`)
+**Read by:** Agent 1b
 
-The investigation's durable structured output. Written by the checkpoint-write phase from `agent1a_findings.md` and `agent1a_evidence.txt`. If the write phase fails, the orchestrator writes a seed checkpoint pointing to the findings and evidence files.
+The investigation's durable structured output. Written by the checkpoint-write phase from `agent1a_findings.md` and `agent1a_evidence.txt`. The write prompt (`prompts/investigation_write.md`) instructs Claude to emit a JSON object that maps 1:1 onto the diagnosis schema, so Agent 1b can pass fields through verbatim.
+
+If the write phase fails (Claude returns non-JSON or partial output), the orchestrator writes a **degraded seed** with `_degraded_seed: true`. Agent 1b detects this marker and fails fast — no fabricated diagnosis.
+
+Expected shape (when write phase succeeds):
 
 ```json
 {
-  "hypothesis": "...",
-  "confidence": 0.85,
+  "root_cause": "<one paragraph — passed through verbatim to diagnosis.root_cause>",
+  "hypothesis": "<sentence summary or same as root_cause; legacy field>",
+  "hypotheses": [
+    {
+      "id": "h1",
+      "summary": "<one sentence>",
+      "supporting_evidence": [{"type": "code", "path": "src/foo.py", "lines": "42-48", "note": "..."}],
+      "contradicting_evidence": [],
+      "confidence": 0.82
+    }
+  ],
+  "selected_hypothesis_id": "h1",
+  "confidence": 0.82,
   "files_examined": ["src/click/core.py"],
-  "call_chain": ["..."],
+  "call_chain": ["entrypoint.py:main()", "core.py:bar()"],
   "affected_files": ["src/click/core.py"],
-  "supporting_evidence": [{"type": "code", "path": "...", "lines": "...", "note": "..."}],
+  "supporting_evidence": [{"type": "code", "path": "src/click/core.py", "lines": "42-48", "note": "missing guard"}],
   "rejected_hypotheses": [{"id": "h2", "reason": "..."}],
   "unknowns": ["..."],
   "introducing_commit": null,
-  "next_best_action": "..."
+  "next_best_action": "Add None guard at core.py:45"
+}
+```
+
+Degraded seed shape (write phase failed):
+
+```json
+{
+  "hypothesis": "Agent 1a investigation did not produce a valid checkpoint. See agent1a_findings.md and agent1a_evidence.txt.",
+  "confidence": 0.0,
+  "_degraded_seed": true,
+  ...
 }
 ```
 
 Inspect:
 ```bash
 cat .rca-mas/runs/latest/checkpoint.json | jq .
+# Check if it's a degraded seed:
+jq '._degraded_seed // false' .rca-mas/runs/latest/checkpoint.json
 ```
 
 ---
@@ -295,18 +337,70 @@ The assembled conclusion prompt: `prompts/diagnosis.md` + bug report + run metad
 ---
 
 ### `diagnosis.json`
-**Created by:** Agent 1b (schema-validated) or orchestrator bash synthesis (on Agent 1b timeout)
-**Read by:** Agent 2, orchestrator
+**Created by:** Agent 1b (schema-validated and atomically written), with one-shot repair attempt on validation failure. On total failure, the orchestrator writes a placeholder with `confidence: 0.0` and `root_cause` describing the failure reason — no fabricated diagnosis from the checkpoint.
+**Read by:** Agent 2, orchestrator, `report.sh`
 
-Root cause, confidence, evidence, hypotheses, affected files. See [schemas.md](schemas.md) for full field reference.
+Root cause, confidence, evidence, hypotheses, affected files. See [schemas.md](schemas.md) for full field reference. The orchestrator caps `confidence` at 0.4 if `agent1a_quality` was `weak` or `failed` (via post-extraction stamp).
 
 ---
 
 ### `diagnosis.raw.json`
-**Created by:** `run_claude_schema()` — full Claude JSON wrapper from Agent 1b
+**Created by:** Orchestrator — copy of `agent1b_raw.json` after successful validation, or copy of the placeholder diagnosis on failure
 **Read by:** Debugging only
 
-The complete unprocessed output from Agent 1b. Preserved for debugging parse failures or inspecting usage tokens.
+Preserved for inspecting Claude's full response, usage tokens, session id, etc.
+
+---
+
+### `agent1b_raw.json` / `agent1b_stderr.txt`
+
+**Created by:** Direct `claude --output-format json --json-schema` call in the orchestrator
+**Read by:** `extract_normalize_json`, debugging
+
+Raw Claude JSON envelope and stderr from the Agent 1b call. `agent1b_raw.json` is the input to extraction. Stderr is kept separate from stdout so JSON is never contaminated.
+
+---
+
+### `agent1b_repair_raw.json` / `agent1b_repair_stderr.txt`
+
+**Created by:** Repair call (only if first Agent 1b call failed schema validation)
+**Read by:** `extract_normalize_json`, debugging
+
+Same shape as `agent1b_raw.json` but from the repair prompt (`prompts/agent1b_repair.md`). Only present when repair was attempted.
+
+---
+
+### `agent1b_meta.env` / `agent1b_quality.env`
+
+**Created by:** Orchestrator after Agent 1b completes (always written, even on failure)
+**Read by:** Debugging, downstream stages
+
+`agent1b_meta.env`:
+
+```
+exit_code=<integer>
+result_type=extracted|none
+normalized=true|false
+schema_valid=true|false
+repair_attempted=true|false
+repair_success=true|false
+failure_reason=<text or empty>
+```
+
+`agent1b_quality.env`:
+
+```
+agent1b_quality=ok|failed
+```
+
+---
+
+### `diagnosis.invalid.json` / `diagnosis.invalid.txt`
+
+**Created by:** Orchestrator when schema validation fails before/after repair
+**Read by:** Debugging only
+
+Preserves the candidate diagnosis that failed validation, plus the validation error text. Useful for diagnosing prompt regressions or schema mismatches.
 
 ---
 

@@ -285,6 +285,156 @@ extract_structured "$tmp_raw" "$tmp_out" \
   || pass "extract_structured correctly returns non-zero when both fields are null"
 rm -f "$tmp_raw" "$tmp_out"
 
+# extract_structured unwraps double-serialized .result (JSON string containing JSON object)
+# This happens when Claude returns a JSON object as its text response via --output-format json.
+# Use jq to build the fixture so the inner JSON is correctly escaped.
+tmp_raw="$(mktemp)"
+tmp_out="$(mktemp)"
+jq -n '{"structured_output": null, "result": "{\"run_id\": \"z\", \"confidence\": 0.8}"}' > "$tmp_raw"
+extract_structured "$tmp_raw" "$tmp_out" \
+  && val="$(jq -r '.run_id' "$tmp_out" 2>/dev/null)" \
+  && [ "$val" = "z" ] \
+  && pass "extract_normalize_json: unwraps double-serialized .result string" \
+  || fail "extract_normalize_json: failed to unwrap double-serialized .result string"
+rm -f "$tmp_raw" "$tmp_out"
+
+# extract_normalize_json: fenced JSON string in .result
+tmp_raw="$(mktemp)"
+tmp_out="$(mktemp)"
+# Build a .result string that contains ```json\n{...}\n```
+jq -n '{"structured_output": null, "result": "```json\n{\"run_id\": \"fenced\", \"confidence\": 0.7}\n```"}' > "$tmp_raw"
+extract_normalize_json "$tmp_raw" "$tmp_out" \
+  && val="$(jq -r '.run_id' "$tmp_out" 2>/dev/null)" \
+  && [ "$val" = "fenced" ] \
+  && pass "extract_normalize_json: unwraps fenced JSON in .result string" \
+  || fail "extract_normalize_json: failed to unwrap fenced JSON in .result string"
+rm -f "$tmp_raw" "$tmp_out"
+
+# extract_normalize_json: raw top-level object (no envelope)
+tmp_raw="$(mktemp)"
+tmp_out="$(mktemp)"
+printf '{"run_id": "raw", "confidence": 0.5}' > "$tmp_raw"
+extract_normalize_json "$tmp_raw" "$tmp_out" \
+  && val="$(jq -r '.run_id' "$tmp_out" 2>/dev/null)" \
+  && [ "$val" = "raw" ] \
+  && pass "extract_normalize_json: handles raw top-level object" \
+  || fail "extract_normalize_json: failed on raw top-level object"
+rm -f "$tmp_raw" "$tmp_out"
+
+# extract_normalize_json: plain prose string in .result is rejected
+tmp_raw="$(mktemp)"
+tmp_out="$(mktemp)"
+jq -n '{"structured_output": null, "result": "this is not json at all"}' > "$tmp_raw"
+extract_normalize_json "$tmp_raw" "$tmp_out" \
+  && fail "extract_normalize_json: should reject plain prose .result string" \
+  || pass "extract_normalize_json: correctly rejects plain prose .result string"
+rm -f "$tmp_raw" "$tmp_out"
+
+# ---------------------------------------------------------------------------
+# Section 6b — validate_diagnosis_json
+# ---------------------------------------------------------------------------
+printf '\n--- validate_diagnosis_json ---\n'
+
+# valid diagnosis passes
+tmp_diag="$(mktemp)"
+cp "${FIXTURES}/sample_diagnosis.json" "$tmp_diag"
+err="$(validate_diagnosis_json "$tmp_diag" 2>/dev/null)"
+[ -z "$err" ] \
+  && pass "validate_diagnosis_json: valid sample_diagnosis passes" \
+  || fail "validate_diagnosis_json: valid sample_diagnosis failed with: $err"
+rm -f "$tmp_diag"
+
+# missing required field is rejected
+tmp_diag="$(mktemp)"
+jq 'del(.root_cause)' "${FIXTURES}/sample_diagnosis.json" > "$tmp_diag"
+err="$(validate_diagnosis_json "$tmp_diag" 2>/dev/null || true)"
+[ -n "$err" ] \
+  && pass "validate_diagnosis_json: rejects missing root_cause field" \
+  || fail "validate_diagnosis_json: should reject missing root_cause"
+rm -f "$tmp_diag"
+
+# confidence out of range is rejected
+tmp_diag="$(mktemp)"
+jq '.confidence = 1.5' "${FIXTURES}/sample_diagnosis.json" > "$tmp_diag"
+err="$(validate_diagnosis_json "$tmp_diag" 2>/dev/null || true)"
+[ -n "$err" ] \
+  && pass "validate_diagnosis_json: rejects confidence > 1" \
+  || fail "validate_diagnosis_json: should reject confidence 1.5"
+rm -f "$tmp_diag"
+
+# hypotheses as empty array is rejected
+tmp_diag="$(mktemp)"
+jq '.hypotheses = []' "${FIXTURES}/sample_diagnosis.json" > "$tmp_diag"
+err="$(validate_diagnosis_json "$tmp_diag" 2>/dev/null || true)"
+[ -n "$err" ] \
+  && pass "validate_diagnosis_json: rejects empty hypotheses array" \
+  || fail "validate_diagnosis_json: should reject empty hypotheses"
+rm -f "$tmp_diag"
+
+# root_cause that looks like stringified JSON is rejected
+tmp_diag="$(mktemp)"
+jq '.root_cause = "{\"foo\": 1}"' "${FIXTURES}/sample_diagnosis.json" > "$tmp_diag"
+err="$(validate_diagnosis_json "$tmp_diag" 2>/dev/null || true)"
+[ -n "$err" ] \
+  && pass "validate_diagnosis_json: rejects stringified-JSON root_cause" \
+  || fail "validate_diagnosis_json: should reject stringified-JSON root_cause"
+rm -f "$tmp_diag"
+
+# selected_hypothesis_id references a non-existent hypothesis id
+tmp_diag="$(mktemp)"
+jq '.selected_hypothesis_id = "h99"' "${FIXTURES}/sample_diagnosis.json" > "$tmp_diag"
+err="$(validate_diagnosis_json "$tmp_diag" 2>/dev/null || true)"
+[ -n "$err" ] \
+  && pass "validate_diagnosis_json: rejects selected_hypothesis_id not in hypotheses" \
+  || fail "validate_diagnosis_json: should reject selected_hypothesis_id missing from hypotheses"
+rm -f "$tmp_diag"
+
+# selected_hypothesis_id that matches a real hypothesis id passes
+tmp_diag="$(mktemp)"
+cp "${FIXTURES}/sample_diagnosis.json" "$tmp_diag"
+err="$(validate_diagnosis_json "$tmp_diag" 2>/dev/null || true)"
+[ -z "$err" ] \
+  && pass "validate_diagnosis_json: accepts valid selected_hypothesis_id" \
+  || fail "validate_diagnosis_json: valid selected_hypothesis_id rejected with: $err"
+rm -f "$tmp_diag"
+
+# ---------------------------------------------------------------------------
+# Section 6c — CLAUDE_BIN propagation
+# ---------------------------------------------------------------------------
+printf '\n--- CLAUDE_BIN propagation ---\n'
+
+# When CLAUDE_BIN is unset, scripts fall back to bare 'claude' — test that they
+# do not hard-error during sourcing (the fallback is syntactically correct).
+(
+  unset CLAUDE_BIN 2>/dev/null || true
+  source "${TOOL_ROOT}/scripts/claude_json.sh" 2>/dev/null
+  [ "${_CLAUDE}" = "claude" ]
+) \
+  && pass "CLAUDE_BIN: unset falls back to bare 'claude' in claude_json.sh" \
+  || fail "CLAUDE_BIN: fallback to bare 'claude' broken in claude_json.sh"
+
+# When CLAUDE_BIN is set to a known path, _CLAUDE picks it up.
+(
+  export CLAUDE_BIN="/fake/path/to/claude"
+  source "${TOOL_ROOT}/scripts/claude_json.sh" 2>/dev/null
+  [ "${_CLAUDE}" = "/fake/path/to/claude" ]
+) \
+  && pass "CLAUDE_BIN: set value propagates to _CLAUDE in claude_json.sh" \
+  || fail "CLAUDE_BIN: set value not picked up by claude_json.sh"
+
+# No bare runtime 'claude' calls remain (resolver/docs/tests excepted)
+_bare_calls="$(grep -rn \
+  --include='*.sh' \
+  -E '(^|[[:space:]])claude[[:space:]]' \
+  "${TOOL_ROOT}/scripts/" "${TOOL_ROOT}/lib/" \
+  | grep -v 'CLAUDE_BIN\|_CLAUDE\|#\|\.sh:.*claude_json\|run_claude\|command -v claude\|echo.*claude\|warn.*claude\|printf.*claude' \
+  | grep -v 'test_\|tests/' \
+  || true)"
+[ -z "$_bare_calls" ] \
+  && pass "CLAUDE_BIN: no bare runtime 'claude' calls in scripts/ or lib/" \
+  || fail "CLAUDE_BIN: bare runtime 'claude' calls found:
+$_bare_calls"
+
 # ---------------------------------------------------------------------------
 # Section 7 — Key fixture field values (regression guard)
 # ---------------------------------------------------------------------------

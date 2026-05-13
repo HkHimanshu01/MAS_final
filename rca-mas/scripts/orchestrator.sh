@@ -40,7 +40,7 @@ log_event "info" "orchestrator" "run started" "run_id=${RUN_ID}" "mode=${MODE}"
 info "Run ${RUN_ID} starting (${MODE})"
 
 # --- Collect tool versions ---
-CLAUDE_VER="$(claude --version 2>/dev/null || echo 'unknown')"
+CLAUDE_VER="$("${CLAUDE_BIN:-claude}" --version 2>/dev/null || echo 'unknown')"
 GIT_VER="$(git --version 2>/dev/null | awk '{print $3}' || echo 'unknown')"
 JQ_VER="$(jq --version 2>/dev/null || echo 'unknown')"
 GH_VER="$(gh --version 2>/dev/null | head -1 | awk '{print $3}' || echo 'not-installed')"
@@ -241,14 +241,28 @@ if [ "$_A1A_EXIT" -ne 0 ]; then
 fi
 
 # --- Step 3: Extract stream artifacts ---
-# Always runs regardless of exit code. Uses jq -Rr 'fromjson?' — malformed lines skipped.
+# Validate stream is non-empty and contains a result event before extracting.
+# A partial stream (timeout mid-run) may have assistant text but no result event.
+if [ ! -s "${_A1A_STREAM}" ]; then
+  log_event "warn" "agent1a" "stream file is empty — Claude produced no output" "exit=${_A1A_EXIT}"
+  _A1A_STATUS="degraded"
+elif ! jq -e 'select(.type == "result")' "${_A1A_STREAM}" > /dev/null 2>&1; then
+  log_event "warn" "agent1a" "stream has no result event — likely truncated by timeout" "exit=${_A1A_EXIT}"
+  _A1A_STATUS="degraded"
+fi
+
+_A1A_EXTRACT_FAILED=0
 bash "${TOOL_ROOT}/scripts/extract_agent1a_stream.sh" \
   "${_A1A_STREAM}" \
   "${_A1A_OUTPUT}" \
   "${_A1A_EVIDENCE}" \
   "${_A1A_META_ENV}" \
   "${_A1A_EXIT}" \
-  >> "${AGENT1A_LOG}" 2>&1 || true
+  >> "${AGENT1A_LOG}" 2>&1 || _A1A_EXTRACT_FAILED=$?
+if [ "$_A1A_EXTRACT_FAILED" -ne 0 ]; then
+  log_event "warn" "agent1a" "stream extraction script failed" "exit=${_A1A_EXTRACT_FAILED}"
+  _A1A_STATUS="degraded"
+fi
 
 # Read metadata extracted from stream
 _A1A_SESSION_ID="$(grep '^session_id=' "${_A1A_META_ENV}" 2>/dev/null | cut -d= -f2- | head -1 || true)"
@@ -260,26 +274,43 @@ log_event "info" "agent1a" "stream extracted" \
 # --- Step 4: Forced no-tool finalization ---
 # Always runs when session_id is available. Standardises output regardless of stop_reason.
 # Appends FINAL FINDINGS to agent1a_output.txt and writes agent1a_findings.md.
+_A1A_FINALIZE_FAILED=0
 bash "${TOOL_ROOT}/scripts/finalize_agent1a_summary.sh" \
   "${RUN_DIR}" \
   "${TOOL_ROOT}" \
-  >> "${AGENT1A_LOG}" 2>&1 || true
+  >> "${AGENT1A_LOG}" 2>&1 || _A1A_FINALIZE_FAILED=$?
+if [ "$_A1A_FINALIZE_FAILED" -ne 0 ]; then
+  log_event "warn" "agent1a" "finalization script exited non-zero" "exit=${_A1A_FINALIZE_FAILED}"
+  _A1A_STATUS="degraded"
+fi
 
 # --- Step 5: Quality gate (first pass) ---
+_A1A_QUALITY_FAILED=0
 bash "${TOOL_ROOT}/scripts/check_agent1a_quality.sh" \
   "${RUN_DIR}" \
-  >> "${AGENT1A_LOG}" 2>&1 || true
+  >> "${AGENT1A_LOG}" 2>&1 || _A1A_QUALITY_FAILED=$?
+if [ "$_A1A_QUALITY_FAILED" -ne 0 ]; then
+  log_event "warn" "agent1a" "quality check script exited non-zero" "exit=${_A1A_QUALITY_FAILED}"
+fi
 
 _A1A_QUALITY="$(grep '^agent1a_quality=' "${_A1A_QUALITY_ENV}" 2>/dev/null | cut -d= -f2- | head -1 || true)"
-log_event "info" "agent1a" "quality gate (pass 1)" "quality=${_A1A_QUALITY:-unknown}"
+if [ "${_A1A_QUALITY}" = "weak" ] || [ -z "${_A1A_QUALITY}" ]; then
+  log_event "warn" "agent1a" "quality gate (pass 1): WEAK" "quality=${_A1A_QUALITY:-unknown}"
+  warn "Agent 1a quality is weak after pass 1 — running evidence recovery"
+else
+  log_event "info" "agent1a" "quality gate (pass 1): ok" "quality=${_A1A_QUALITY}"
+fi
 
 # --- Steps 6-7: Recovery + second quality gate if weak ---
 if [ "${_A1A_QUALITY}" = "weak" ] || [ -z "${_A1A_QUALITY}" ]; then
-  log_event "info" "agent1a" "quality weak — running evidence recovery"
+  _A1A_RECOVER_FAILED=0
   bash "${TOOL_ROOT}/scripts/recover_agent1a_findings.sh" \
     "${RUN_DIR}" \
     "${TOOL_ROOT}" \
-    >> "${AGENT1A_LOG}" 2>&1 || true
+    >> "${AGENT1A_LOG}" 2>&1 || _A1A_RECOVER_FAILED=$?
+  if [ "$_A1A_RECOVER_FAILED" -ne 0 ]; then
+    log_event "warn" "agent1a" "recovery script exited non-zero" "exit=${_A1A_RECOVER_FAILED}"
+  fi
 
   # Re-run quality gate after recovery
   bash "${TOOL_ROOT}/scripts/check_agent1a_quality.sh" \
@@ -287,7 +318,13 @@ if [ "${_A1A_QUALITY}" = "weak" ] || [ -z "${_A1A_QUALITY}" ]; then
     >> "${AGENT1A_LOG}" 2>&1 || true
 
   _A1A_QUALITY="$(grep '^agent1a_quality=' "${_A1A_QUALITY_ENV}" 2>/dev/null | cut -d= -f2- | head -1 || true)"
-  log_event "info" "agent1a" "quality gate (pass 2)" "quality=${_A1A_QUALITY:-unknown}"
+  if [ "${_A1A_QUALITY}" = "weak" ] || [ -z "${_A1A_QUALITY}" ]; then
+    log_event "warn" "agent1a" "quality gate (pass 2): still WEAK — proceeding with degraded signal" "quality=${_A1A_QUALITY:-unknown}"
+    warn "Agent 1a quality is still weak after recovery — Agent 1b will cap confidence at 0.4"
+    _A1A_STATUS="degraded"
+  else
+    log_event "info" "agent1a" "quality gate (pass 2): ok after recovery" "quality=${_A1A_QUALITY}"
+  fi
 fi
 
 # Ensure agent1a_quality.env always exists
@@ -345,20 +382,48 @@ fi
 # Extract the response text (.result field) and write it as checkpoint.json.
 # The prompt instructs Claude to output raw JSON only — validate before saving.
 _A1A_WRITE_RESULT="$(jq -r '.result // empty' "${_A1A_WRITE_OUTPUT}.json" 2>/dev/null || true)"
-if [ -n "$_A1A_WRITE_RESULT" ] && echo "$_A1A_WRITE_RESULT" | jq -e . > /dev/null 2>&1; then
-  echo "$_A1A_WRITE_RESULT" > "$CHECKPOINT"
-  log_event "info" "agent1a" "checkpoint written" "bytes=${#_A1A_WRITE_RESULT}"
-else
-  log_event "warn" "agent1a" "write phase produced no valid JSON" "exit=${_A1A_WRITE_EXIT}"
+
+# Also try extract_normalize_json as fallback (handles stringified/fenced JSON)
+if [ -z "$_A1A_WRITE_RESULT" ] || ! printf '%s\n' "$_A1A_WRITE_RESULT" | jq -e . > /dev/null 2>&1; then
+  _A1A_WRITE_TMP="${RUN_DIR}/agent1a_write_normalized.json"
+  if extract_normalize_json "${_A1A_WRITE_OUTPUT}.json" "$_A1A_WRITE_TMP" 2>/dev/null; then
+    _A1A_WRITE_RESULT="$(cat "$_A1A_WRITE_TMP")"
+    log_event "info" "agent1a" "checkpoint extracted via normalize fallback"
+  fi
 fi
 
-# --- Ensure checkpoint is valid JSON — write seed if missing or corrupt ---
+if [ -n "$_A1A_WRITE_RESULT" ] && printf '%s\n' "$_A1A_WRITE_RESULT" | jq -e . > /dev/null 2>&1; then
+  printf '%s\n' "$_A1A_WRITE_RESULT" > "$CHECKPOINT"
+  log_event "info" "agent1a" "checkpoint written" "bytes=${#_A1A_WRITE_RESULT}"
+else
+  log_event "error" "agent1a" "write phase produced no valid JSON — checkpoint will be a degraded seed" "exit=${_A1A_WRITE_EXIT}"
+  warn "Agent 1a write phase failed to produce valid JSON checkpoint"
+  _A1A_STATUS="degraded"
+fi
+
+# --- Ensure checkpoint is valid JSON — write degraded seed if missing or corrupt ---
+# This seed is explicitly marked as a failure artifact, not silent fake data.
+# Agent 1b will see confidence=0.0 and quality=failed and cap accordingly.
 if [ ! -f "$CHECKPOINT" ] || ! jq -e . "$CHECKPOINT" > /dev/null 2>&1; then
-  warn "Checkpoint missing or invalid after Agent 1a — writing seed"
-  log_event "warn" "agent1a" "checkpoint missing or invalid — writing seed"
-  cat > "$CHECKPOINT" <<SEEDCP
-{"hypothesis": "Agent 1a investigation did not produce a checkpoint. See agent1a_findings.md and agent1a_evidence.txt for raw findings.", "confidence": 0.0, "files_examined": [], "call_chain": [], "affected_files": [], "supporting_evidence": [], "unknowns": ["checkpoint writer did not produce valid JSON"], "introducing_commit": null, "next_best_action": "Inspect agent1a_findings.md and agent1a_evidence.txt in the run directory."}
-SEEDCP
+  log_event "error" "agent1a" "checkpoint missing or invalid — writing degraded seed; Agent 1b will receive 0.0 confidence placeholder"
+  warn "Checkpoint missing or invalid after Agent 1a write phase — writing degraded seed"
+  _A1A_STATUS="degraded"
+  jq -n \
+    --arg hint "Agent 1a investigation did not produce a valid checkpoint. See agent1a_findings.md and agent1a_evidence.txt." \
+    '{
+      "hypothesis": $hint,
+      "confidence": 0.0,
+      "files_examined": [],
+      "call_chain": [],
+      "affected_files": [],
+      "supporting_evidence": [],
+      "unknowns": ["checkpoint writer did not produce valid JSON"],
+      "introducing_commit": null,
+      "next_best_action": "Inspect agent1a_findings.md and agent1a_evidence.txt in the run directory.",
+      "_degraded_seed": true
+    }' > "$CHECKPOINT"
+  # Force quality to failed so Agent 1b caps confidence at 0.4
+  printf 'agent1a_quality=failed\nagent1a_finalization=failed\nagent1a_recovery=failed\n' > "${_A1A_QUALITY_ENV}"
 fi
 
 stage_end "agent1a" "$_A1A_STATUS"
@@ -369,110 +434,282 @@ log_event "info" "agent1a" "investigation complete" \
 
 # ============================================================
 # STAGE: Agent 1b — Conclusion (schema-enforced, reads checkpoint)
+#
+# Flow:
+#   1. Assert checkpoint exists and is valid
+#   2. Assemble prompt (system + bug report + checkpoint inline)
+#   3. Invoke Claude — no tools, no bash -c, stdout/stderr separated
+#   4. Normalise output (extract_normalize_json handles all envelope forms)
+#   5. Validate against diagnosis schema
+#   6. If invalid: one repair attempt
+#   7. If repair fails: fail-closed — do not write diagnosis.json
+#   8. Atomic write only after validation passes
+#   9. Write meta env, quality env, sidecars always
 # ============================================================
 info "Agent 1b: conclusion..."
 stage_begin
 
-# --- Assemble agent1b_prompt.md ---
-# Structure: conclusion system prompt + bug report + run metadata (with checkpoint path)
-# Agent 1b does NOT receive the full briefing — it reads the checkpoint and bug report only.
-{
-  cat "${TOOL_ROOT}/prompts/diagnosis.md"
-  printf '\n\n---\n\n## Bug Report\n\n'
-  cat "$BUG_FILE"
-  printf '\n\n---\n\n'
-  printf '## Run Metadata\n\n'
-  printf 'RUN_ID: %s\n' "$RUN_ID"
-  printf 'TARGET_REPO_ROOT: %s\n' "$TARGET_REPO_ROOT"
-  printf 'RUN_DIR: %s\n' "$RUN_DIR"
-  printf 'CHECKPOINT_PATH: %s\n' "$CHECKPOINT"
-  printf 'CONFIDENCE_STOP: %s\n' "${RCA_CONFIDENCE_STOP}"
-  printf 'CONFIDENCE_CHECKPOINT: %s\n' "${RCA_CONFIDENCE_CHECKPOINT}"
-} > "$AGENT1B_PROMPT"
-
-log_event "info" "agent1b" "prompt assembled" "turns=${RCA_A1B_TURNS}" "timeout=${RCA_A1B_TIMEOUT}"
-
-# --- Invoke Agent 1b under timeout ---
-# Agent 1b: Read only (checkpoint + optionally a few source lines to verify).
-# Grep/Glob available for light disambiguation. No Write, no Bash.
-_A1B_TOOLS="Read,Grep,Glob"
 _A1B_STATUS="ok"
-export AGENT1B_PROMPT DIAGNOSIS_RAW DIAGNOSIS RCA_MODEL
-_A1B_TURNS="${RCA_A1B_TURNS}"
-_A1B_TIMEOUT="${RCA_A1B_TIMEOUT}"
-export _A1B_TURNS _A1B_TOOLS
+_A1B_FAILURE_REASON=""
+_A1B_RESULT_TYPE="none"
+_A1B_NORMALIZED="false"
+_A1B_SCHEMA_VALID="false"
+_A1B_REPAIR_ATTEMPTED="false"
+_A1B_REPAIR_SUCCESS="false"
 
-if ! timeout "${_A1B_TIMEOUT}" bash -c '
-  source "${TOOL_ROOT}/lib/log.sh"
-  source "${TOOL_ROOT}/lib/json.sh"
-  source "${TOOL_ROOT}/scripts/claude_json.sh"
-  run_claude_schema \
-    "$AGENT1B_PROMPT" \
-    "${TOOL_ROOT}/schemas/diagnosis.schema.json" \
-    "$DIAGNOSIS_RAW" \
-    "$DIAGNOSIS" \
-    "$_A1B_TURNS" \
-    "$_A1B_TOOLS"
-' >> "$AGENT1B_LOG" 2>&1; then
+# Helper: write agent1b_meta.env (always called, even on failure)
+_write_a1b_meta() {
+  cat > "$AGENT1B_META_ENV" <<METAENV
+exit_code=${1:-1}
+result_type=${_A1B_RESULT_TYPE}
+normalized=${_A1B_NORMALIZED}
+schema_valid=${_A1B_SCHEMA_VALID}
+repair_attempted=${_A1B_REPAIR_ATTEMPTED}
+repair_success=${_A1B_REPAIR_SUCCESS}
+failure_reason=${_A1B_FAILURE_REASON}
+METAENV
+}
 
-  _A1B_STATUS="degraded"
-  warn "Agent 1b failed or timed out — falling back to checkpoint synthesis"
-  log_event "warn" "agent1b" "failed or timed out — checkpoint synthesis fallback"
+# Helper: write agent1b_quality.env
+_write_a1b_quality() {
+  printf 'agent1b_quality=%s\n' "$1" > "$AGENT1B_QUALITY_ENV"
+}
 
-  # Build a valid diagnosis.json from checkpoint fields + safe defaults
-  _cp_hypo="$(jq -r '.hypothesis // "Could not determine root cause."' "$CHECKPOINT")"
-  _cp_conf="$(jq -r '.confidence // 0' "$CHECKPOINT")"
-  _cp_files="$(jq -c '.files_examined // []' "$CHECKPOINT")"
-  _cp_chain="$(jq -c '.call_chain // []' "$CHECKPOINT")"
-  _cp_affected="$(jq -c '.affected_files // []' "$CHECKPOINT")"
-  _cp_unknowns="$(jq -c '.unknowns // ["Agent 1b timed out — diagnosis synthesised from checkpoint"]' "$CHECKPOINT")"
-  _cp_commit="$(jq -c '.introducing_commit // null' "$CHECKPOINT")"
-  _cp_nba="$(jq -r '.next_best_action // "Review checkpoint.json and extend investigation manually."' "$CHECKPOINT")"
+# --- Step 1: Assert checkpoint ---
+# Checks: file exists, is valid JSON object, is not a degraded seed, has at least one
+# meaningful field (hypothesis or root_cause) so Agent 1b has real signal to work with.
+if [ ! -f "$CHECKPOINT" ] || ! jq -e 'type == "object"' "$CHECKPOINT" > /dev/null 2>&1; then
+  _A1B_FAILURE_REASON="checkpoint missing or not a JSON object"
+  warn "Agent 1b: ${_A1B_FAILURE_REASON}"
+  log_event "error" "agent1b" "checkpoint invalid" "reason=${_A1B_FAILURE_REASON}"
+  _write_a1b_meta 1
+  _write_a1b_quality "failed"
+  _A1B_STATUS="failed"
+elif jq -e '._degraded_seed == true' "$CHECKPOINT" > /dev/null 2>&1; then
+  _A1B_FAILURE_REASON="checkpoint is a degraded seed (Agent 1a write phase failed) — no real findings to synthesise"
+  warn "Agent 1b: ${_A1B_FAILURE_REASON}"
+  log_event "error" "agent1b" "checkpoint is degraded seed" "reason=${_A1B_FAILURE_REASON}"
+  _write_a1b_meta 1
+  _write_a1b_quality "failed"
+  _A1B_STATUS="failed"
+elif ! jq -e '
+  ((.hypothesis | type == "string" and length > 0) or
+   (.root_cause | type == "string" and length > 0) or
+   (.call_chain | type == "array" and length > 0) or
+   (.files_examined | type == "array" and length > 0))
+' "$CHECKPOINT" > /dev/null 2>&1; then
+  _A1B_FAILURE_REASON="checkpoint is an empty or near-empty object — no investigative signal"
+  warn "Agent 1b: ${_A1B_FAILURE_REASON}"
+  log_event "error" "agent1b" "checkpoint has no useful fields" "reason=${_A1B_FAILURE_REASON}"
+  _write_a1b_meta 1
+  _write_a1b_quality "failed"
+  _A1B_STATUS="failed"
+fi
 
-  # If confidence is at seed level (0.0), use the checkpoint threshold instead
-  if [ "$(printf '%.0f' "$(echo "${_cp_conf} * 100" | bc 2>/dev/null || echo '0')")" -eq 0 ]; then
-    _cp_conf="${RCA_CONFIDENCE_CHECKPOINT}"
-    _A1B_STATUS="failed"
+# --- Step 1b: Log checkpoint shape ---
+# Tells the operator what Agent 1b is about to receive. Helps diagnose downstream
+# failures: a "rich" checkpoint (hypotheses array + root_cause) maps 1:1 onto the
+# diagnosis schema; a "legacy" checkpoint (hypothesis singular only) requires
+# Agent 1b to synthesise the structure per its prompt's mapping rules.
+if [ "$_A1B_STATUS" != "failed" ]; then
+  _cp_shape="$(jq -r '
+    {
+      has_root_cause: (has("root_cause") and (.root_cause | type == "string") and (.root_cause | length > 0)),
+      has_hypothesis: (has("hypothesis") and (.hypothesis | type == "string") and (.hypothesis | length > 0)),
+      has_hypotheses_array: (has("hypotheses") and (.hypotheses | type == "array") and (.hypotheses | length > 0)),
+      has_selected_id: (has("selected_hypothesis_id") and (.selected_hypothesis_id | type == "string") and (.selected_hypothesis_id | length > 0)),
+      has_supporting_evidence: (has("supporting_evidence") and (.supporting_evidence | type == "array") and (.supporting_evidence | length > 0)),
+      affected_files_count: (.affected_files // [] | length),
+      files_examined_count: (.files_examined // [] | length),
+      call_chain_length: (.call_chain // [] | length),
+      checkpoint_confidence: (.confidence // 0)
+    } | to_entries | map("\(.key)=\(.value)") | join(" ")
+  ' "$CHECKPOINT" 2>/dev/null || echo "shape_extract_failed")"
+  log_event "info" "agent1b" "checkpoint shape" "${_cp_shape}"
+fi
+
+# --- Step 2: Assemble prompt ---
+# Agent 1b receives: system prompt + bug report + checkpoint content inline.
+# Does NOT receive briefing.md, evidence transcripts, or raw repo context.
+if [ "$_A1B_STATUS" != "failed" ]; then
+  _cp_quality="$(grep '^agent1a_quality=' "${AGENT1A_QUALITY_ENV:-/dev/null}" 2>/dev/null | cut -d= -f2- || echo 'unknown')"
+  {
+    cat "${TOOL_ROOT}/prompts/diagnosis.md"
+    printf '\n\n---\n\n## Bug Report\n\n'
+    cat "$BUG_FILE"
+    printf '\n\n---\n\n## Checkpoint (Agent 1a findings)\n\n'
+    cat "$CHECKPOINT"
+    printf '\n\n---\n\n## Run Metadata\n\n'
+    printf 'RUN_ID: %s\n' "$RUN_ID"
+    printf 'CHECKPOINT_QUALITY: %s\n' "${_cp_quality}"
+    printf 'CONFIDENCE_STOP: %s\n' "${RCA_CONFIDENCE_STOP}"
+  } > "$AGENT1B_PROMPT"
+  log_event "info" "agent1b" "prompt assembled" "turns=${RCA_A1B_TURNS}" "timeout=${RCA_A1B_TIMEOUT}" "checkpoint_quality=${_cp_quality}"
+fi
+
+# --- Step 3: Invoke Claude (no tools, no bash -c, separated stderr) ---
+_A1B_EXIT=0
+_A1B_SCHEMA="${TOOL_ROOT}/schemas/diagnosis.schema.json"
+
+if [ "$_A1B_STATUS" != "failed" ]; then
+  timeout "${RCA_A1B_TIMEOUT}" \
+    "${CLAUDE_BIN:-claude}" \
+      -p "$(cat "$AGENT1B_PROMPT")" \
+      --output-format json \
+      --json-schema "$(cat "$_A1B_SCHEMA")" \
+      --max-turns "${RCA_A1B_TURNS}" \
+      "${_A1A_MODEL_FLAG[@]}" \
+    > "$AGENT1B_RAW" \
+    2> "$AGENT1B_STDERR" \
+    || _A1B_EXIT=$?
+
+  if [ "$_A1B_EXIT" -ne 0 ]; then
+    _A1B_STATUS="degraded"
+    _A1B_FAILURE_REASON="claude exited ${_A1B_EXIT}"
+    log_event "warn" "agent1b" "claude exited non-zero" "exit=${_A1B_EXIT}"
+  fi
+fi
+
+# --- Step 4: Normalise output ---
+_A1B_TMP="${RUN_DIR}/diagnosis.json.tmp"
+if [ "$_A1B_STATUS" != "failed" ] && [ -s "$AGENT1B_RAW" ]; then
+  if extract_normalize_json "$AGENT1B_RAW" "$_A1B_TMP" 2>/dev/null; then
+    _A1B_NORMALIZED="true"
+    _A1B_RESULT_TYPE="extracted"
   else
-    _A1B_STATUS="partial"
+    _A1B_FAILURE_REASON="could not extract JSON object from Claude output"
+    log_event "warn" "agent1b" "normalisation failed" "reason=${_A1B_FAILURE_REASON}"
+    [ "$_A1B_STATUS" = "ok" ] && _A1B_STATUS="degraded"
+  fi
+else
+  [ "$_A1B_STATUS" != "failed" ] && _A1B_FAILURE_REASON="claude produced no output (exit=${_A1B_EXIT})"
+  [ "$_A1B_STATUS" = "ok" ] && _A1B_STATUS="degraded"
+fi
+
+# --- Step 5: Validate ---
+_A1B_VALIDATION_ERR=""
+if [ "$_A1B_NORMALIZED" = "true" ]; then
+  # Stamp run_id; cap confidence at 0.4 when checkpoint quality was weak/failed
+  _tmp_stamp="$(mktemp)"
+  _cp_q="$(grep '^agent1a_quality=' "${AGENT1A_QUALITY_ENV:-/dev/null}" 2>/dev/null | cut -d= -f2- || echo '')"
+  if [ "$_cp_q" = "weak" ] || [ "$_cp_q" = "failed" ]; then
+    jq --arg r "$RUN_ID" '
+      .run_id = $r |
+      if .confidence > 0.4 then .confidence = 0.4 else . end
+    ' "$_A1B_TMP" > "$_tmp_stamp" 2>/dev/null && mv "$_tmp_stamp" "$_A1B_TMP" || true
+    log_event "info" "agent1b" "confidence capped at 0.4 (checkpoint_quality=${_cp_q})"
+  else
+    jq --arg r "$RUN_ID" '.run_id = $r' "$_A1B_TMP" > "$_tmp_stamp" 2>/dev/null \
+      && mv "$_tmp_stamp" "$_A1B_TMP" || true
   fi
 
-  cat > "$DIAGNOSIS" <<PARTIAL
-{
-  "run_id": "${RUN_ID}",
-  "root_cause": "PARTIAL — Agent 1b timed out. Best guess from investigation: ${_cp_hypo}",
-  "selected_hypothesis_id": "h1",
-  "hypotheses": [
-    {
-      "id": "h1",
-      "summary": "${_cp_hypo}",
-      "supporting_evidence": [],
-      "contradicting_evidence": [],
-      "confidence": ${_cp_conf}
-    }
-  ],
-  "rejected_hypotheses": [],
-  "affected_files": ${_cp_affected},
-  "call_chain": ${_cp_chain},
-  "files_examined": ${_cp_files},
-  "unknowns": ${_cp_unknowns},
-  "confidence": ${_cp_conf},
-  "introducing_commit": ${_cp_commit},
-  "next_best_action": "${_cp_nba}"
-}
-PARTIAL
-  [ -f "$DIAGNOSIS_RAW" ] || cp "$DIAGNOSIS" "$DIAGNOSIS_RAW"
+  # validate_diagnosis_json exits 1 on validation error and writes the reason to stdout.
+  # The trailing || true prevents set -e from killing the orchestrator on a captured non-zero.
+  _A1B_VALIDATION_ERR="$(validate_diagnosis_json "$_A1B_TMP" 2>/dev/null || true)"
+  if [ -z "$_A1B_VALIDATION_ERR" ]; then
+    _A1B_SCHEMA_VALID="true"
+  else
+    log_event "warn" "agent1b" "schema validation failed" "reason=${_A1B_VALIDATION_ERR}"
+    # Preserve invalid candidate for debugging
+    cp "$_A1B_TMP" "${RUN_DIR}/diagnosis.invalid.json" 2>/dev/null || true
+  fi
 fi
+
+# --- Step 6: Repair attempt (one shot) ---
+if [ "$_A1B_SCHEMA_VALID" != "true" ] && [ "$_A1B_STATUS" != "failed" ]; then
+  _A1B_REPAIR_ATTEMPTED="true"
+  log_event "info" "agent1b" "attempting repair" "validation_error=${_A1B_VALIDATION_ERR}"
+
+  _A1B_REPAIR_PROMPT="${RUN_DIR}/agent1b_repair_prompt.md"
+  {
+    cat "${TOOL_ROOT}/prompts/agent1b_repair.md"
+    printf '\n\n---\n\n## Checkpoint\n\n'
+    cat "$CHECKPOINT"
+    printf '\n\n---\n\n## Bug Report\n\n'
+    cat "$BUG_FILE"
+    printf '\n\n---\n\n## Previous invalid output\n\n'
+    cat "${RUN_DIR}/diagnosis.invalid.json" 2>/dev/null || printf '(none — extraction failed)\n'
+    printf '\n\n---\n\n## Validation error\n\n%s\n' "${_A1B_VALIDATION_ERR:-extraction failed}"
+    printf '\n\n---\n\n## Run Metadata\n\nRUN_ID: %s\n' "$RUN_ID"
+  } > "$_A1B_REPAIR_PROMPT"
+
+  _A1B_REPAIR_EXIT=0
+  timeout "${RCA_A1B_TIMEOUT}" \
+    "${CLAUDE_BIN:-claude}" \
+      -p "$(cat "$_A1B_REPAIR_PROMPT")" \
+      --output-format json \
+      --json-schema "$(cat "$_A1B_SCHEMA")" \
+      --max-turns 1 \
+      "${_A1A_MODEL_FLAG[@]}" \
+    > "$AGENT1B_REPAIR_RAW" \
+    2> "$AGENT1B_REPAIR_STDERR" \
+    || _A1B_REPAIR_EXIT=$?
+
+  _A1B_REPAIR_TMP="${RUN_DIR}/diagnosis_repair.json.tmp"
+  if [ "$_A1B_REPAIR_EXIT" -eq 0 ] && [ -s "$AGENT1B_REPAIR_RAW" ] \
+      && extract_normalize_json "$AGENT1B_REPAIR_RAW" "$_A1B_REPAIR_TMP" 2>/dev/null; then
+    _tmp_stamp="$(mktemp)"
+    jq --arg r "$RUN_ID" '.run_id = $r' "$_A1B_REPAIR_TMP" > "$_tmp_stamp" 2>/dev/null \
+      && mv "$_tmp_stamp" "$_A1B_REPAIR_TMP" || true
+
+    _A1B_REPAIR_ERR="$(validate_diagnosis_json "$_A1B_REPAIR_TMP" 2>/dev/null || true)"
+    if [ -z "$_A1B_REPAIR_ERR" ]; then
+      _A1B_REPAIR_SUCCESS="true"
+      _A1B_SCHEMA_VALID="true"
+      mv "$_A1B_REPAIR_TMP" "$_A1B_TMP"
+      log_event "info" "agent1b" "repair succeeded"
+    else
+      _A1B_FAILURE_REASON="repair validation failed: ${_A1B_REPAIR_ERR}"
+      printf '%s\n' "$_A1B_REPAIR_ERR" > "${RUN_DIR}/diagnosis.invalid.txt"
+      log_event "warn" "agent1b" "repair validation failed" "reason=${_A1B_REPAIR_ERR}"
+    fi
+  else
+    _A1B_FAILURE_REASON="repair Claude call failed or produced no output (exit=${_A1B_REPAIR_EXIT})"
+    log_event "warn" "agent1b" "repair call failed" "exit=${_A1B_REPAIR_EXIT}"
+  fi
+fi
+
+# --- Step 7: Fail-closed if still invalid ---
+if [ "$_A1B_SCHEMA_VALID" != "true" ]; then
+  _A1B_STATUS="failed"
+  [ -z "$_A1B_FAILURE_REASON" ] && _A1B_FAILURE_REASON="diagnosis could not be validated"
+  _write_a1b_meta "${_A1B_EXIT:-1}"
+  _write_a1b_quality "failed"
+  stage_end "agent1b" "failed"
+  warn "Agent 1b failed to produce valid diagnosis.json. See ${AGENT1B_RAW}, ${RUN_DIR}/diagnosis.invalid.*, ${AGENT1B_STDERR}."
+  log_event "error" "agent1b" "fail-closed: skipping Agent 2 and report" "reason=${_A1B_FAILURE_REASON}"
+  # Write a minimal diagnosis.json with failure status so report.sh can still render
+  jq -n \
+    --arg rid "$RUN_ID" \
+    --arg reason "${_A1B_FAILURE_REASON}" \
+    '{
+      "run_id": $rid,
+      "root_cause": ("Agent 1b failed to produce valid diagnosis. " + $reason),
+      "selected_hypothesis_id": "h1",
+      "hypotheses": [{"id":"h1","summary":"Agent 1b failed","supporting_evidence":[],"contradicting_evidence":[],"confidence":0.0}],
+      "rejected_hypotheses": [],
+      "affected_files": [],
+      "call_chain": [],
+      "files_examined": [],
+      "unknowns": [$reason],
+      "confidence": 0.0,
+      "introducing_commit": null,
+      "next_best_action": "Inspect agent1b_raw.json and agent1b_stderr.txt in the run directory."
+    }' > "$DIAGNOSIS"
+  [ -f "$AGENT1B_RAW" ] && cp "$AGENT1B_RAW" "$DIAGNOSIS_RAW" || cp "$DIAGNOSIS" "$DIAGNOSIS_RAW"
+else
+  # --- Step 8: Atomic write after validation ---
+  mv "$_A1B_TMP" "$DIAGNOSIS"
+  [ -f "$AGENT1B_RAW" ] && cp "$AGENT1B_RAW" "$DIAGNOSIS_RAW" || cp "$DIAGNOSIS" "$DIAGNOSIS_RAW"
+  _write_a1b_meta "${_A1B_EXIT:-0}"
+  _write_a1b_quality "ok"
+  log_event "info" "agent1b" "diagnosis written" "validation=passed"
+fi
+
+# Clean up tmp files
+rm -f "$_A1B_TMP" "${RUN_DIR}/diagnosis_repair.json.tmp" 2>/dev/null || true
 
 stage_end "agent1b" "$_A1B_STATUS"
-
-# --- Stamp run_id into diagnosis.json if it came back as a different value ---
-_diag_run_id="$(jq -r '.run_id // ""' "$DIAGNOSIS" 2>/dev/null || true)"
-if [ "$_diag_run_id" != "$RUN_ID" ]; then
-  tmp="$(mktemp)"
-  jq --arg r "$RUN_ID" '.run_id = $r' "$DIAGNOSIS" > "$tmp"
-  mv "$tmp" "$DIAGNOSIS"
-fi
 
 # --- Log confidence for monitoring ---
 _A1_CONF="$(jq -r '.confidence // 0' "$DIAGNOSIS" 2>/dev/null || echo '0')"

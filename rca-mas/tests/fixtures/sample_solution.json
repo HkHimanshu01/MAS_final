@@ -1,14 +1,17 @@
 {
   "run_id": "fixture-run",
   "recommendation": "FIX",
+  "confidence": 0.78,
   "no_fix_reason": null,
   "recommended_fix_id": "fix1",
+  "weak_evidence": false,
+  "weak_evidence_reason": null,
   "fixes": [
     {
       "id": "fix1",
       "description": "Add None guard before accessing discount.discount_value",
       "why_this_fixes_root_cause": "Prevents TypeError when discount lookup returns None for unknown codes",
-      "unified_diff": "--- a/src/cart/pricing.py\n+++ b/src/cart/pricing.py\n@@ -42,7 +42,8 @@ def apply_discount(cart, code):\n     discount = lookup_discount(code)\n-    total = cart.subtotal - discount.discount_value\n+    if discount is None:\n+        return cart.subtotal\n+    total = cart.subtotal - discount.discount_value\n     return total\n",
+      "unified_diff": "diff --git a/src/cart/pricing.py b/src/cart/pricing.py\n--- a/src/cart/pricing.py\n+++ b/src/cart/pricing.py\n@@ -42,7 +42,8 @@ def apply_discount(cart, code):\n     discount = lookup_discount(code)\n-    total = cart.subtotal - discount.discount_value\n+    if discount is None:\n+        return cart.subtotal\n+    total = cart.subtotal - discount.discount_value\n     return total\n",
       "affected_files": ["src/cart/pricing.py"],
       "risk": "low",
       "expected_tests": ["tests/test_pricing.py::test_apply_discount_unknown_code"],

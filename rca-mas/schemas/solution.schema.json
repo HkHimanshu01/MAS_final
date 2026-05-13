@@ -1,15 +1,18 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "Solution",
-  "description": "Agent 2 fix proposal output.",
+  "description": "Agent 2 fix proposal output. Reads only briefing.md and validated diagnosis.json; no repo inspection, no tools.",
   "type": "object",
   "additionalProperties": false,
   "required": [
     "run_id",
     "recommendation",
+    "confidence",
     "no_fix_reason",
     "recommended_fix_id",
-    "fixes"
+    "fixes",
+    "weak_evidence",
+    "weak_evidence_reason"
   ],
   "properties": {
     "run_id": {
@@ -20,11 +23,24 @@
       "type": "string",
       "enum": ["FIX", "NO_FIX"]
     },
+    "confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
     "no_fix_reason": {
       "type": ["string", "null"]
     },
     "recommended_fix_id": {
       "type": ["string", "null"]
+    },
+    "weak_evidence": {
+      "type": "boolean",
+      "description": "True if the orchestrator flagged the upstream diagnosis as weak (confidence below RCA_CONFIDENCE_WEAK_THRESHOLD or agent1a_quality weak/failed)."
+    },
+    "weak_evidence_reason": {
+      "type": ["string", "null"],
+      "description": "Explanation when weak_evidence=true. Null otherwise."
     },
     "fixes": {
       "type": "array",
