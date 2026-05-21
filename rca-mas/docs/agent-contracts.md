@@ -220,49 +220,110 @@ Read the diagnosis and produce a concrete fix as a unified diff. Do not re-inves
 | `briefing.md` | `RUN_DIR/briefing.md` | Repo context (for file structure reference) |
 | `diagnosis.json` | `RUN_DIR/diagnosis.json` | Root cause, evidence, affected files |
 
-Agent 2 does **not** have access to the raw repo. It works only from what Agent 1 found.
+Agent 2 does **not** have access to the raw repo. It works only from what Agent 1 found. The orchestrator inlines both `briefing.md` and `diagnosis.json` into the assembled prompt; Agent 2 receives no tool access.
 
 ### Allowed Tools
-- **Read** — `briefing.md` and `diagnosis.json` only
+
+None — Agent 2 runs as pure synthesis. The system prompt forbids tool use; the orchestrator does not pass `--allowedTools` rules. `--max-turns` is set to 3 (configurable via `RCA_AGENT2_TURNS`) to give Claude headroom for internal thinking turns before emitting the schema-conformant JSON.
 
 ### Forbidden
-- Grep, Glob, Bash
-- Write to any repo file
-- Read source files directly (must trust diagnosis.json evidence)
-- Network access
 
-### NO_FIX Rule
-If `diagnosis.json` confidence is below `RCA_CONFIDENCE_NOFX` (default `0.5`), Agent 2 must emit `status: NO_FIX` and explain why a fix cannot be responsibly produced. This is preferable to generating a patch based on a weak diagnosis.
+- All tools (Read, Grep, Glob, Bash, Write, Edit)
+- Repo inspection of any kind
+- Patch application or test execution (those belong to Agent 2.5, optional)
+- Network access
+- Read credential files
+
+### Decision rule
+
+- `diagnosis.confidence < RCA_CONFIDENCE_NOFX` (default 0.5) → must emit `recommendation: "NO_FIX"`
+- Evidence too thin for a safe unified diff → emit `recommendation: "NO_FIX"`
+- Otherwise → emit `recommendation: "FIX"` with a valid unified diff
+
+### Weak-evidence handling
+
+The orchestrator computes a `WEAK_EVIDENCE` flag before invoking Claude:
+
+- True when `diagnosis.confidence < RCA_CONFIDENCE_WEAK_THRESHOLD` (default 0.6) **or** `agent1a_quality` was `weak` or `failed`
+- Passed into the prompt's Run Metadata along with a human-readable `WEAK_EVIDENCE_REASON`
+
+When `WEAK_EVIDENCE: true`, Agent 2 may still emit FIX, but the prompt instructs it to:
+
+- Set `weak_evidence: true` and populate `weak_evidence_reason` from metadata
+- Cap its own `confidence` at 0.5
+- Set every `fixes[].risk` to `medium` or `high`
+- Add a `manual_review_notes` entry calling out the weak-evidence concern
+
+After Claude returns, the orchestrator **enforces** the `weak_evidence` flag (it overwrites whatever Claude wrote with the orchestrator-computed value via `jq`). The validator then rejects any inconsistency (e.g., `weak_evidence=true` with null `weak_evidence_reason`).
 
 ### Output
-File: `RUN_DIR/solution.json` + `RUN_DIR/patches/*.diff`
+
+File: `RUN_DIR/solution.json` (schema-validated by `schemas/solution.schema.json`).
+File: `RUN_DIR/patches/fix.diff` (extracted unified diff of the recommended fix, only when `recommendation: "FIX"`).
 
 ```json
 {
-  "status": "COMPLETE",
-  "confidence": 0.78,
-  "fix_description": "Add a None check before including envvar in the error message. Change `if self.show_envvar` to `if self.show_envvar and self.envvar is not None`.",
-  "affected_files": ["src/click/core.py"],
-  "patches": ["patches/fix_core.diff"],
-  "test_suggestion": "pytest tests/test_options.py -k test_show_envvar"
+  "run_id": "1778750267-c88f333",
+  "recommendation": "FIX",
+  "confidence": 0.90,
+  "no_fix_reason": null,
+  "recommended_fix_id": "fix1",
+  "weak_evidence": false,
+  "weak_evidence_reason": null,
+  "fixes": [
+    {
+      "id": "fix1",
+      "description": "Guard the env-var hint in Option.get_error_hint so it is only appended when self.envvar is not None.",
+      "why_this_fixes_root_cause": "Mirrors the help-output path which already guards on envvars being non-empty.",
+      "unified_diff": "diff --git a/src/click/core.py b/src/click/core.py\n--- a/src/click/core.py\n+++ b/src/click/core.py\n@@ -2682,7 +2682,7 @@\n-        if self.show_envvar:\n+        if self.show_envvar and self.envvar is not None:\n             result += f\" (env var: '{self.envvar}')\"\n",
+      "affected_files": ["src/click/core.py"],
+      "risk": "low",
+      "expected_tests": ["tests/test_options.py::test_show_envvar"],
+      "manual_review_notes": []
+    }
+  ]
 }
 ```
 
 `NO_FIX` response:
+
 ```json
 {
-  "status": "NO_FIX",
-  "confidence": 0.38,
-  "reason": "Diagnosis confidence is below threshold. Root cause is suspected to be in the parser but evidence is insufficient to locate the specific lines."
+  "run_id": "1778741516-c88f333",
+  "recommendation": "NO_FIX",
+  "confidence": 0.0,
+  "no_fix_reason": "Diagnosis confidence 0.35 is below the NO_FIX threshold (0.50). Investigation localised the symptom to src/auth/session.py but could not identify the offending function. Next investigation step: trace caller of validate_session() in src/auth/middleware.py.",
+  "recommended_fix_id": null,
+  "weak_evidence": true,
+  "weak_evidence_reason": "Diagnosis confidence 0.35 is below the weak-evidence threshold (0.60).",
+  "fixes": []
 }
 ```
 
-### Status Values
+### Agent 2 stage statuses
+
 | Value | Meaning |
 |---|---|
-| `COMPLETE` | Patch produced |
-| `NO_FIX` | Confidence too low; no patch produced |
-| `PARTIAL` | Patch produced but Agent 2 flagged uncertainty |
+| `ok` | Solution produced and schema-valid (FIX or NO_FIX both qualify as `ok` if validation passed) |
+| `degraded` | Claude exited non-zero, but normalised output passed validation (or repair succeeded) |
+| `failed` | All extraction/validation paths exhausted; placeholder NO_FIX with confidence 0.0 written |
+
+### Agent 2 failure handling
+
+Agent 2 is **fail-closed**: if Claude returns no valid output, normalisation fails, or schema validation fails after one repair attempt, the orchestrator writes a placeholder NO_FIX solution with `confidence: 0.0` and `no_fix_reason` describing the failure. No fabricated patch is ever written.
+
+### Agent 2 sidecar artifacts
+
+| File | When |
+|---|---|
+| `agent2_raw.json` | Always |
+| `agent2_stderr.txt` | Always |
+| `agent2_meta.env` | Always (exit_code, normalized, schema_valid, repair_attempted, repair_success, solution_status, failure_reason) |
+| `agent2_quality.env` | Always (`agent2_quality=ok` or `agent2_quality=failed`) |
+| `agent2_repair_*` | Only when initial Claude call failed validation |
+| `solution.invalid.json` / `.txt` | Only on validation failure (debug aid) |
+| `solution.json` | Schema-validated solution or fail-closed placeholder |
+| `patches/fix.diff` | Only when `recommendation: "FIX"` |
 
 ---
 

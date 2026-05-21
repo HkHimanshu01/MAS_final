@@ -133,20 +133,57 @@ wc -c $RUN/agent1b_raw.json
 
 ---
 
-### `solution.json` has `status: NO_FIX`
+### `solution.json` has `recommendation: NO_FIX`
 
-**Symptom:** Agent 2 refused to produce a patch.
+**Symptom:** Agent 2 emitted a NO_FIX response instead of a patch.
 
-**Cause:** `diagnosis.json` confidence was below `RCA_CONFIDENCE_NOFX` (default 0.5). This is intentional — a bad patch is worse than no patch.
+**Cause:** One of:
 
-**Fix:** The diagnosis quality is insufficient. Options:
-1. Review `diagnosis.json` manually. If the root cause looks correct despite the low score, you can lower the threshold: `RCA_CONFIDENCE_NOFX=0.35 bash rca-mas.sh bug.md`
-2. Add more context to the bug report and re-run
-3. Switch to `claude-opus-4-7` for better diagnosis quality
+1. `diagnosis.json` confidence was below `RCA_CONFIDENCE_NOFX` (default 0.5) — intentional safeguard, a bad patch is worse than no patch.
+2. Diagnosis had no concrete file:line target that Agent 2 could turn into a unified diff.
+3. Upstream Agent 1b stage was `failed` — orchestrator short-circuits to NO_FIX without calling Claude.
+4. Agent 2 produced invalid output and the one-shot repair attempt also failed — orchestrator wrote a fail-closed placeholder NO_FIX.
+
+**Investigation:**
 
 ```bash
-jq '{status, confidence, root_cause}' .rca-mas/runs/latest/diagnosis.json
+RUN=.rca-mas/runs/latest
+
+# What did Agent 2 actually do?
+cat $RUN/agent2_meta.env
+
+# Was the diagnosis high-confidence to begin with?
+jq '{confidence, root_cause, affected_files}' $RUN/diagnosis.json
+
+# Was upstream Agent 1b ok?
+cat $RUN/agent1b_quality.env
+
+# If validation failed, see the candidate that was rejected:
+cat $RUN/solution.invalid.json 2>/dev/null
+cat $RUN/solution.invalid.txt 2>/dev/null
 ```
+
+**Fixes:**
+
+1. Confidence < 0.5: review `diagnosis.json` manually. If the root cause looks correct, lower the threshold for one run: `RCA_CONFIDENCE_NOFX=0.35 bash rca-mas.sh bug.md`
+2. Sparse diagnosis: bump Agent 1a budget (`RCA_A1A_TURNS_S=80`) or try `RCA_MODEL=claude-opus-4-7`.
+3. Agent 1b failed upstream: see the Agent 1b troubleshooting section above.
+4. Agent 2 itself produced invalid output: inspect `agent2_raw.json`. If Claude returned an error envelope (`error_max_turns`, `is_error: true`), bump `RCA_AGENT2_TURNS` or `RCA_AGENT2_TIMEOUT` and re-run.
+
+---
+
+### `solution.json` shows `weak_evidence: true`
+
+**Symptom:** Solution is a FIX but flagged as based on weak evidence (and confidence capped at 0.5, risk likely `medium` or `high`).
+
+**Cause:** The orchestrator detected one of:
+
+- `diagnosis.confidence < RCA_CONFIDENCE_WEAK_THRESHOLD` (default 0.6)
+- `agent1a_quality` was `weak` or `failed`
+
+The flag is computed in bash before Claude is invoked and enforced after extraction — Claude cannot ignore it. The `weak_evidence_reason` field explains which condition triggered.
+
+**Action:** This is informational, not a failure. Treat the patch as a draft requiring human review. The `manual_review_notes` field will contain Agent 2's specific concerns. If you want to suppress the flag, lower `RCA_CONFIDENCE_WEAK_THRESHOLD` or re-run with better upstream evidence (`RCA_MODEL=claude-opus-4-7`, bigger turn budget).
 
 ---
 

@@ -208,35 +208,75 @@ If a collector times out (exit 124) or fails (non-zero): the failure is logged t
 
 ---
 
-## Stage 3 — Agent 2: Solution
+## Stage 3 — Agent 2: Solution (schema-enforced, reads briefing + diagnosis only)
 
-**Invocation:** `claude --max-turns $RCA_AGENT2_TURNS --timeout $RCA_AGENT2_TIMEOUT -p "$(cat $TOOL_ROOT/prompts/agent2.md)"`
+**Script:** `orchestrator.sh` — calls `claude` directly with `--output-format json --json-schema solution.schema.json`, no tools enabled. Pattern mirrors Agent 1b.
 
-**What happens:**
-1. Agent receives `briefing.md` + `diagnosis.json` — does NOT see raw repo
-2. Single pass (1 turn by default)
-3. If `diagnosis.json` confidence < `RCA_CONFIDENCE_NOFX` (0.5): writes `status: NO_FIX`
-4. Otherwise: produces `solution.json` with unified diff patches
+**What happens (11-step flow):**
 
-**Allowed tools:** Read (diagnosis.json, briefing.md only)
-**Forbidden:** Grep, Glob, Write to repo files, network access
+1. **Gate on diagnosis.json** — must exist, must be a JSON object. If Agent 1b's `agent1b_quality=failed`, write a clean NO_FIX without invoking Claude (saves cost when upstream already failed).
+2. **Compute WEAK_EVIDENCE flag** — orchestrator sets `WEAK_EVIDENCE=true` when `diagnosis.confidence < RCA_CONFIDENCE_WEAK_THRESHOLD` (default 0.6) OR when `agent1a_quality` is `weak`/`failed`. Logs the assessment.
+3. **Assemble prompt** — `agent2_prompt.md` = `prompts/solution.md` + briefing.md (inline) + diagnosis.json (inline) + Run Metadata (`RUN_ID`, `DIAGNOSIS_CONFIDENCE`, `AGENT1A_QUALITY`, `WEAK_EVIDENCE`, `WEAK_EVIDENCE_REASON`, `RCA_CONFIDENCE_NOFX`, `RCA_CONFIDENCE_WEAK_THRESHOLD`).
+4. **Call Claude** — `timeout $RCA_AGENT2_TIMEOUT claude -p ... --output-format json --json-schema ... --max-turns $RCA_AGENT2_TURNS` (default 3). No `--tools` flag — system prompt enforces no-tool synthesis. Stdout to `agent2_raw.json`, stderr to `agent2_stderr.txt`.
+5. **Extract** via `extract_normalize_json`. Handles structured_output, .result, raw object, stringified/fenced JSON. **Rejects Claude error envelopes** (e.g. `is_error=true`, `subtype=error_max_turns`) — these would otherwise be misread as a top-level object.
+6. **Stamp + enforce weak_evidence** — orchestrator overwrites `weak_evidence` and (when true) `weak_evidence_reason` in the candidate based on its own computed values. Claude doesn't get to ignore the flag.
+7. **Validate** against `solution.schema.json` via `validate_solution_json`. Schema rules + semantic rules: FIX requires confidence ≥ 0.5, non-empty `fixes[]`, valid unified_diff with `diff --git`, `---`, `+++`, and `@@` markers, no markdown fences; NO_FIX requires non-empty `no_fix_reason` and empty `fixes[]`.
+8. **Repair** — if invalid, one repair pass: `prompts/agent2_repair.md` + briefing + diagnosis + invalid output + validation error + run metadata. Re-validate.
+9. **Atomic write** — `solution.json` is written only after validation passes. On total failure, write a placeholder NO_FIX with `confidence: 0.0` and a `no_fix_reason` explaining the failure.
+10. **Extract patch** — if `recommendation: FIX`, extract the recommended fix's `unified_diff` to `patches/fix.diff`. If NO_FIX, remove any stale `patches/fix.diff` from prior runs.
+11. **Sidecars** — always write `agent2_meta.env` and `agent2_quality.env`.
 
-**Inputs:** `briefing.md`, `diagnosis.json`, `prompts/agent2.md`, `schemas/solution.schema.json`
-**Outputs:** `RUN_DIR/solution.json`, `RUN_DIR/patches/*.diff`
+**Data flow contract (1b → 2):** Agent 1b emits a schema-validated diagnosis. Agent 2 reads `diagnosis.root_cause`, `diagnosis.confidence`, `diagnosis.affected_files`, `diagnosis.hypotheses[].supporting_evidence`, `diagnosis.next_best_action` to construct a unified diff. `affected_files` in each fix must be a subset of `diagnosis.affected_files`.
 
-**solution.json shape:**
+**Turn budget:** 3 turns / 180s default. Tight because synthesis only — but ≥2 needed for `--json-schema` enforcement to handle internal thinking turns.
+
+**Allowed tools:** None. The system prompt forbids tool use; the orchestrator does not pass `--allowedTools`.
+
+**Forbidden:** Repo inspection, patch application, test execution, network access, credential file reads.
+
+**Inputs:** `agent2_prompt.md`, `briefing.md`, `diagnosis.json`, `agent1a_quality.env`, `agent1b_quality.env`
+
+**Outputs:**
+
+| File | When |
+|---|---|
+| `agent2_raw.json` | Always |
+| `agent2_stderr.txt` | Always |
+| `agent2_meta.env` | Always |
+| `agent2_quality.env` | Always (`agent2_quality=ok` or `agent2_quality=failed`) |
+| `agent2_repair_*` | Only when first call failed validation |
+| `solution.invalid.json` / `.txt` | Only on validation failure |
+| `solution.raw.json` | Copy of `agent2_raw.json` or placeholder |
+| `solution.json` | Schema-validated or fail-closed placeholder |
+| `patches/fix.diff` | Only when `recommendation: FIX` |
+
+**solution.json shape (FIX):**
+
 ```json
 {
-  "status": "COMPLETE",
-  "confidence": 0.78,
-  "fix_description": "...",
-  "affected_files": ["src/click/core.py"],
-  "patches": ["patches/fix_core.diff"],
-  "test_suggestion": "pytest tests/test_options.py -k test_envvar"
+  "run_id": "1778750267-c88f333",
+  "recommendation": "FIX",
+  "confidence": 0.90,
+  "no_fix_reason": null,
+  "recommended_fix_id": "fix1",
+  "weak_evidence": false,
+  "weak_evidence_reason": null,
+  "fixes": [
+    {
+      "id": "fix1",
+      "description": "...",
+      "why_this_fixes_root_cause": "...",
+      "unified_diff": "diff --git a/path.py b/path.py\n--- a/path.py\n+++ b/path.py\n@@ -L,N +L,N @@\n-old\n+new\n",
+      "affected_files": ["path.py"],
+      "risk": "low|medium|high",
+      "expected_tests": ["tests/..."],
+      "manual_review_notes": ["..."]
+    }
+  ]
 }
 ```
 
-**Failure:** Low confidence → `status: NO_FIX`. Report shows this. Pipeline does not run Agent 2.5.
+**Failure handling:** Fail-closed. If extraction, validation, and the one repair attempt all fail, the placeholder NO_FIX (confidence 0.0) is written instead of fabricating a patch. Agent 2.5 (if invoked) sees NO_FIX and skips patch application.
 
 ---
 

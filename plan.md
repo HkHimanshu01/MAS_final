@@ -578,14 +578,14 @@ Each prints PASS/FAIL per assertion, exits 1 if any fail. No Claude required.
 | 4.5 | real GitHub repo fixture (`pallets/click`, 5 bugs) + `tests/test_real_repo_briefing.sh` + `make test-real-briefing` | **LOCKED** |
 | 5 | 3 JSON schemas | **LOCKED** |
 | 6 | `claude_json.sh` + `prompts/investigation.md` + `prompts/diagnosis.md` + `prompts/investigation_write.md` + `prompts/agent1a_force_summary.md` + `prompts/agent1a_recover_from_evidence.md` + `prompts/agent1b_repair.md` + Agent 1a/1b wiring (stream extraction, finalization, quality gate, evidence recovery, checkpoint write with degraded-seed fallback, schema-validated 1b with one-shot repair) | **LOCKED** — all 3 real-repo bugs (3, 4, 5) produce schema-valid diagnoses with confidence 0.82–0.92 matching upstream fixes |
-| 7 | `prompts/solution.md` + Agent 2 wiring + patch extraction | not started |
+| 7 | `prompts/solution.md` + `prompts/agent2_repair.md` + Agent 2 wiring (schema-enforced, invocation pattern matches Agent 1b verbatim: `--json-schema`, `--max-turns 5` main / `--max-turns 1` repair, no `--tools` flag) + weak-evidence flag enforced post-extraction + one-shot repair + fail-closed + atomic write + `validate_solution_json` + `patches/fix.diff` extraction | **LOCKED** — same gate as Step 6: end-to-end on bugs 3, 4, 5. All three produced `agent2: ok` with confidence 0.70–0.78, schema_valid=true, no repair needed, zero errors/warns. Patches functionally equivalent to upstream PRs #3079, #3068, #3021 (same file + lines + mechanism in every case) |
 | 8 | `report.sh` with all 11 sections including Cost / Runtime | not started |
 | 9 | `README.md` + all 10 docs complete | not started |
 | 10 | GitHub `--issue` input | not started |
 | 11 | `prompts/validation.md` + Agent 2.5 + worktree lifecycle | not started |
 | 12 | real GitHub bug demo + final docs pass | not started |
 
-**Next action:** Step 7 — build `prompts/solution.md`, Agent 2 wiring, and patch extraction. Agent 2 receives `diagnosis.json` + `briefing.md` (no raw repo) and emits `solution.json` with unified-diff patches or `status: NO_FIX` if confidence < `RCA_CONFIDENCE_NOFX`.
+**Next action:** Step 8 — polish `scripts/report.sh` to render all 11 required sections cleanly from the now-complete pipeline outputs (briefing, diagnosis, solution, validation, cost summary). Step 11 (Agent 2.5 validation with worktree + test execution under `--validate`) follows.
 
 **Priority order if time runs short:** report-only path → GitHub issue input → docs → validation polish.
 

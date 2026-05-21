@@ -717,21 +717,332 @@ _A1_STATUS="${_A1B_STATUS}"
 log_event "info" "agent1" "diagnosis complete" "confidence=${_A1_CONF}" "agent1a=${_A1A_STATUS}" "agent1b=${_A1B_STATUS}"
 
 # ============================================================
-# STAGE: Agent 2 — Solution (stub — Step 7)
+# STAGE: Agent 2 — Solution (schema-enforced, reads briefing + diagnosis only)
+#
+# Flow:
+#   1. Gate on diagnosis.json existence and validity
+#   2. Compute WEAK_EVIDENCE flag from diagnosis.confidence + agent1a_quality
+#   3. Assemble prompt (system + briefing + diagnosis + run metadata)
+#   4. Invoke Claude — no tools, --json-schema enforced, stdout/stderr separated
+#   5. Normalise output (extract_normalize_json handles all envelope forms)
+#   6. Validate against solution schema + semantic rules
+#   7. If invalid: one repair attempt with agent2_repair.md
+#   8. Fail-closed if still invalid — do not write solution.json
+#   9. Atomic write only after validation passes
+#  10. If FIX: extract unified_diff of recommended fix to patches/fix.diff
+#  11. Always write meta env + quality env
 # ============================================================
-info "Agent 2: solution (stub)..."
+info "Agent 2: solution..."
 stage_begin
-cat > "$SOLUTION" <<STUB
-{
-  "run_id": "${RUN_ID}",
-  "recommendation": "NO_FIX",
-  "no_fix_reason": "Agent 2 not yet implemented (Step 7). Diagnosis confidence: ${_A1_CONF}.",
-  "recommended_fix_id": null,
-  "fixes": []
+
+_A2_STATUS="ok"
+_A2_FAILURE_REASON=""
+_A2_RESULT_TYPE="none"
+_A2_NORMALIZED="false"
+_A2_SCHEMA_VALID="false"
+_A2_REPAIR_ATTEMPTED="false"
+_A2_REPAIR_SUCCESS="false"
+_A2_SOLUTION_STATUS="unknown"
+
+# Helper: write agent2_meta.env (always called, even on failure)
+_write_a2_meta() {
+  cat > "$AGENT2_META_ENV" <<METAENV
+exit_code=${1:-1}
+result_type=${_A2_RESULT_TYPE}
+normalized=${_A2_NORMALIZED}
+schema_valid=${_A2_SCHEMA_VALID}
+repair_attempted=${_A2_REPAIR_ATTEMPTED}
+repair_success=${_A2_REPAIR_SUCCESS}
+solution_status=${_A2_SOLUTION_STATUS}
+failure_reason=${_A2_FAILURE_REASON}
+METAENV
 }
-STUB
-cp "$SOLUTION" "$SOLUTION_RAW"
-stage_end "agent2" "stub"
+
+# Helper: write agent2_quality.env
+_write_a2_quality() {
+  printf 'agent2_quality=%s\n' "$1" > "$AGENT2_QUALITY_ENV"
+}
+
+# --- Step 1: Gate on diagnosis.json ---
+# Agent 2 must not run if Agent 1b failed entirely. Placeholder diagnoses with
+# confidence 0.0 are still allowed — the agent will simply emit NO_FIX.
+_A1B_QUALITY="$(grep '^agent1b_quality=' "${AGENT1B_QUALITY_ENV:-/dev/null}" 2>/dev/null | cut -d= -f2- | head -1 || true)"
+if [ ! -f "$DIAGNOSIS" ] || ! jq -e 'type == "object"' "$DIAGNOSIS" > /dev/null 2>&1; then
+  _A2_FAILURE_REASON="diagnosis.json missing or not a JSON object"
+  warn "Agent 2: ${_A2_FAILURE_REASON}"
+  log_event "error" "agent2" "gate failed" "reason=${_A2_FAILURE_REASON}"
+  _write_a2_meta 1
+  _write_a2_quality "failed"
+  _A2_STATUS="failed"
+elif [ "$_A1B_QUALITY" = "failed" ]; then
+  _A2_FAILURE_REASON="Agent 1b quality is failed — diagnosis is a placeholder"
+  warn "Agent 2: ${_A2_FAILURE_REASON} — emitting NO_FIX without Claude call"
+  log_event "warn" "agent2" "skipping Claude call" "reason=${_A2_FAILURE_REASON}"
+  # Write a clean NO_FIX solution without invoking Claude
+  jq -n \
+    --arg rid "$RUN_ID" \
+    --arg reason "$_A2_FAILURE_REASON. Agent 2 emitted NO_FIX without invoking Claude." \
+    '{
+      "run_id": $rid,
+      "recommendation": "NO_FIX",
+      "confidence": 0.0,
+      "no_fix_reason": $reason,
+      "recommended_fix_id": null,
+      "weak_evidence": true,
+      "weak_evidence_reason": "Upstream Agent 1b quality was failed.",
+      "fixes": []
+    }' > "$SOLUTION"
+  cp "$SOLUTION" "$SOLUTION_RAW"
+  _A2_SOLUTION_STATUS="NO_FIX"
+  _A2_SCHEMA_VALID="true"
+  _write_a2_meta 0
+  _write_a2_quality "ok"
+  log_event "info" "agent2" "NO_FIX written (upstream failed)" "solution_status=NO_FIX"
+fi
+
+# --- Step 2: Compute WEAK_EVIDENCE flag ---
+# Triggers when diagnosis.confidence < RCA_CONFIDENCE_WEAK_THRESHOLD OR
+# when agent1a_quality was weak/failed.
+if [ "$_A2_STATUS" != "failed" ] && [ "$_A2_SCHEMA_VALID" != "true" ]; then
+  _A2_DIAG_CONF="$(jq -r '.confidence // 0' "$DIAGNOSIS" 2>/dev/null || echo '0')"
+  _A2_A1A_Q="$(grep '^agent1a_quality=' "${AGENT1A_QUALITY_ENV:-/dev/null}" 2>/dev/null | cut -d= -f2- | head -1 || echo 'unknown')"
+
+  _A2_WEAK="false"
+  _A2_WEAK_REASON=""
+  if awk -v c="$_A2_DIAG_CONF" -v t="$RCA_CONFIDENCE_WEAK_THRESHOLD" 'BEGIN { exit !(c < t) }'; then
+    _A2_WEAK="true"
+    _A2_WEAK_REASON="Diagnosis confidence ${_A2_DIAG_CONF} is below the weak-evidence threshold (${RCA_CONFIDENCE_WEAK_THRESHOLD})."
+  fi
+  if [ "$_A2_A1A_Q" = "weak" ] || [ "$_A2_A1A_Q" = "failed" ]; then
+    _A2_WEAK="true"
+    if [ -n "$_A2_WEAK_REASON" ]; then
+      _A2_WEAK_REASON="${_A2_WEAK_REASON} Upstream agent1a_quality=${_A2_A1A_Q}."
+    else
+      _A2_WEAK_REASON="Upstream agent1a_quality=${_A2_A1A_Q}."
+    fi
+  fi
+
+  log_event "info" "agent2" "evidence assessment" "diagnosis_confidence=${_A2_DIAG_CONF}" "agent1a_quality=${_A2_A1A_Q}" "weak_evidence=${_A2_WEAK}"
+fi
+
+# --- Step 3: Assemble prompt ---
+if [ "$_A2_STATUS" != "failed" ] && [ "$_A2_SCHEMA_VALID" != "true" ]; then
+  {
+    cat "${TOOL_ROOT}/prompts/solution.md"
+    printf '\n\n---\n\n## Briefing\n\n'
+    cat "$BRIEFING"
+    printf '\n\n---\n\n## Diagnosis (Agent 1b output)\n\n'
+    cat "$DIAGNOSIS"
+    printf '\n\n---\n\n## Run Metadata\n\n'
+    printf 'RUN_ID: %s\n' "$RUN_ID"
+    printf 'DIAGNOSIS_CONFIDENCE: %s\n' "${_A2_DIAG_CONF}"
+    printf 'AGENT1A_QUALITY: %s\n' "${_A2_A1A_Q}"
+    printf 'WEAK_EVIDENCE: %s\n' "${_A2_WEAK}"
+    printf 'WEAK_EVIDENCE_REASON: %s\n' "${_A2_WEAK_REASON:-none}"
+    printf 'RCA_CONFIDENCE_NOFX: %s\n' "${RCA_CONFIDENCE_NOFX}"
+    printf 'RCA_CONFIDENCE_WEAK_THRESHOLD: %s\n' "${RCA_CONFIDENCE_WEAK_THRESHOLD}"
+  } > "$AGENT2_PROMPT"
+  log_event "info" "agent2" "prompt assembled" "turns=${RCA_AGENT2_TURNS}" "timeout=${RCA_AGENT2_TIMEOUT}" "weak_evidence=${_A2_WEAK}"
+fi
+
+# --- Step 4: Invoke Claude (--json-schema enforced) ---
+# Pattern matches Agent 1b verbatim:
+#   - --json-schema enforces output shape at the API level
+#   - --tools flag omitted entirely; defaults are technically enabled, but the
+#     system prompt (prompts/solution.md) forbids tool use and the model has
+#     been compliant across Step 6's locked verification
+#   - --max-turns 5 leaves headroom for internal thinking before structured emit
+# The decision to omit --tools rather than pass --tools "" matches Agent 1b
+# (which writes diagnosis.json) — both rely on prompt-level no-tool enforcement.
+_A2_EXIT=0
+_A2_SCHEMA="${TOOL_ROOT}/schemas/solution.schema.json"
+
+if [ "$_A2_STATUS" != "failed" ] && [ "$_A2_SCHEMA_VALID" != "true" ]; then
+  timeout "${RCA_AGENT2_TIMEOUT}" \
+    "${CLAUDE_BIN:-claude}" \
+      -p "$(cat "$AGENT2_PROMPT")" \
+      --output-format json \
+      --json-schema "$(cat "$_A2_SCHEMA")" \
+      --max-turns "${RCA_AGENT2_TURNS}" \
+      "${_A1A_MODEL_FLAG[@]}" \
+    > "$AGENT2_RAW" \
+    2> "$AGENT2_STDERR" \
+    || _A2_EXIT=$?
+
+  if [ "$_A2_EXIT" -ne 0 ]; then
+    _A2_STATUS="degraded"
+    _A2_FAILURE_REASON="Claude exited ${_A2_EXIT}"
+    log_event "warn" "agent2" "claude exited non-zero" "exit=${_A2_EXIT}"
+  fi
+fi
+
+# --- Step 5: Normalise output ---
+_A2_TMP="${RUN_DIR}/solution.json.tmp"
+if [ "$_A2_STATUS" != "failed" ] && [ "$_A2_SCHEMA_VALID" != "true" ] && [ -s "$AGENT2_RAW" ]; then
+  if extract_normalize_json "$AGENT2_RAW" "$_A2_TMP" 2>/dev/null; then
+    _A2_NORMALIZED="true"
+    _A2_RESULT_TYPE="extracted"
+  else
+    _A2_FAILURE_REASON="could not extract JSON object from Claude output"
+    log_event "warn" "agent2" "normalisation failed" "reason=${_A2_FAILURE_REASON}"
+    [ "$_A2_STATUS" = "ok" ] && _A2_STATUS="degraded"
+  fi
+elif [ "$_A2_STATUS" != "failed" ] && [ "$_A2_SCHEMA_VALID" != "true" ]; then
+  _A2_FAILURE_REASON="Claude produced no output (exit=${_A2_EXIT})"
+  [ "$_A2_STATUS" = "ok" ] && _A2_STATUS="degraded"
+fi
+
+# --- Step 6: Validate ---
+_A2_VALIDATION_ERR=""
+if [ "$_A2_NORMALIZED" = "true" ] && [ "$_A2_SCHEMA_VALID" != "true" ]; then
+  # Stamp run_id; enforce weak_evidence flag from orchestrator side
+  _tmp_stamp="$(mktemp)"
+  jq --arg r "$RUN_ID" --argjson weak "$_A2_WEAK" --arg wreason "${_A2_WEAK_REASON}" '
+    .run_id = $r |
+    .weak_evidence = $weak |
+    (if $weak == true and ((.weak_evidence_reason // "") | length) == 0
+     then .weak_evidence_reason = $wreason
+     elif $weak == false
+     then .weak_evidence_reason = null
+     else .
+     end)
+  ' "$_A2_TMP" > "$_tmp_stamp" 2>/dev/null && mv "$_tmp_stamp" "$_A2_TMP" || true
+
+  _A2_VALIDATION_ERR="$(validate_solution_json "$_A2_TMP" 2>/dev/null || true)"
+  if [ -z "$_A2_VALIDATION_ERR" ]; then
+    _A2_SCHEMA_VALID="true"
+  else
+    log_event "warn" "agent2" "schema validation failed" "reason=${_A2_VALIDATION_ERR}"
+    cp "$_A2_TMP" "$SOLUTION_INVALID" 2>/dev/null || true
+  fi
+fi
+
+# --- Step 7: Repair attempt (one shot) ---
+if [ "$_A2_SCHEMA_VALID" != "true" ] && [ "$_A2_STATUS" != "failed" ]; then
+  _A2_REPAIR_ATTEMPTED="true"
+  log_event "info" "agent2" "attempting repair" "validation_error=${_A2_VALIDATION_ERR}"
+
+  {
+    cat "${TOOL_ROOT}/prompts/agent2_repair.md"
+    printf '\n\n---\n\n## Briefing\n\n'
+    cat "$BRIEFING"
+    printf '\n\n---\n\n## Diagnosis (Agent 1b output)\n\n'
+    cat "$DIAGNOSIS"
+    printf '\n\n---\n\n## Previous invalid Agent 2 output\n\n'
+    cat "$SOLUTION_INVALID" 2>/dev/null || printf '(none — extraction failed)\n'
+    printf '\n\n---\n\n## Validation error\n\n%s\n' "${_A2_VALIDATION_ERR:-extraction failed}"
+    printf '\n\n---\n\n## Run Metadata\n\n'
+    printf 'RUN_ID: %s\n' "$RUN_ID"
+    printf 'DIAGNOSIS_CONFIDENCE: %s\n' "${_A2_DIAG_CONF}"
+    printf 'WEAK_EVIDENCE: %s\n' "${_A2_WEAK}"
+    printf 'WEAK_EVIDENCE_REASON: %s\n' "${_A2_WEAK_REASON:-none}"
+    printf 'RCA_CONFIDENCE_NOFX: %s\n' "${RCA_CONFIDENCE_NOFX}"
+  } > "$AGENT2_REPAIR_PROMPT"
+
+  # Matches Agent 1b repair: --max-turns 1, --tools omitted, --json-schema enforced
+  _A2_REPAIR_EXIT=0
+  timeout "${RCA_AGENT2_TIMEOUT}" \
+    "${CLAUDE_BIN:-claude}" \
+      -p "$(cat "$AGENT2_REPAIR_PROMPT")" \
+      --output-format json \
+      --json-schema "$(cat "$_A2_SCHEMA")" \
+      --max-turns 1 \
+      "${_A1A_MODEL_FLAG[@]}" \
+    > "$AGENT2_REPAIR_RAW" \
+    2> "$AGENT2_REPAIR_STDERR" \
+    || _A2_REPAIR_EXIT=$?
+
+  _A2_REPAIR_TMP="${RUN_DIR}/solution_repair.json.tmp"
+  if [ "$_A2_REPAIR_EXIT" -eq 0 ] && [ -s "$AGENT2_REPAIR_RAW" ] \
+      && extract_normalize_json "$AGENT2_REPAIR_RAW" "$_A2_REPAIR_TMP" 2>/dev/null; then
+    _tmp_stamp="$(mktemp)"
+    jq --arg r "$RUN_ID" --argjson weak "$_A2_WEAK" --arg wreason "${_A2_WEAK_REASON}" '
+      .run_id = $r |
+      .weak_evidence = $weak |
+      (if $weak == true and ((.weak_evidence_reason // "") | length) == 0
+       then .weak_evidence_reason = $wreason
+       elif $weak == false
+       then .weak_evidence_reason = null
+       else .
+       end)
+    ' "$_A2_REPAIR_TMP" > "$_tmp_stamp" 2>/dev/null && mv "$_tmp_stamp" "$_A2_REPAIR_TMP" || true
+
+    _A2_REPAIR_ERR="$(validate_solution_json "$_A2_REPAIR_TMP" 2>/dev/null || true)"
+    if [ -z "$_A2_REPAIR_ERR" ]; then
+      _A2_REPAIR_SUCCESS="true"
+      _A2_SCHEMA_VALID="true"
+      mv "$_A2_REPAIR_TMP" "$_A2_TMP"
+      log_event "info" "agent2" "repair succeeded"
+    else
+      _A2_FAILURE_REASON="repair validation failed: ${_A2_REPAIR_ERR}"
+      printf '%s\n' "$_A2_REPAIR_ERR" > "$SOLUTION_INVALID_TXT"
+      log_event "warn" "agent2" "repair validation failed" "reason=${_A2_REPAIR_ERR}"
+    fi
+  else
+    _A2_FAILURE_REASON="repair Claude call failed or produced no output (exit=${_A2_REPAIR_EXIT})"
+    log_event "warn" "agent2" "repair call failed" "exit=${_A2_REPAIR_EXIT}"
+  fi
+fi
+
+# --- Step 8: Fail-closed if still invalid ---
+if [ "$_A2_SCHEMA_VALID" != "true" ]; then
+  _A2_STATUS="failed"
+  [ -z "$_A2_FAILURE_REASON" ] && _A2_FAILURE_REASON="solution could not be validated"
+  warn "Agent 2 failed to produce valid solution.json. See ${AGENT2_RAW}, ${SOLUTION_INVALID}, ${AGENT2_STDERR}."
+  log_event "error" "agent2" "fail-closed: solution invalid" "reason=${_A2_FAILURE_REASON}"
+  # Write a minimal NO_FIX solution.json so downstream report can still render
+  jq -n \
+    --arg rid "$RUN_ID" \
+    --arg reason "Agent 2 failed to produce valid solution.json. ${_A2_FAILURE_REASON}" \
+    '{
+      "run_id": $rid,
+      "recommendation": "NO_FIX",
+      "confidence": 0.0,
+      "no_fix_reason": $reason,
+      "recommended_fix_id": null,
+      "weak_evidence": true,
+      "weak_evidence_reason": "Agent 2 produced invalid output after one repair attempt.",
+      "fixes": []
+    }' > "$SOLUTION"
+  [ -f "$AGENT2_RAW" ] && cp "$AGENT2_RAW" "$SOLUTION_RAW" || cp "$SOLUTION" "$SOLUTION_RAW"
+  _A2_SOLUTION_STATUS="NO_FIX"
+  _write_a2_meta "${_A2_EXIT:-1}"
+  _write_a2_quality "failed"
+elif [ "$_A2_SCHEMA_VALID" = "true" ] && [ ! -f "$SOLUTION" ]; then
+  # --- Step 9: Atomic write after validation (skip if upstream-failed branch already wrote) ---
+  mv "$_A2_TMP" "$SOLUTION"
+  [ -f "$AGENT2_RAW" ] && cp "$AGENT2_RAW" "$SOLUTION_RAW" || cp "$SOLUTION" "$SOLUTION_RAW"
+  _A2_SOLUTION_STATUS="$(jq -r '.recommendation' "$SOLUTION" 2>/dev/null || echo 'unknown')"
+  _write_a2_meta "${_A2_EXIT:-0}"
+  _write_a2_quality "ok"
+  log_event "info" "agent2" "solution written" "validation=passed" "solution_status=${_A2_SOLUTION_STATUS}"
+fi
+
+# --- Step 10: Extract unified_diff to patches/fix.diff if FIX ---
+if [ "$_A2_SOLUTION_STATUS" = "FIX" ]; then
+  mkdir -p "$(dirname "$FIX_DIFF")" 2>/dev/null || true
+  _A2_REC_ID="$(jq -r '.recommended_fix_id' "$SOLUTION" 2>/dev/null || echo '')"
+  if [ -n "$_A2_REC_ID" ]; then
+    _A2_PATCH="$(jq -r --arg id "$_A2_REC_ID" '
+      (.fixes[] | select(.id == $id) | .unified_diff) // empty
+    ' "$SOLUTION" 2>/dev/null || true)"
+    if [ -n "$_A2_PATCH" ]; then
+      printf '%s\n' "$_A2_PATCH" > "$FIX_DIFF"
+      log_event "info" "agent2" "patch extracted" "patch_file=${FIX_DIFF}" "bytes=${#_A2_PATCH}"
+    else
+      log_event "warn" "agent2" "FIX recommendation but unified_diff was empty for recommended_fix_id" "id=${_A2_REC_ID}"
+    fi
+  fi
+else
+  # Remove stale patch from prior runs if NO_FIX
+  rm -f "$FIX_DIFF" 2>/dev/null || true
+fi
+
+# Clean up tmp files
+rm -f "$_A2_TMP" "${RUN_DIR}/solution_repair.json.tmp" 2>/dev/null || true
+
+stage_end "agent2" "$_A2_STATUS"
+log_event "info" "agent2" "stage complete" "status=${_A2_STATUS}" "solution_status=${_A2_SOLUTION_STATUS}" "weak_evidence=${_A2_WEAK:-false}"
 
 # ============================================================
 # STAGE: Validation (always skipped until Step 11)

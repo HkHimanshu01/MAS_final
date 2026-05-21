@@ -48,12 +48,22 @@ Every file produced under `.rca-mas/runs/{RUN_ID}/` during a run. What created i
             ├── diagnosis.invalid.txt          ← (if schema validation failed)
             ├── diagnosis.raw.json             ← full Claude JSON wrapper from Agent 1b
             ├── diagnosis.json                 ← extracted, schema-validated diagnosis
-            ├── solution.json
-            ├── solution.raw.json
+            ├── agent2_prompt.md               ← assembled solution prompt
+            ├── agent2_raw.json                ← raw Claude JSON from Agent 2 call
+            ├── agent2_stderr.txt              ← stderr from Agent 2 Claude call
+            ├── agent2_meta.env                ← exit_code, normalized, schema_valid, solution_status, etc.
+            ├── agent2_quality.env             ← agent2_quality=ok|failed
+            ├── agent2_repair_prompt.md        ← (if repair was triggered)
+            ├── agent2_repair_raw.json         ← (if repair was triggered)
+            ├── agent2_repair_stderr.txt       ← (if repair was triggered)
+            ├── solution.invalid.json          ← (if schema validation failed)
+            ├── solution.invalid.txt           ← (if schema validation failed)
+            ├── solution.raw.json              ← copy of agent2_raw.json or placeholder
+            ├── solution.json                  ← schema-validated solution or fail-closed placeholder
             ├── patches/
-            │   └── fix_<name>.diff
-            ├── validation.json           ← only with --validate
-            ├── validation.raw.json       ← only with --validate
+            │   └── fix.diff                   ← only when recommendation=FIX
+            ├── validation.json                ← only with --validate
+            ├── validation.raw.json            ← only with --validate
             ├── report.md
             └── cost_summary.json
 ```
@@ -405,26 +415,83 @@ Preserves the candidate diagnosis that failed validation, plus the validation er
 ---
 
 ### `solution.json`
-**Created by:** Agent 2
-**Read by:** Agent 2.5, orchestrator
 
-Fix description, confidence, affected files, patch file locations. See [schemas.md](schemas.md) for full field reference.
+**Created by:** Agent 2 (schema-validated and atomically written), with one-shot repair attempt on validation failure. On total failure, the orchestrator writes a placeholder NO_FIX with `confidence: 0.0` and `no_fix_reason` describing the failure reason — no fabricated patch is ever written.
+**Read by:** Agent 2.5, report.sh, developer
+
+Top-level fields:
+
+- `run_id`, `recommendation` (`FIX` or `NO_FIX`), `confidence` (0–1)
+- `weak_evidence` (boolean), `weak_evidence_reason` (string when true, null when false)
+- `no_fix_reason` (string when NO_FIX, null when FIX)
+- `recommended_fix_id` (string when FIX, null when NO_FIX)
+- `fixes[]` — array with one or more entries when FIX, empty when NO_FIX
+
+Each `fixes[]` entry contains: `id`, `description`, `why_this_fixes_root_cause`, `unified_diff`, `affected_files[]`, `risk` (`low`/`medium`/`high`), `expected_tests[]`, `manual_review_notes[]`.
+
+See [schemas.md](schemas.md) for the full schema and [agent-contracts.md](agent-contracts.md#agent-2--solution) for the Agent 2 contract.
 
 ---
 
-### `raw_agent2_output.txt`
-**Created by:** Orchestrator (captures raw Claude Code stdout for Agent 2)
+### `agent2_raw.json` / `agent2_stderr.txt`
+
+**Created by:** Direct `claude --output-format json --json-schema` call in the orchestrator
+**Read by:** `extract_normalize_json`, debugging
+
+Raw Claude JSON envelope and stderr from the Agent 2 call. `agent2_raw.json` is the input to extraction. Stderr is kept separate from stdout so JSON is never contaminated.
+
+---
+
+### `agent2_repair_raw.json` / `agent2_repair_stderr.txt`
+
+**Created by:** Repair call (only if first Agent 2 call failed schema validation)
+**Read by:** `extract_normalize_json`, debugging
+
+Same shape as `agent2_raw.json` but from the repair prompt (`prompts/agent2_repair.md`). Only present when repair was attempted.
+
+---
+
+### `agent2_meta.env` / `agent2_quality.env`
+
+**Created by:** Orchestrator after Agent 2 completes (always written, even on failure)
+**Read by:** Debugging, downstream stages
+
+`agent2_meta.env`:
+
+```
+exit_code=<integer>
+result_type=extracted|none
+normalized=true|false
+schema_valid=true|false
+repair_attempted=true|false
+repair_success=true|false
+solution_status=FIX|NO_FIX|unknown
+failure_reason=<text or empty>
+```
+
+`agent2_quality.env`:
+
+```
+agent2_quality=ok|failed
+```
+
+---
+
+### `solution.invalid.json` / `solution.invalid.txt`
+
+**Created by:** Orchestrator when schema validation fails before/after repair
 **Read by:** Debugging only
 
-Same purpose as `raw_agent1_output.txt` but for Agent 2.
+Preserves the candidate solution that failed validation, plus the validation error text. Useful for diagnosing prompt regressions or schema mismatches.
 
 ---
 
-### `patches/*.diff`
-**Created by:** Agent 2
+### `patches/fix.diff`
+
+**Created by:** Agent 2 — orchestrator extracts the recommended fix's `unified_diff` only when `solution.recommendation == "FIX"`. Removed if a NO_FIX run follows an earlier FIX in the same run directory (shouldn't happen since each run uses a fresh RUN_ID).
 **Read by:** Agent 2.5, developer
 
-Unified diff files for the proposed fix. Can be applied directly:
+Unified diff for the recommended fix. Can be applied directly:
 
 ```bash
 git apply .rca-mas/runs/latest/patches/fix_core.diff

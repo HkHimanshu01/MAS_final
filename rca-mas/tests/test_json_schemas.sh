@@ -124,7 +124,8 @@ for field in run_id root_cause selected_hypothesis_id hypotheses rejected_hypoth
 done
 
 # Check solution has expected required fields
-for field in run_id recommendation no_fix_reason recommended_fix_id fixes; do
+for field in run_id recommendation confidence no_fix_reason recommended_fix_id fixes \
+             weak_evidence weak_evidence_reason; do
   jq -e --arg f "$field" '.required | index($f) != null' \
     "${SCHEMAS}/solution.schema.json" > /dev/null 2>&1 \
     && pass "solution schema requires: $field" \
@@ -399,7 +400,143 @@ err="$(validate_diagnosis_json "$tmp_diag" 2>/dev/null || true)"
 rm -f "$tmp_diag"
 
 # ---------------------------------------------------------------------------
-# Section 6c — CLAUDE_BIN propagation
+# Section 6c — validate_solution_json (Agent 2)
+# ---------------------------------------------------------------------------
+printf '\n--- validate_solution_json ---\n'
+
+# Baseline: valid FIX fixture passes
+tmp_sol="$(mktemp)"
+cp "${FIXTURES}/sample_solution.json" "$tmp_sol"
+err="$(validate_solution_json "$tmp_sol" 2>/dev/null || true)"
+[ -z "$err" ] \
+  && pass "validate_solution_json: valid FIX sample passes" \
+  || fail "validate_solution_json: valid FIX sample rejected with: $err"
+rm -f "$tmp_sol"
+
+# Baseline: valid NO_FIX fixture passes
+tmp_sol="$(mktemp)"
+cp "${FIXTURES}/sample_solution_nofx.json" "$tmp_sol"
+err="$(validate_solution_json "$tmp_sol" 2>/dev/null || true)"
+[ -z "$err" ] \
+  && pass "validate_solution_json: valid NO_FIX sample passes" \
+  || fail "validate_solution_json: valid NO_FIX sample rejected with: $err"
+rm -f "$tmp_sol"
+
+# FIX with confidence < 0.5 must be rejected
+tmp_sol="$(mktemp)"
+jq '.confidence = 0.3' "${FIXTURES}/sample_solution.json" > "$tmp_sol"
+err="$(validate_solution_json "$tmp_sol" 2>/dev/null || true)"
+[ -n "$err" ] \
+  && pass "validate_solution_json: rejects FIX with confidence < 0.5" \
+  || fail "validate_solution_json: should reject FIX with low confidence"
+rm -f "$tmp_sol"
+
+# FIX with empty fixes array must be rejected
+tmp_sol="$(mktemp)"
+jq '.fixes = []' "${FIXTURES}/sample_solution.json" > "$tmp_sol"
+err="$(validate_solution_json "$tmp_sol" 2>/dev/null || true)"
+[ -n "$err" ] \
+  && pass "validate_solution_json: rejects FIX with empty fixes" \
+  || fail "validate_solution_json: should reject FIX with no fixes"
+rm -f "$tmp_sol"
+
+# FIX with recommended_fix_id not in fixes[].id
+tmp_sol="$(mktemp)"
+jq '.recommended_fix_id = "fix99"' "${FIXTURES}/sample_solution.json" > "$tmp_sol"
+err="$(validate_solution_json "$tmp_sol" 2>/dev/null || true)"
+[ -n "$err" ] \
+  && pass "validate_solution_json: rejects recommended_fix_id not in fixes[].id" \
+  || fail "validate_solution_json: should reject mismatched recommended_fix_id"
+rm -f "$tmp_sol"
+
+# FIX with unified_diff missing diff --git header
+tmp_sol="$(mktemp)"
+jq '.fixes[0].unified_diff = "--- a/foo.py\n+++ b/foo.py\n@@ -1 +1 @@\n-old\n+new"' \
+  "${FIXTURES}/sample_solution.json" > "$tmp_sol"
+err="$(validate_solution_json "$tmp_sol" 2>/dev/null || true)"
+[ -n "$err" ] \
+  && pass "validate_solution_json: rejects unified_diff missing diff --git header" \
+  || fail "validate_solution_json: should reject diff without diff --git header"
+rm -f "$tmp_sol"
+
+# FIX with markdown-fenced diff
+tmp_sol="$(mktemp)"
+jq '.fixes[0].unified_diff = "```diff\ndiff --git a/foo.py b/foo.py\n--- a/foo.py\n+++ b/foo.py\n@@ -1 +1 @@\n-old\n+new\n```"' \
+  "${FIXTURES}/sample_solution.json" > "$tmp_sol"
+err="$(validate_solution_json "$tmp_sol" 2>/dev/null || true)"
+[ -n "$err" ] \
+  && pass "validate_solution_json: rejects markdown-fenced unified_diff" \
+  || fail "validate_solution_json: should reject fenced diff"
+rm -f "$tmp_sol"
+
+# NO_FIX with non-empty fixes array
+tmp_sol="$(mktemp)"
+jq '.recommendation = "NO_FIX" | .no_fix_reason = "test"' \
+  "${FIXTURES}/sample_solution.json" > "$tmp_sol"
+err="$(validate_solution_json "$tmp_sol" 2>/dev/null || true)"
+[ -n "$err" ] \
+  && pass "validate_solution_json: rejects NO_FIX with non-empty fixes" \
+  || fail "validate_solution_json: should reject NO_FIX with fixes"
+rm -f "$tmp_sol"
+
+# NO_FIX with empty no_fix_reason
+tmp_sol="$(mktemp)"
+jq '.no_fix_reason = ""' "${FIXTURES}/sample_solution_nofx.json" > "$tmp_sol"
+err="$(validate_solution_json "$tmp_sol" 2>/dev/null || true)"
+[ -n "$err" ] \
+  && pass "validate_solution_json: rejects NO_FIX with empty no_fix_reason" \
+  || fail "validate_solution_json: should reject NO_FIX without reason"
+rm -f "$tmp_sol"
+
+# weak_evidence=true with null weak_evidence_reason
+tmp_sol="$(mktemp)"
+jq '.weak_evidence = true | .weak_evidence_reason = null' \
+  "${FIXTURES}/sample_solution.json" > "$tmp_sol"
+err="$(validate_solution_json "$tmp_sol" 2>/dev/null || true)"
+[ -n "$err" ] \
+  && pass "validate_solution_json: rejects weak_evidence=true with null reason" \
+  || fail "validate_solution_json: should reject weak_evidence=true without reason"
+rm -f "$tmp_sol"
+
+# weak_evidence=false with non-null weak_evidence_reason
+tmp_sol="$(mktemp)"
+jq '.weak_evidence = false | .weak_evidence_reason = "leftover from prior run"' \
+  "${FIXTURES}/sample_solution.json" > "$tmp_sol"
+err="$(validate_solution_json "$tmp_sol" 2>/dev/null || true)"
+[ -n "$err" ] \
+  && pass "validate_solution_json: rejects weak_evidence=false with non-null reason" \
+  || fail "validate_solution_json: should reject weak_evidence=false with reason"
+rm -f "$tmp_sol"
+
+# confidence out of range
+tmp_sol="$(mktemp)"
+jq '.confidence = 1.5' "${FIXTURES}/sample_solution.json" > "$tmp_sol"
+err="$(validate_solution_json "$tmp_sol" 2>/dev/null || true)"
+[ -n "$err" ] \
+  && pass "validate_solution_json: rejects confidence > 1" \
+  || fail "validate_solution_json: should reject confidence 1.5"
+rm -f "$tmp_sol"
+
+# bad recommendation enum
+tmp_sol="$(mktemp)"
+jq '.recommendation = "MAYBE"' "${FIXTURES}/sample_solution.json" > "$tmp_sol"
+err="$(validate_solution_json "$tmp_sol" 2>/dev/null || true)"
+[ -n "$err" ] \
+  && pass "validate_solution_json: rejects unknown recommendation value" \
+  || fail "validate_solution_json: should reject recommendation=MAYBE"
+rm -f "$tmp_sol"
+
+# stringified JSON in no_fix_reason
+tmp_sol="$(mktemp)"
+jq '.no_fix_reason = "{\"nested\":\"json\"}"' "${FIXTURES}/sample_solution_nofx.json" > "$tmp_sol"
+err="$(validate_solution_json "$tmp_sol" 2>/dev/null || true)"
+[ -n "$err" ] \
+  && pass "validate_solution_json: rejects stringified JSON in no_fix_reason" \
+  || fail "validate_solution_json: should reject stringified JSON contamination"
+rm -f "$tmp_sol"
+
+# ---------------------------------------------------------------------------
+# Section 6d — CLAUDE_BIN propagation
 # ---------------------------------------------------------------------------
 printf '\n--- CLAUDE_BIN propagation ---\n'
 

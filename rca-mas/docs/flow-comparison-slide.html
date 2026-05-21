@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>RCA Compression — Before vs After</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: #fafbfc;
+    color: #1a202c;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+  .slide {
+    width: 1280px;
+    height: 720px;
+    padding: 44px 64px;
+    display: flex;
+    flex-direction: column;
+    background: #ffffff;
+    position: relative;
+  }
+  .slide::before {
+    content: "";
+    position: absolute;
+    top: 0; left: 0;
+    width: 6px; height: 100%;
+    background: linear-gradient(180deg, #4f46e5 0%, #ec4899 100%);
+  }
+
+  .header { margin-bottom: 24px; }
+  .eyebrow {
+    font-size: 11px;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    color: #4f46e5;
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+  h1 {
+    font-size: 30px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: #0f172a;
+    line-height: 1.2;
+  }
+  .subtitle {
+    font-size: 14px;
+    color: #64748b;
+    line-height: 1.5;
+    margin-top: 6px;
+  }
+  .title-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 24px;
+  }
+  .proof-badge {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: linear-gradient(135deg, #ecfdf5, #d1fae5);
+    border: 1.5px solid #6ee7b7;
+    border-radius: 10px;
+    padding: 10px 14px;
+    margin-top: 4px;
+  }
+  .proof-dot {
+    position: relative;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #10b981;
+    flex-shrink: 0;
+  }
+  .proof-dot::after {
+    content: "";
+    position: absolute;
+    inset: -4px;
+    border-radius: 50%;
+    background: rgba(16, 185, 129, 0.2);
+  }
+  .proof-label {
+    font-size: 9px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: #047857;
+    font-weight: 700;
+    margin-bottom: 2px;
+  }
+  .proof-text {
+    font-size: 11.5px;
+    font-weight: 600;
+    color: #064e3b;
+    line-height: 1.3;
+  }
+
+  .columns {
+    display: grid;
+    grid-template-columns: 1fr 60px 1fr;
+    gap: 16px;
+    flex: 1;
+    align-items: stretch;
+    margin: 8px 0;
+  }
+
+  .column {
+    border-radius: 16px;
+    padding: 20px 22px;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+  }
+  .column.before {
+    background: linear-gradient(180deg, #fef2f2, #ffffff);
+    border: 1.5px solid #fecaca;
+  }
+  .column.after {
+    background: linear-gradient(180deg, #ecfdf5, #ffffff);
+    border: 1.5px solid #a7f3d0;
+  }
+
+  .col-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid rgba(0,0,0,0.06);
+  }
+  .col-title {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+  }
+  .before .col-title { color: #dc2626; }
+  .after .col-title { color: #059669; }
+  .col-headline {
+    font-size: 18px;
+    font-weight: 700;
+    color: #0f172a;
+    margin-top: 4px;
+    letter-spacing: -0.01em;
+  }
+  .col-time {
+    font-size: 28px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    line-height: 1;
+  }
+  .before .col-time { color: #dc2626; }
+  .after .col-time { color: #059669; }
+  .col-time small { font-size: 13px; font-weight: 600; color: #64748b; margin-left: 4px; }
+
+  .steps {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    flex: 1;
+  }
+  .step {
+    background: #ffffff;
+    border-radius: 10px;
+    padding: 12px 14px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border: 1px solid rgba(0,0,0,0.06);
+  }
+  .step-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+  .before .step-icon { background: #fee2e2; }
+  .after .step-icon { background: #d1fae5; }
+
+  .step-body { flex: 1; }
+  .step-name {
+    font-size: 13.5px;
+    font-weight: 700;
+    color: #0f172a;
+    margin-bottom: 2px;
+  }
+  .step-desc {
+    font-size: 11.5px;
+    color: #64748b;
+    line-height: 1.4;
+  }
+  .step-time {
+    font-size: 13px;
+    font-weight: 700;
+    flex-shrink: 0;
+    padding: 4px 10px;
+    border-radius: 6px;
+  }
+  .before .step-time { color: #dc2626; background: #fef2f2; }
+  .after .step-time { color: #059669; background: #ecfdf5; }
+
+  .agent-step {
+    background: linear-gradient(180deg, #ffffff, #f0fdf4);
+    border-color: #6ee7b7;
+    box-shadow: 0 0 0 3px rgba(167, 243, 208, 0.25);
+  }
+  .mini-arch {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px dashed #d1fae5;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-wrap: wrap;
+  }
+  .mini-stage {
+    font-size: 9.5px;
+    font-weight: 700;
+    color: #047857;
+    background: #d1fae5;
+    padding: 2px 7px;
+    border-radius: 4px;
+    letter-spacing: 0.04em;
+  }
+  .mini-sep {
+    color: #6ee7b7;
+    font-size: 11px;
+    font-weight: 700;
+  }
+
+  .vs {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .vs-circle {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: #0f172a;
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+  }
+  .vs-arrow {
+    color: #cbd5e1;
+    font-size: 22px;
+  }
+
+  .savings {
+    margin-top: 18px;
+    padding: 20px 28px;
+    background: linear-gradient(135deg, #0f172a, #1e293b);
+    border-radius: 16px;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 28px;
+    color: #ffffff;
+  }
+  .save-item {
+    text-align: center;
+    position: relative;
+  }
+  .save-item + .save-item::before {
+    content: "";
+    position: absolute;
+    left: -14px;
+    top: 10%;
+    height: 80%;
+    width: 1px;
+    background: rgba(255,255,255,0.1);
+  }
+  .save-label {
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: #94a3b8;
+    margin-bottom: 8px;
+    font-weight: 600;
+  }
+  .save-value {
+    font-size: 32px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    line-height: 1;
+    color: #ffffff;
+  }
+  .save-value .accent { color: #34d399; }
+  .save-value .accent-pink { color: #f472b6; }
+  .save-note {
+    font-size: 11px;
+    color: #94a3b8;
+    margin-top: 8px;
+    line-height: 1.4;
+  }
+
+  .footnote {
+    margin-top: 10px;
+    text-align: center;
+    font-size: 10.5px;
+    color: #94a3b8;
+    letter-spacing: 0.02em;
+  }
+</style>
+</head>
+<body>
+  <div class="slide">
+    <div class="header">
+      <div class="eyebrow">The Business Case</div>
+      <div class="title-row">
+        <div>
+          <h1>Same bug. Two ways to solve it.</h1>
+          <div class="subtitle">A side-by-side look at how a developer resolves a bug today versus with the agent doing the heavy lifting.</div>
+        </div>
+        <div class="proof-badge">
+          <div class="proof-dot"></div>
+          <div>
+            <div class="proof-label">Validated</div>
+            <div class="proof-text">Tested on real, large<br>open-source GitHub repos</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="columns">
+      <!-- BEFORE -->
+      <div class="column before">
+        <div class="col-header">
+          <div>
+            <div class="col-title">Without the Agent</div>
+            <div class="col-headline">Developer does everything manually</div>
+          </div>
+          <div class="col-time">75<small>min</small></div>
+        </div>
+        <div class="steps">
+          <div class="step">
+            <div class="step-icon">&#128221;</div>
+            <div class="step-body">
+              <div class="step-name">Read the bug report</div>
+              <div class="step-desc">Developer picks up the QA ticket and reads through it.</div>
+            </div>
+            <div class="step-time">5 min</div>
+          </div>
+          <div class="step">
+            <div class="step-icon">&#128269;</div>
+            <div class="step-body">
+              <div class="step-name">Investigate the codebase</div>
+              <div class="step-desc">Reads files, traces logic, hunts for the cause.</div>
+            </div>
+            <div class="step-time">45 min</div>
+          </div>
+          <div class="step">
+            <div class="step-icon">&#128295;</div>
+            <div class="step-body">
+              <div class="step-name">Write the fix</div>
+              <div class="step-desc">Makes the code change once the cause is clear.</div>
+            </div>
+            <div class="step-time">15 min</div>
+          </div>
+          <div class="step">
+            <div class="step-icon">&#9989;</div>
+            <div class="step-body">
+              <div class="step-name">Test the fix</div>
+              <div class="step-desc">Runs the test suite and confirms the bug is gone.</div>
+            </div>
+            <div class="step-time">10 min</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- VS DIVIDER -->
+      <div class="vs">
+        <div class="vs-arrow">&rarr;</div>
+        <div class="vs-circle">VS</div>
+        <div class="vs-arrow">&rarr;</div>
+      </div>
+
+      <!-- AFTER -->
+      <div class="column after">
+        <div class="col-header">
+          <div>
+            <div class="col-title">With the Agent</div>
+            <div class="col-headline">Agent investigates, developer approves</div>
+          </div>
+          <div class="col-time">12<small>min</small></div>
+        </div>
+        <div class="steps">
+          <div class="step">
+            <div class="step-icon">&#128221;</div>
+            <div class="step-body">
+              <div class="step-name">Hand the bug to the agent</div>
+              <div class="step-desc">Developer drops the QA report into the tool.</div>
+            </div>
+            <div class="step-time">1 min</div>
+          </div>
+          <div class="step agent-step">
+            <div class="step-icon">&#129302;</div>
+            <div class="step-body">
+              <div class="step-name">Agent investigates &amp; proposes fix</div>
+              <div class="step-desc">Finds root cause and drafts the code change.</div>
+              <div class="mini-arch">
+                <span class="mini-stage">Investigate</span>
+                <span class="mini-sep">&rsaquo;</span>
+                <span class="mini-stage">Diagnose</span>
+                <span class="mini-sep">&rsaquo;</span>
+                <span class="mini-stage">Fix</span>
+                <span class="mini-sep">&rsaquo;</span>
+                <span class="mini-stage">Report</span>
+              </div>
+            </div>
+            <div class="step-time">6 min</div>
+          </div>
+          <div class="step">
+            <div class="step-icon">&#128203;</div>
+            <div class="step-body">
+              <div class="step-name">Developer reviews the report</div>
+              <div class="step-desc">Reads what the agent found and approves the fix.</div>
+            </div>
+            <div class="step-time">3 min</div>
+          </div>
+          <div class="step">
+            <div class="step-icon">&#9989;</div>
+            <div class="step-body">
+              <div class="step-name">Apply &amp; test the fix</div>
+              <div class="step-desc">Developer applies the approved change and runs tests.</div>
+            </div>
+            <div class="step-time">2 min</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SAVINGS BAR -->
+    <div class="savings">
+      <div class="save-item">
+        <div class="save-label">Time per Bug</div>
+        <div class="save-value"><span class="accent">84%</span> faster</div>
+        <div class="save-note">75 min &rarr; 12 min</div>
+      </div>
+      <div class="save-item">
+        <div class="save-label">Cost per Bug (Manual)</div>
+        <div class="save-value">$60</div>
+        <div class="save-note">75 min &times; $48/hr<br>blended dev rate</div>
+      </div>
+      <div class="save-item">
+        <div class="save-label">Cost per Bug (Agent)</div>
+        <div class="save-value">$11.60</div>
+        <div class="save-note">12 min dev time<br>+ ~$2 agent run</div>
+      </div>
+      <div class="save-item">
+        <div class="save-label">Net Savings</div>
+        <div class="save-value"><span class="accent-pink">$48</span><small style="font-size:14px;font-weight:600">/bug</small></div>
+        <div class="save-note">At 500 bugs/year &rarr;<br><b style="color:#fff">~$24,000 saved</b></div>
+      </div>
+    </div>
+
+    <div class="footnote">
+      Assumes a blended developer cost of $48/hour (loaded). Agent run cost reflects per-bug AI compute. Excludes one-time setup.
+    </div>
+  </div>
+</body>
+</html>

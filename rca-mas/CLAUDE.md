@@ -165,7 +165,7 @@ Docs that are always in sync with code are a **hard requirement** — see `code_
 
 Follow `plan.md` steps 1–12 in sequence. Do not skip steps.
 
-Current status: **Steps 1–6 complete and locked.** Next: Step 7 (Agent 2 — `prompts/solution.md` + solution wiring + patch extraction).
+Current status: **Steps 1–7 complete and locked.** Next: Step 8 (report.sh polish — full 11-section render) and Step 11 (Agent 2.5 validation with worktree, `--validate` only).
 
 ### What is done (locked)
 
@@ -176,6 +176,7 @@ Current status: **Steps 1–6 complete and locked.** Next: Step 7 (Agent 2 — `
 - Step 4.5: Real GitHub repo fixture (`pallets/click`, 5 bugs) + `tests/test_real_repo_briefing.sh`
 - Step 5: JSON schemas (`diagnosis`, `solution`, `validation`) gated by `test_json_schemas.sh`
 - Step 6: Agent 1a (toolful investigation) + checkpoint-write phase + Agent 1b (schema-enforced synthesis with one-shot repair, fail-closed). Verified end-to-end on real-repo bugs 3, 4, and 5 with confidence 0.82–0.92 matching upstream fixes. Data flow contract: Agent 1a's checkpoint emits fields that map 1:1 onto `diagnosis.schema.json` so Agent 1b can pass through verbatim. See [docs/agent-contracts.md](docs/agent-contracts.md) for the field mapping and [docs/pipeline-flow.md](docs/pipeline-flow.md) for the 8-step Agent 1a flow.
+- Step 7: Agent 2 (solution proposal) — schema-enforced (`schemas/solution.schema.json`), reads only `briefing.md` + `diagnosis.json`. **Invocation pattern matches Agent 1b verbatim**: `--json-schema` enforced, `--max-turns 5` main / `--max-turns 1` repair, no `--tools` flag (defaults technically enabled, but the system prompt forbids tool use and the model has been compliant). Orchestrator computes a `WEAK_EVIDENCE` flag from `diagnosis.confidence < RCA_CONFIDENCE_WEAK_THRESHOLD` OR `agent1a_quality` weak/failed and enforces it post-extraction. FIX output produces `patches/fix.diff` extracted from the recommended fix's `unified_diff`. Verified end-to-end on the same gate as Step 6 — real-repo bugs 3, 4, and 5 all produced `agent2: ok`, confidence 0.70–0.78, schema-valid FIX patches **functionally equivalent to upstream PRs #3079, #3068, #3021** (same file + same line range + same mechanism in every case). 11-step flow documented in [docs/pipeline-flow.md](docs/pipeline-flow.md) Stage 3.
 
 ### Known issue
 

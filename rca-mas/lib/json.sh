@@ -52,6 +52,21 @@ extract_normalize_json() {
 
   [ -f "$raw_file" ] || return 1
 
+  # --- Reject Claude error envelopes early ---
+  # When Claude returns max_turns/error/timeout without a result, the envelope has
+  # is_error=true and no .result or .structured_output. The raw object would
+  # otherwise look like a valid top-level JSON object in the fallback branch below,
+  # so we'd extract telemetry fields (duration_ms, session_id, etc.) as if they
+  # were the structured output. Reject any Claude-wrapper-shaped object explicitly.
+  if jq -e '
+    (.is_error == true) or
+    (.subtype == "error_max_turns") or
+    (.subtype == "error" and (.type == "result")) or
+    ((has("type") and .type == "result" and has("session_id") and has("duration_ms") and (has("result") | not) and (has("structured_output") | not)))
+  ' "$raw_file" > /dev/null 2>&1; then
+    return 1
+  fi
+
   # --- Try .structured_output first (schema-enforced path) ---
   val="$(jq -e '.structured_output' "$raw_file" 2>/dev/null)" || true
   if [ -n "$val" ] && [ "$val" != "null" ]; then
@@ -306,10 +321,11 @@ validate_solution_json() {
   # 7. FIX-specific semantic rules
   if [ "$rec" = "FIX" ]; then
     reason="$(jq -r '
+      .recommended_fix_id as $rid |
       if .confidence < 0.5 then "FIX with confidence < 0.5 (\(.confidence)) — must be NO_FIX"
       elif (.fixes | length) == 0 then "FIX with empty fixes array"
-      elif (.recommended_fix_id | type) != "string" or (.recommended_fix_id | length) == 0 then "FIX with missing or empty recommended_fix_id"
-      elif (.fixes | map(.id) | index(.recommended_fix_id)) == null then "recommended_fix_id \"\(.recommended_fix_id)\" not found in fixes[].id"
+      elif ($rid | type) != "string" or ($rid | length) == 0 then "FIX with missing or empty recommended_fix_id"
+      elif (.fixes | map(.id) | index($rid)) == null then "recommended_fix_id \"\($rid)\" not found in fixes[].id"
       elif .no_fix_reason != null then "FIX must have no_fix_reason = null (got: \(.no_fix_reason | tojson))"
       else "" end
     ' "$file" 2>/dev/null)"
