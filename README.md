@@ -1,8 +1,50 @@
-# RCA Compression MAS
+# RCA Multi-Agent System
 
-**Root Cause Analysis — Multi-Agent System**
+> **Bug investigation, compressed.** A purpose-built multi-agent system that diagnoses bugs, proposes the fix, and verifies it with tests &mdash; so the developer only reviews and ships.
 
-A developer productivity tool that reads a QA bug report, searches the codebase, and produces a structured root-cause report in 3–8 minutes — compressing what would otherwise take a developer 30–60 minutes of manual investigation.
+<p align="center">
+  <img src="rca-mas/docs/three-way-comparison-slide.png" alt="RCA Multi-Agent System: three-way comparison of bug resolution approaches" width="100%">
+</p>
+
+|          5 min         |           $6          |                   ~15%                  |              $30              |
+|:----------------------:|:---------------------:|:---------------------------------------:|:-----------------------------:|
+| developer time per bug | cost per bug resolved | of a developer's salary saved annually  | saved per bug vs vibe coding  |
+
+> Validated on real, complex, buggy open-source GitHub repositories (pallets/click).
+
+---
+
+## TL;DR
+
+A QA engineer files a bug. The system auto-triggers, and four specialised agents run in sequence:
+
+| Stage | What happens |
+|---|---|
+| **Investigate** | Scans the whole repo to find what's relevant |
+| **Diagnose** | Pins down the root cause in suspect files |
+| **Fix** | Writes the unified-diff code change |
+| **Verify** | Applies the patch in a sandboxed workspace, runs the test suite |
+
+The developer receives a single `report.md`: root cause, evidence, the proposed fix, test results. They review, approve, and ship. **5 minutes of developer time per bug** versus 75 minutes manual or 40 minutes with general-purpose AI assistance.
+
+```bash
+./rca-mas.sh bug.md --validate
+cat .rca-mas/runs/latest/report.md
+```
+
+---
+
+## Why This Beats Vibe Coding
+
+Most teams reach for Claude Code, Cursor, or Copilot when a bug lands. That works &mdash; but it's *vibe coding*: the developer prompts ad-hoc, the AI has no structure, and on large or messy repos it wanders, stalls, or fixates on the wrong file. Every step still needs the developer driving.
+
+The RCA agent is **agentic**, not assistive:
+
+- **Auto-triggered** &mdash; kicks off the moment the QA bug is filed
+- **Engineered context** &mdash; each stage gets only what it needs, not the whole repo dumped in
+- **Specialised agents** &mdash; one agent per job (investigate, diagnose, fix, verify), each with its own tools and guardrails
+- **Built-in guardrails** &mdash; schema-enforced outputs, fail-closed on low confidence, sandboxed test execution
+- **Reproducible artifacts** &mdash; every run produces a structured JSON + Markdown report you can archive and audit
 
 ---
 

@@ -391,7 +391,7 @@ add_text(agent_step_x + 6, agent_step_y + 5, 28, 28, [
 ], align=PP_ALIGN.CENTER, anchor=MSO_ANCHOR.MIDDLE)
 # Step title
 add_text(agent_step_x + 42, agent_step_y + 6, agent_step_w - 100, 14, [
-    ("Agent investigates, fixes & tests", {'size': 9.5, 'bold': True, 'color': HEADER, 'name': FONT})
+    ("Agent investigates, finds root cause, fixes & tests", {'size': 9.5, 'bold': True, 'color': HEADER, 'name': FONT})
 ])
 # Time pill on right
 pill_w = 50; pill_h = 18
@@ -405,10 +405,10 @@ funnel_x = agent_step_x + 12
 funnel_y = agent_step_y + 30
 funnel_w_full = agent_step_w - 24
 funnel_data = [
-    ("QA Bug › Investigate", "whole repo",  1.00, (0xBD,0xD7,0xEE), (0x8F,0xAA,0xDC), HEADER),
-    ("Diagnose",            "suspect files",0.78, (0x8F,0xAA,0xDC), (0x5B,0x9B,0xD5), WHITE),
-    ("Fix",                 "root cause",   0.64, (0x5B,0x9B,0xD5), (0x44,0x72,0xC4), WHITE),
-    ("Verify",              "tests pass",   0.50, (0x44,0x72,0xC4), (0x2E,0x5B,0xAC), WHITE),
+    ("QA Bug › Investigate", "whole repo",         1.00, (0xBD,0xD7,0xEE), (0x8F,0xAA,0xDC), HEADER),
+    ("Diagnose",             "finds root cause",   0.78, (0x8F,0xAA,0xDC), (0x5B,0x9B,0xD5), WHITE),
+    ("Fix",                  "writes code change", 0.64, (0x5B,0x9B,0xD5), (0x44,0x72,0xC4), WHITE),
+    ("Verify",               "tests pass",         0.50, (0x44,0x72,0xC4), (0x2E,0x5B,0xAC), WHITE),
 ]
 fy = funnel_y
 fh = 20
@@ -485,6 +485,6 @@ savings_tile(tile_x3, int(tile_w), "NET SAVINGS: AGENTIC",
     ])
 
 # ---------- Save ----------
-out = r"c:\MAS_final\rca-mas\docs\three-way-comparison-slide-native-v2.pptx"
+out = r"c:\MAS_final\rca-mas\docs\three-way-comparison-slide-native-v3.pptx"
 prs.save(out)
 print(f"Wrote {out}")
