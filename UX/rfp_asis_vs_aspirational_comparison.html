@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RFP Pattern Page — As-Is vs Aspirational Feature Comparison</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f5f6f8;
+    --white: #ffffff;
+    --border: #e2e4ea;
+    --text: #1a1b2e;
+    --text-sec: #555568;
+    --text-mut: #8b8ca0;
+    --purple: #7c3aed;
+    --purple-bg: #f3f0ff;
+    --green: #16a34a;
+    --green-bg: #ecfdf5;
+    --amber: #d97706;
+    --amber-bg: #fffbeb;
+    --red: #dc2626;
+    --red-bg: #fef2f2;
+    --blue: #2563eb;
+    --blue-bg: #eff6ff;
+    --font: 'Inter', -apple-system, sans-serif;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: var(--font); background: var(--bg); color: var(--text); line-height: 1.55; font-size: 14px; }
+  .container { max-width: 1200px; margin: 0 auto; padding: 32px 24px; }
+
+  h1 { font-size: 24px; font-weight: 700; margin-bottom: 6px; letter-spacing: -0.3px; }
+  .subtitle { font-size: 14px; color: var(--text-sec); margin-bottom: 28px; }
+
+  /* Summary cards */
+  .summary-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 28px; }
+  .summary-card { background: var(--white); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
+  .summary-card .label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-mut); margin-bottom: 4px; }
+  .summary-card .val { font-size: 22px; font-weight: 700; }
+  .summary-card .note { font-size: 12px; color: var(--text-sec); margin-top: 2px; }
+
+  /* Section headers */
+  .section { margin-bottom: 32px; }
+  .section-head { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+  .section-num { width: 28px; height: 28px; border-radius: 6px; background: var(--purple); color: #fff; display: grid; place-items: center; font-size: 12px; font-weight: 700; flex-shrink: 0; }
+  .section-title { font-size: 17px; font-weight: 700; }
+  .section-desc { font-size: 13px; color: var(--text-sec); margin-left: 38px; margin-bottom: 14px; }
+
+  /* Feature comparison card */
+  .feature-card { background: var(--white); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin-bottom: 14px; }
+  .feature-header { padding: 16px 20px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid var(--border); }
+  .feature-name { font-size: 15px; font-weight: 600; flex: 1; }
+  .tag { display: inline-flex; padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+  .tag-kept { background: var(--green-bg); color: var(--green); }
+  .tag-new { background: var(--purple-bg); color: var(--purple); }
+  .tag-evolved { background: var(--blue-bg); color: var(--blue); }
+  .tag-restructured { background: var(--amber-bg); color: var(--amber); }
+
+  .feature-body { display: grid; grid-template-columns: 1fr 1fr; }
+  .col-asis, .col-new { padding: 16px 20px; }
+  .col-asis { border-right: 1px solid var(--border); }
+  .col-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 8px; }
+  .col-label.asis { color: var(--text-mut); }
+  .col-label.new { color: var(--purple); }
+  .col-content { font-size: 13px; color: var(--text-sec); line-height: 1.6; }
+  .col-content strong { color: var(--text); }
+  .col-content .none { color: var(--text-mut); font-style: italic; }
+
+  /* Metrics row */
+  .metrics-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0; border-top: 1px solid var(--border); }
+  .metric { padding: 12px 16px; text-align: center; border-right: 1px solid var(--border); }
+  .metric:last-child { border-right: none; }
+  .metric .m-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; color: var(--text-mut); margin-bottom: 3px; }
+  .metric .m-value { font-size: 13px; font-weight: 600; color: var(--text); }
+
+  /* Complexity indicators */
+  .cx-low { color: var(--green); }
+  .cx-med { color: var(--amber); }
+  .cx-high { color: var(--red); }
+
+  /* Fields table */
+  .fields-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .fields-table th { text-align: left; padding: 8px 12px; background: var(--bg); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; color: var(--text-mut); border-bottom: 1px solid var(--border); }
+  .fields-table td { padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  .fields-table td:first-child { font-weight: 500; color: var(--text); white-space: nowrap; }
+  .fields-table tr:last-child td { border-bottom: none; }
+
+  /* UX impact callout */
+  .ux-callout { background: var(--purple-bg); border-left: 3px solid var(--purple); border-radius: 0 8px 8px 0; padding: 12px 16px; margin: 8px 0; font-size: 12.5px; color: var(--text-sec); }
+  .ux-callout strong { color: var(--purple); }
+
+  /* Totals bar */
+  .totals-bar { background: var(--white); border: 1px solid var(--border); border-radius: 10px; padding: 20px 24px; margin-top: 28px; }
+  .totals-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .total-item .t-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; color: var(--text-mut); }
+  .total-item .t-value { font-size: 20px; font-weight: 700; margin-top: 2px; }
+  .total-item .t-note { font-size: 12px; color: var(--text-sec); }
+
+  @media (max-width: 900px) {
+    .summary-row { grid-template-columns: 1fr 1fr; }
+    .feature-body { grid-template-columns: 1fr; }
+    .col-asis { border-right: none; border-bottom: 1px solid var(--border); }
+    .metrics-row { grid-template-columns: repeat(3, 1fr); }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>RFP Workflow Page — As-Is vs Aspirational Comparison</h1>
+<p class="subtitle">Every feature mapped: what exists, what changes, UX impact, implementation complexity, backend needs, build time, and test time.</p>
+
+<!-- SUMMARY -->
+<div class="summary-row">
+  <div class="summary-card">
+    <div class="label">Features kept as-is</div>
+    <div class="val" style="color:var(--green);">6</div>
+    <div class="note">No code changes needed</div>
+  </div>
+  <div class="summary-card">
+    <div class="label">Features evolved</div>
+    <div class="val" style="color:var(--blue);">3</div>
+    <div class="note">Same data, new presentation</div>
+  </div>
+  <div class="summary-card">
+    <div class="label">Net-new features</div>
+    <div class="val" style="color:var(--purple);">8</div>
+    <div class="note">New components + some backend</div>
+  </div>
+  <div class="summary-card">
+    <div class="label">Estimated total</div>
+    <div class="val">8–10 days</div>
+    <div class="note">Build + test, 1 developer</div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- SECTION 1: FEATURES KEPT AS-IS -->
+<!-- ============================================================ -->
+<div class="section">
+  <div class="section-head">
+    <div class="section-num">1</div>
+    <div class="section-title">Features kept as-is (zero code change)</div>
+  </div>
+  <p class="section-desc">These elements already exist in the current pattern page and carry over directly into the new layout with no modifications. You don't touch these — just make sure they render in the new page template.</p>
+
+  <div class="feature-card">
+    <div class="feature-body" style="border-bottom:none;">
+      <div class="col-asis" style="border-right:none; grid-column:1/-1; padding:14px 20px;">
+        <table class="fields-table">
+          <thead><tr><th>Field</th><th>What it shows</th><th>Current source</th><th>Change needed</th></tr></thead>
+          <tbody>
+            <tr><td>★ Official pill</td><td>Approval status (Official / Community)</td><td>Pattern metadata</td><td>None — render same pill</td></tr>
+            <tr><td>Intermediate pill</td><td>Complexity tier</td><td>Pattern metadata</td><td>None</td></tr>
+            <tr><td>Pattern title</td><td>"RFP Response Acceleration"</td><td>Pattern record</td><td>None</td></tr>
+            <tr><td>Description</td><td>1–2 sentence problem statement</td><td>Pattern record</td><td>None</td></tr>
+            <tr><td>Tool tags</td><td>ARC, Proposal Builder, Amethyst</td><td>Pattern → tool relations</td><td>None — same outlined pills</td></tr>
+            <tr><td>2h setup badge</td><td>Estimated setup time</td><td>Pattern metadata</td><td>None</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- SECTION 2: FEATURES EVOLVED -->
+<!-- ============================================================ -->
+<div class="section">
+  <div class="section-head">
+    <div class="section-num">2</div>
+    <div class="section-title">Features evolved (same data, new presentation)</div>
+  </div>
+  <p class="section-desc">The underlying data already exists in the portal. You're restructuring how it's rendered — not creating new content.</p>
+
+  <!-- 2A: Step flow → Interactive stepper -->
+  <div class="feature-card">
+    <div class="feature-header">
+      <div class="feature-name">Step flow pills → Interactive step accordion</div>
+      <span class="tag tag-evolved">Evolved</span>
+    </div>
+    <div class="feature-body">
+      <div class="col-asis">
+        <div class="col-label asis">As-is</div>
+        <div class="col-content">Horizontal row of colored pills (Ingest RFP → Map to capabilities → … → Final QA) with arrows between them. Below that, a flat numbered list under "STEPS" heading, each with step name, tool badge, and one-line description. <strong>All steps visible at once, no state, no interaction.</strong></div>
+      </div>
+      <div class="col-new">
+        <div class="col-label new">Aspirational</div>
+        <div class="col-content">Vertical accordion list where each step is a row with a <strong>status circle</strong> (✓ done / numbered current / gray upcoming / ! review). The <strong>active step expands</strong> to show input checklist, starter prompt, and action buttons. Completed steps show result summaries (e.g., "32 requirements parsed"). Upcoming steps stay collapsed.</div>
+      </div>
+    </div>
+    <div class="ux-callout"><strong>UX difference:</strong> The current flat list treats all steps equally — the user has to mentally track "where am I?" The accordion gives them <em>visibility of system status</em> (Nielsen's #1 heuristic) and <em>progressive disclosure</em> — only the next actionable step is open, reducing cognitive load.</div>
+    <div class="metrics-row">
+      <div class="metric"><div class="m-label">Complexity</div><div class="m-value cx-med">Medium</div></div>
+      <div class="metric"><div class="m-label">Backend</div><div class="m-value">Yes — step status state</div></div>
+      <div class="metric"><div class="m-label">Data change</div><div class="m-value">Add step_status enum per workflow_instance_step</div></div>
+      <div class="metric"><div class="m-label">Build</div><div class="m-value">2–3 days</div></div>
+      <div class="metric"><div class="m-label">Test</div><div class="m-value">1 day</div></div>
+    </div>
+  </div>
+
+  <!-- 2B: When to use / not to use -->
+  <div class="feature-card">
+    <div class="feature-header">
+      <div class="feature-name">When to use / When not to use → Same layout, repositioned</div>
+      <span class="tag tag-kept">Kept</span>
+    </div>
+    <div class="feature-body">
+      <div class="col-asis">
+        <div class="col-label asis">As-is</div>
+        <div class="col-content">Two-column section with green "WHEN TO USE" and red "WHEN NOT TO USE" headers. Text content underneath each. <strong>Appears below the step flow inside the expanded card.</strong></div>
+      </div>
+      <div class="col-new">
+        <div class="col-label new">Aspirational</div>
+        <div class="col-content"><strong>Exact same layout and content.</strong> Repositioned above the preflight — the user sees this <em>before</em> committing to starting, which matches the decision flow (decide if this pattern fits → set up → execute).</div>
+      </div>
+    </div>
+    <div class="ux-callout"><strong>UX difference:</strong> Moving usage guidance above the "Start workflow" button means users self-filter <em>before</em> investing effort. Currently it's below the steps, which means they might start reading steps before realizing the pattern doesn't fit. Zero content change, just repositioning.</div>
+    <div class="metrics-row">
+      <div class="metric"><div class="m-label">Complexity</div><div class="m-value cx-low">Low</div></div>
+      <div class="metric"><div class="m-label">Backend</div><div class="m-value">None</div></div>
+      <div class="metric"><div class="m-label">Data change</div><div class="m-value">None</div></div>
+      <div class="metric"><div class="m-label">Build</div><div class="m-value">15 min</div></div>
+      <div class="metric"><div class="m-label">Test</div><div class="m-value">15 min</div></div>
+    </div>
+  </div>
+
+  <!-- 2C: Pattern card → Dedicated page -->
+  <div class="feature-card">
+    <div class="feature-header">
+      <div class="feature-name">Expandable card in list → Dedicated pattern detail page</div>
+      <span class="tag tag-evolved">Evolved</span>
+    </div>
+    <div class="feature-body">
+      <div class="col-asis">
+        <div class="col-label asis">As-is</div>
+        <div class="col-content">Pattern detail lives inside an expandable card on the <code>/patterns</code> list page. "Full pattern" / "Less" toggle. <strong>All 13 patterns on one scrollable page.</strong></div>
+      </div>
+      <div class="col-new">
+        <div class="col-label new">Aspirational</div>
+        <div class="col-content">Clicking a pattern card navigates to <code>/patterns/rfp-response-acceleration</code> — a <strong>dedicated detail page</strong> with full header, sidebar, and workflow workspace. Breadcrumb shows Gen AI Portal › Patterns › RFP Response Acceleration.</div>
+      </div>
+    </div>
+    <div class="ux-callout"><strong>UX difference:</strong> A dedicated page gives room for the preflight, expanded steps, sidebar panels (trust, assets, progress) — none of which fit inside an expandable card. It also creates a shareable URL and enables deep-linking from search results or the homepage. The list page stays as-is for browsing.</div>
+    <div class="metrics-row">
+      <div class="metric"><div class="m-label">Complexity</div><div class="m-value cx-low">Low</div></div>
+      <div class="metric"><div class="m-label">Backend</div><div class="m-value">New route only</div></div>
+      <div class="metric"><div class="m-label">Data change</div><div class="m-value">None — same pattern data, new route</div></div>
+      <div class="metric"><div class="m-label">Build</div><div class="m-value">0.5 day</div></div>
+      <div class="metric"><div class="m-label">Test</div><div class="m-value">0.5 day</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- SECTION 3: NET-NEW FEATURES -->
+<!-- ============================================================ -->
+<div class="section">
+  <div class="section-head">
+    <div class="section-num">3</div>
+    <div class="section-title">Net-new features (new components, new data)</div>
+  </div>
+  <p class="section-desc">These don't exist in the current portal at all. Each requires a new frontend component and — in some cases — new backend fields or services.</p>
+
+  <!-- 3A: Preflight intake -->
+  <div class="feature-card">
+    <div class="feature-header">
+      <div class="feature-name">Preflight intake panel</div>
+      <span class="tag tag-new">New</span>
+    </div>
+    <div class="feature-body">
+      <div class="col-asis">
+        <div class="col-label asis">As-is</div>
+        <div class="col-content none">Does not exist. User reads the pattern page and then manually opens each tool. No structured context collection before starting.</div>
+      </div>
+      <div class="col-new">
+        <div class="col-label new">Aspirational</div>
+        <div class="col-content">
+          A form section with 5 fields:
+          <br><br>
+          <strong>1. Client / Account</strong> (text input) — Identifies the engagement. Used to tag the workflow instance and could pre-filter evidence libraries later.
+          <br><strong>2. Data boundary</strong> (dropdown: Accenture internal / Client-permitted / Restricted) — The single most important governance field. Controls which tools are safe to use and what data can flow through.
+          <br><strong>3. RFP deadline</strong> (date picker) — Sets urgency context. Could drive priority nudges later.
+          <br><strong>4. Review owner</strong> (text/people picker) — Assigns who must approve at the human review checkpoint. Turns the review step from policy text into an assigned action.
+          <br><strong>5. Brief context</strong> (optional text) — Free-text for sector, scope, competitive landscape. Helps the system recommend the right prompt pack and evidence.
+          <br><br>
+          Submitting creates a <strong>workflow_instance</strong> record and launches the first step.
+        </div>
+      </div>
+    </div>
+    <div class="ux-callout"><strong>UX difference:</strong> This is <em>scaffolding</em> — it reduces the cognitive load of "how do I start?" to answering 5 structured questions. It also forces the data-boundary decision upfront (currently buried in policy text), which is the #1 adoption barrier in the surveys. The form also creates a saved context that carries across all 6 steps so the user never re-enters the same information.</div>
+    <div class="metrics-row">
+      <div class="metric"><div class="m-label">Complexity</div><div class="m-value cx-med">Medium</div></div>
+      <div class="metric"><div class="m-label">Backend</div><div class="m-value">Yes — POST /api/workflow-instances</div></div>
+      <div class="metric"><div class="m-label">Data change</div><div class="m-value">New table: workflow_instance (id, pattern_id, user_id, client, data_boundary, deadline, reviewer, context, status, created_at)</div></div>
+      <div class="metric"><div class="m-label">Build</div><div class="m-value">1.5 days</div></div>
+      <div class="metric"><div class="m-label">Test</div><div class="m-value">0.5 day</div></div>
+    </div>
+  </div>
+
+  <!-- 3B: Input checklist per step -->
+  <div class="feature-card">
+    <div class="feature-header">
+      <div class="feature-name">Input checklist per step</div>
+      <span class="tag tag-new">New</span>
+    </div>
+    <div class="feature-body">
+      <div class="col-asis">
+        <div class="col-label asis">As-is</div>
+        <div class="col-content none">Does not exist. Each step only has a one-line description (e.g., "Upload RFP document; ARC parses and classifies each requirement section."). User must infer what inputs they need.</div>
+      </div>
+      <div class="col-new">
+        <div class="col-label new">Aspirational</div>
+        <div class="col-content">Each expanded step shows a checkbox list of required inputs. Items auto-check when prior steps complete (e.g., "RFP parsed ✓" auto-fills when Step 1 completes). Manual items remain unchecked until user confirms. Example for Step 4: RFP parsed ✓, Mapping approved ✓, Evidence linked ✓, Win themes (optional).</div>
+      </div>
+    </div>
+    <div class="ux-callout"><strong>UX difference:</strong> Checklists are a form of <em>external cognition</em> — they offload "what do I need?" from the user's memory to the interface. They also create a natural gating mechanism: the user sees at a glance whether they're ready to proceed, reducing false starts and errors.</div>
+    <div class="metrics-row">
+      <div class="metric"><div class="m-label">Complexity</div><div class="m-value cx-med">Medium</div></div>
+      <div class="metric"><div class="m-label">Backend</div><div class="m-value">Yes — step prerequisite checks</div></div>
+      <div class="metric"><div class="m-label">Data change</div><div class="m-value">Add checklist_items JSON array to workflow_step definition; add checked_items to workflow_instance_step</div></div>
+      <div class="metric"><div class="m-label">Build</div><div class="m-value">1 day</div></div>
+      <div class="metric"><div class="m-label">Test</div><div class="m-value">0.5 day</div></div>
+    </div>
+  </div>
+
+  <!-- 3C: Starter prompt per step -->
+  <div class="feature-card">
+    <div class="feature-header">
+      <div class="feature-name">Starter prompt per step</div>
+      <span class="tag tag-new">New</span>
+    </div>
+    <div class="feature-body">
+      <div class="col-asis">
+        <div class="col-label asis">As-is</div>
+        <div class="col-content none">Does not exist on the pattern page. The portal has a separate Prompt Library (48+ prompts on SharePoint) but they're not linked to specific pattern steps. User must navigate away to find relevant prompts.</div>
+      </div>
+      <div class="col-new">
+        <div class="col-label new">Aspirational</div>
+        <div class="col-content">Each expanded step shows a <strong>monospace prompt box</strong> with a recommended prompt and a "Copy" button. The prompt is contextual to the step (e.g., Step 4's prompt references the RFP requirements and approved mapping from prior steps). This is the bridge from "I know what to do" to "I know exactly what to type."</div>
+      </div>
+    </div>
+    <div class="ux-callout"><strong>UX difference:</strong> This closes the <em>discovery-to-execution gap</em>. Currently, the pattern tells you to "draft proposal sections" but doesn't tell you <em>how to prompt the tool</em>. The starter prompt eliminates blank-page paralysis and ensures quality by encoding best practices directly into the workflow. It also reduces cognitive switching — user stays on the workflow page instead of hunting through the prompt library.</div>
+    <div class="metrics-row">
+      <div class="metric"><div class="m-label">Complexity</div><div class="m-value cx-low">Low</div></div>
+      <div class="metric"><div class="m-label">Backend</div><div class="m-value">Minimal — link existing prompt IDs to steps</div></div>
+      <div class="metric"><div class="m-label">Data change</div><div class="m-value">Add prompt_id or prompt_text to each workflow_step. Content: author 1 prompt per step (~6 prompts total for RFP workflow).</div></div>
+      <div class="metric"><div class="m-label">Build</div><div class="m-value">0.5 day (component) + 2 hrs (content authoring)</div></div>
+      <div class="metric"><div class="m-label">Test</div><div class="m-value">0.5 day</div></div>
+    </div>
+  </div>
+
+  <!-- 3D: Step action buttons -->
+  <div class="feature-card">
+    <div class="feature-header">
+      <div class="feature-name">Step action buttons ("Open in Tool", "Save & pause")</div>
+      <span class="tag tag-new">New</span>
+    </div>
+    <div class="feature-body">
+      <div class="col-asis">
+        <div class="col-label asis">As-is</div>
+        <div class="col-content none">No action buttons on step rows. The tool tags (ARC, Proposal Builder) are displayed but not clickable launch links. User must manually open the tool in a separate tab.</div>
+      </div>
+      <div class="col-new">
+        <div class="col-label new">Aspirational</div>
+        <div class="col-content">Two buttons per active step: <strong>"Open in [Tool] →"</strong> (primary, launches the linked tool) and <strong>"Save & pause"</strong> (secondary, saves progress and returns user to My Space). The "Open in Tool" button carries context from the preflight (client, data boundary) into the tool if possible.</div>
+      </div>
+    </div>
+    <div class="ux-callout"><strong>UX difference:</strong> This is the single most important change for turning a pattern from "reading" into "doing." A visible call-to-action at the point of decision eliminates the handoff friction. "Save & pause" supports enterprise reality — work spans multiple sessions. Together, these buttons increase pattern-view-to-start rate (the key metric for this area).</div>
+    <div class="metrics-row">
+      <div class="metric"><div class="m-label">Complexity</div><div class="m-value cx-low">Low–Med</div></div>
+      <div class="metric"><div class="m-label">Backend</div><div class="m-value">Yes — save workflow_instance state; tool launch URL config</div></div>
+      <div class="metric"><div class="m-label">Data change</div><div class="m-value">Add launch_url to tool records; add current_step + step_outputs to workflow_instance</div></div>
+      <div class="metric"><div class="m-label">Build</div><div class="m-value">1 day</div></div>
+      <div class="metric"><div class="m-label">Test</div><div class="m-value">0.5 day</div></div>
+    </div>
+  </div>
+
+  <!-- 3E: Review gate banner -->
+  <div class="feature-card">
+    <div class="feature-header">
+      <div class="feature-name">Review gate banner</div>
+      <span class="tag tag-new">New</span>
+    </div>
+    <div class="feature-body">
+      <div class="col-asis">
+        <div class="col-label asis">As-is</div>
+        <div class="col-content none">"Human review checkpoint" is just another step pill in the flow and a row in the numbered list. No assignment, no tracking, no notification. Reviewer requirement is implied by the step description text only.</div>
+      </div>
+      <div class="col-new">
+        <div class="col-label new">Aspirational</div>
+        <div class="col-content">An amber-highlighted banner between the relevant steps showing: reviewer name + avatar, assignment timestamp, notification status ("Notified via Teams"), current state (Pending / Approved / Changes requested), and a "Nudge reviewer" action. Blocks progression to the next step until approved.</div>
+      </div>
+    </div>
+    <div class="ux-callout"><strong>UX difference:</strong> This turns governance from invisible policy into <em>visible product behavior</em>. The current portal's #1 adoption barrier is data restriction uncertainty — making review explicit and trackable builds trust. It also prevents unsafe progression (drafting client-facing content before someone checks the AI mapping). The banner is an explicit <em>trust affordance</em>.</div>
+    <div class="metrics-row">
+      <div class="metric"><div class="m-label">Complexity</div><div class="m-value cx-med">Medium</div></div>
+      <div class="metric"><div class="m-label">Backend</div><div class="m-value">Yes — review_gate table + notification trigger</div></div>
+      <div class="metric"><div class="m-label">Data change</div><div class="m-value">New table: review_gate (id, instance_id, step_id, reviewer_id, status, assigned_at, completed_at). Notification integration (Teams webhook or email).</div></div>
+      <div class="metric"><div class="m-label">Build</div><div class="m-value">1.5 days</div></div>
+      <div class="metric"><div class="m-label">Test</div><div class="m-value">1 day (incl. notification)</div></div>
+    </div>
+  </div>
+
+  <!-- 3F: Trust panel sidebar -->
+  <div class="feature-card">
+    <div class="feature-header">
+      <div class="feature-name">Trust & governance sidebar panel</div>
+      <span class="tag tag-new">New</span>
+    </div>
+    <div class="feature-body">
+      <div class="col-asis">
+        <div class="col-label asis">As-is</div>
+        <div class="col-content none">Trust signals exist but are scattered: "★ Official" pill on the card, "low risk" on tool cards, "Do not use ARC with Restricted data" buried in the "when not to use" text. No consolidated trust view.</div>
+      </div>
+      <div class="col-new">
+        <div class="col-label new">Aspirational</div>
+        <div class="col-content">A persistent sidebar panel with 5 rows: <strong>Approval status</strong> (Approved), <strong>Data boundary</strong> (set from preflight), <strong>Review requirement</strong> (Yes — before delivery), <strong>Risk level</strong> (Low risk), <strong>Last verified date</strong> (Apr 18, 2026). Always visible while the user works through steps.</div>
+      </div>
+    </div>
+    <div class="ux-callout"><strong>UX difference:</strong> Trust cues need to appear <em>at the moment of use</em>, not just at the moment of reading. A persistent sidebar means the user never has to wonder "wait, is this okay for my data?" mid-workflow. This directly addresses the calibrated trust research — users are more confident and more compliant when governance is transparent rather than hidden in policy documents.</div>
+    <div class="metrics-row">
+      <div class="metric"><div class="m-label">Complexity</div><div class="m-value cx-low">Low</div></div>
+      <div class="metric"><div class="m-label">Backend</div><div class="m-value">Minimal — read existing metadata</div></div>
+      <div class="metric"><div class="m-label">Data change</div><div class="m-value">Ensure pattern and tool records have: approval_status, risk_level, review_required (boolean), last_verified_date. Most of this already exists.</div></div>
+      <div class="metric"><div class="m-label">Build</div><div class="m-value">0.5 day</div></div>
+      <div class="metric"><div class="m-label">Test</div><div class="m-value">0.25 day</div></div>
+    </div>
+  </div>
+
+  <!-- 3G: Linked assets sidebar -->
+  <div class="feature-card">
+    <div class="feature-header">
+      <div class="feature-name">Linked assets sidebar panel</div>
+      <span class="tag tag-new">New</span>
+    </div>
+    <div class="feature-body">
+      <div class="col-asis">
+        <div class="col-label asis">As-is</div>
+        <div class="col-content none">Tool tags (ARC, Proposal Builder, Amethyst) are shown but prompts, evidence libraries, and training modules are on entirely separate portal pages. User must navigate to 3–4 different sections to gather everything for one workflow.</div>
+      </div>
+      <div class="col-new">
+        <div class="col-label new">Aspirational</div>
+        <div class="col-content">Sidebar lists all linked assets in one place: tools (Proposal Co-pilot, ARC), prompt packs (RFP Prompt Pack — 6 prompts), evidence libraries (FS Evidence Library — 142 items), and training (Proposal Writing module). Each item is clickable and opens the relevant portal page or tool.</div>
+      </div>
+    </div>
+    <div class="ux-callout"><strong>UX difference:</strong> This is the <em>unified topic page</em> concept — instead of the user being the librarian assembling materials from 5 different shelves, the portal becomes the librarian handing them a complete kit. Reduces navigation depth from 3–4 clicks to 0 (everything is visible on the page they're already on). Directly reduces cognitive load and increases content discovery breadth.</div>
+    <div class="metrics-row">
+      <div class="metric"><div class="m-label">Complexity</div><div class="m-value cx-low">Low</div></div>
+      <div class="metric"><div class="m-label">Backend</div><div class="m-value">Yes — asset linking query</div></div>
+      <div class="metric"><div class="m-label">Data change</div><div class="m-value">New junction table: workflow_asset_link (workflow_id, asset_type, asset_id). Populate for RFP workflow with ~5 linked assets.</div></div>
+      <div class="metric"><div class="m-label">Build</div><div class="m-value">0.5 day</div></div>
+      <div class="metric"><div class="m-label">Test</div><div class="m-value">0.25 day</div></div>
+    </div>
+  </div>
+
+  <!-- 3H: Time saved + progress tracker -->
+  <div class="feature-card">
+    <div class="feature-header">
+      <div class="feature-name">Time saved estimator + progress tracker</div>
+      <span class="tag tag-new">New</span>
+    </div>
+    <div class="feature-body">
+      <div class="col-asis">
+        <div class="col-label asis">As-is</div>
+        <div class="col-content none">No progress tracking. No value signal. User has no sense of how far along they are or what benefit the workflow is providing. The "2h setup" badge is the only time-related cue.</div>
+      </div>
+      <div class="col-new">
+        <div class="col-label new">Aspirational</div>
+        <div class="col-content">Two sidebar elements: (1) <strong>Progress bar</strong> — "3 of 6 steps done · 50% · ~45 min left." Based on workflow_instance_step completion status. (2) <strong>Time saved banner</strong> — "~6.5 hrs saved" based on team benchmarks for this workflow. Initially a static estimate from content metadata; later can be calculated from actual step durations.</div>
+      </div>
+    </div>
+    <div class="ux-callout"><strong>UX difference:</strong> The progress bar is <em>visibility of system status</em> — critical for multi-session work. The time-saved banner addresses UTAUT's <em>performance expectancy</em>: it turns the abstract "AI saves time" into a concrete personal number. This is the same mechanism that makes fitness trackers sticky — visible, quantified progress toward a valuable outcome.</div>
+    <div class="metrics-row">
+      <div class="metric"><div class="m-label">Complexity</div><div class="m-value cx-low">Low</div></div>
+      <div class="metric"><div class="m-label">Backend</div><div class="m-value">Minimal — compute from existing step status</div></div>
+      <div class="metric"><div class="m-label">Data change</div><div class="m-value">Add estimated_time_saved to workflow definition (static initially). Progress computed from step completion counts.</div></div>
+      <div class="metric"><div class="m-label">Build</div><div class="m-value">0.5 day</div></div>
+      <div class="metric"><div class="m-label">Test</div><div class="m-value">0.25 day</div></div>
+    </div>
+  </div>
+
+  <!-- 3I: Activity log -->
+  <div class="feature-card">
+    <div class="feature-header">
+      <div class="feature-name">Activity log</div>
+      <span class="tag tag-new">New</span>
+    </div>
+    <div class="feature-body">
+      <div class="col-asis">
+        <div class="col-label asis">As-is</div>
+        <div class="col-content none">No history of user actions. If the user leaves and comes back, there's no record of what happened.</div>
+      </div>
+      <div class="col-new">
+        <div class="col-label new">Aspirational</div>
+        <div class="col-content">Sidebar panel showing timestamped events: "9:30 — Workflow started", "9:48 — Step 1 complete · 32 requirements parsed", "10:15 — Step 2 complete", "10:42 — Review approved by Sarah Chen." Logged automatically as steps complete.</div>
+      </div>
+    </div>
+    <div class="ux-callout"><strong>UX difference:</strong> Supports <em>save/resume</em> (user returns next day and sees exactly where they left off) and creates the <em>telemetry foundation</em> needed for all adoption metrics. Also builds trust — users can see the audit trail of what AI did and what humans verified.</div>
+    <div class="metrics-row">
+      <div class="metric"><div class="m-label">Complexity</div><div class="m-value cx-low">Low</div></div>
+      <div class="metric"><div class="m-label">Backend</div><div class="m-value">Yes — event_log table + write on step transitions</div></div>
+      <div class="metric"><div class="m-label">Data change</div><div class="m-value">New table: event_log (id, instance_id, event_type, detail, timestamp). Insert row on each step completion / review action.</div></div>
+      <div class="metric"><div class="m-label">Build</div><div class="m-value">0.5 day</div></div>
+      <div class="metric"><div class="m-label">Test</div><div class="m-value">0.25 day</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- TOTALS -->
+<!-- ============================================================ -->
+<div class="totals-bar">
+  <h3 style="font-size:15px; margin-bottom:14px;">Estimated totals (1 developer)</h3>
+  <div class="totals-grid">
+    <div class="total-item">
+      <div class="t-label">Total build time</div>
+      <div class="t-value">~8 days</div>
+      <div class="t-note">Includes frontend components, backend endpoints, content authoring for 1 workflow</div>
+    </div>
+    <div class="total-item">
+      <div class="t-label">Total test time</div>
+      <div class="t-value">~3 days</div>
+      <div class="t-note">Unit tests, click-path QA, notification testing, 2–3 user walkthroughs</div>
+    </div>
+    <div class="total-item">
+      <div class="t-label">Backend data changes</div>
+      <div class="t-value">3 new tables</div>
+      <div class="t-note">workflow_instance, review_gate, event_log + 1 junction table (workflow_asset_link) + minor field additions to existing tables</div>
+    </div>
+  </div>
+  <p style="font-size:12px; color:var(--text-mut); margin-top:14px; border-top:1px solid var(--border); padding-top:12px;">
+    <strong>Critical path:</strong> The interactive step accordion (2–3 days) + preflight intake (1.5 days) + review gate (1.5 days) = ~5.5 days are the core. Everything else (trust panel, linked assets, progress, activity log, time saved) adds ~2.5 days and is lower-risk. If time is tight, ship the core first and layer the sidebar panels in week 2.
+  </p>
+</div>
+
+</div>
+</body>
+</html>

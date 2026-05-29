@@ -1,0 +1,915 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Checkpoint Plan v2 — Gen AI Portal UX</title>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0b0d11;--s1:#12151c;--s2:#181c25;--s3:#1e2330;--bd:rgba(255,255,255,.06);--bd2:rgba(255,255,255,.12);--t:#e0e2e8;--tm:#8a8f9c;--tf:#555a66;--ac:#a78bfa;--acd:rgba(167,139,250,.14);--gn:#34d399;--gnd:rgba(52,211,153,.12);--am:#fbbf24;--amd:rgba(251,191,36,.12);--rs:#fb7185;--rsd:rgba(251,113,133,.12);--bl:#60a5fa;--bld:rgba(96,165,250,.12);--tl:#2dd4bf;--tld:rgba(45,212,191,.12);--or:#fb923c;--ord:rgba(251,146,60,.12)}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--t);line-height:1.7;font-size:15px}
+.wrap{max-width:1060px;margin:0 auto;padding:0 24px 60px}
+
+/* HERO */
+.hero{padding:48px 0 28px;border-bottom:1px solid var(--bd)}
+.ey{font-size:11px;letter-spacing:2.5px;text-transform:uppercase;color:var(--ac);font-weight:600;margin-bottom:10px}
+h1{font-family:'Instrument Serif',serif;font-size:clamp(26px,4vw,38px);font-weight:400;line-height:1.2;margin-bottom:10px}
+h1 em{font-style:italic;color:var(--ac)}
+.sub{color:var(--tm);font-size:14.5px;max-width:720px}
+.tags{margin-top:14px;display:flex;flex-wrap:wrap;gap:6px}
+.chip{display:inline-block;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:600}
+.ch-ac{background:var(--acd);color:var(--ac)}.ch-gn{background:var(--gnd);color:var(--gn)}.ch-am{background:var(--amd);color:var(--am)}.ch-bl{background:var(--bld);color:var(--bl)}.ch-rs{background:var(--rsd);color:var(--rs)}.ch-tl{background:var(--tld);color:var(--tl)}.ch-or{background:var(--ord);color:var(--or)}
+
+/* STATS ROW */
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin:24px 0 8px}
+.stat-card{background:var(--s1);border:1px solid var(--bd);border-radius:10px;padding:14px 16px;text-align:center}
+.stat-card .sv{font-size:26px;font-weight:700;line-height:1.1}
+.stat-card .sl{font-size:11px;color:var(--tm);margin-top:4px;text-transform:uppercase;letter-spacing:.6px}
+.sv-ac{color:var(--ac)}.sv-gn{color:var(--gn)}.sv-am{color:var(--am)}.sv-bl{color:var(--bl)}
+
+/* TABS */
+.tabs{position:sticky;top:0;z-index:100;background:var(--bg);border-bottom:1px solid var(--bd);overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+.tabs-inner{display:flex;gap:0;max-width:1060px;margin:0 auto;padding:0 24px}
+.tab-btn{background:none;border:none;color:var(--tm);padding:13px 16px;font-size:12.5px;font-weight:500;cursor:pointer;white-space:nowrap;border-bottom:2px solid transparent;transition:.2s;font-family:inherit}
+.tab-btn:hover{color:var(--t)}.tab-btn.active{color:var(--ac);border-bottom-color:var(--ac)}
+.tab-panel{display:none;padding:32px 0 20px}.tab-panel.active{display:block}
+
+/* SECTIONS */
+.sec{margin-bottom:28px}
+.sec h2{font-family:'Instrument Serif',serif;font-size:24px;font-weight:400;margin-bottom:6px}
+.sec .lead{color:var(--tm);margin-bottom:14px;font-size:14px;max-width:740px}
+
+/* CARDS */
+.card{background:var(--s1);border:1px solid var(--bd);border-radius:12px;padding:20px;margin-bottom:12px}
+.card h3{font-size:15px;font-weight:600;margin-bottom:6px}
+.card p,.card li{color:var(--tm);font-size:13.5px}
+.card ul,.card ol{padding-left:16px}.card li{margin-bottom:4px}
+.g2{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px;margin-top:12px}
+.g3{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-top:12px}
+
+/* CALLOUTS */
+.callout{padding:16px 20px;border-radius:12px;margin:14px 0;font-size:13.5px;line-height:1.65}
+.c-ac{background:var(--acd);border:1px solid rgba(167,139,250,.25)}
+.c-am{background:var(--amd);border:1px solid rgba(251,191,36,.25)}
+.c-gn{background:var(--gnd);border:1px solid rgba(52,211,153,.25)}
+.c-rs{background:var(--rsd);border:1px solid rgba(251,113,133,.25)}
+.c-bl{background:var(--bld);border:1px solid rgba(96,165,250,.25)}
+.c-tl{background:var(--tld);border:1px solid rgba(45,212,191,.25)}
+
+/* CHANGE ITEMS */
+.change{background:var(--s1);border:1px solid var(--bd);border-radius:12px;padding:20px;margin-bottom:14px}
+.change-head{display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;margin-bottom:10px}
+.change-head h3{font-size:15px;font-weight:600;flex:1;min-width:200px}
+.change-meta{display:flex;gap:6px;flex-wrap:wrap}
+.impact-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:10px}
+.impact-item{font-size:12.5px}
+.impact-item .label{font-weight:600;color:var(--t);margin-bottom:2px}
+.impact-item p{color:var(--tm);margin:0}
+
+/* PHASE LABEL */
+.phase{display:inline-block;padding:4px 12px;border-radius:8px;font-size:11px;font-weight:600;letter-spacing:.6px;text-transform:uppercase;margin-bottom:12px}
+.ph-0{background:rgba(96,165,250,.12);color:var(--bl)}
+.ph-1{background:var(--acd);color:var(--ac)}
+.ph-2{background:var(--gnd);color:var(--gn)}
+.ph-3{background:var(--amd);color:var(--am)}
+
+/* TABLE */
+table{width:100%;border-collapse:collapse;margin:10px 0;font-size:13px}
+th{text-align:left;padding:8px 10px;background:var(--s2);color:var(--tm);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.8px}
+td{padding:8px 10px;border-bottom:1px solid var(--bd);color:var(--tm);vertical-align:top}
+td strong{color:var(--t)}
+
+/* RISK BADGE */
+.risk{display:inline-block;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:500}
+.risk-low{background:var(--gnd);color:var(--gn)}
+.risk-med{background:var(--amd);color:var(--am)}
+.risk-high{background:var(--rsd);color:var(--rs)}
+
+/* PROGRESS BAR */
+.prog-wrap{margin-top:6px}
+.prog-bar{height:6px;border-radius:3px;background:var(--s3);overflow:hidden}
+.prog-fill{height:100%;border-radius:3px;transition:width .4s ease}
+
+/* TIMELINE */
+.timeline{position:relative;padding-left:28px;margin-top:16px}
+.timeline::before{content:'';position:absolute;left:8px;top:4px;bottom:4px;width:2px;background:var(--bd2);border-radius:1px}
+.tl-item{position:relative;margin-bottom:20px}
+.tl-item::before{content:'';position:absolute;left:-24px;top:6px;width:12px;height:12px;border-radius:50%;border:2px solid var(--bd2);background:var(--bg)}
+.tl-item.done::before{background:var(--gn);border-color:var(--gn)}
+.tl-item.active::before{background:var(--ac);border-color:var(--ac);box-shadow:0 0 0 4px rgba(167,139,250,.2)}
+.tl-item.future::before{background:var(--s2);border-color:var(--bd2)}
+.tl-day{font-size:11px;font-weight:600;color:var(--tf);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px}
+.tl-title{font-size:14px;font-weight:600;margin-bottom:2px}
+.tl-desc{font-size:12.5px;color:var(--tm)}
+
+/* SURVEY BARS */
+.bar-row{margin-bottom:10px}
+.bar-head{display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:3px}
+.bar-head span:first-child{color:var(--t)}
+.bar-head span:last-child{color:var(--tm);font-weight:600}
+.bar-track{height:8px;border-radius:4px;background:var(--s3);overflow:hidden}
+.bar-fill{height:100%;border-radius:4px}
+
+/* ACCORDION */
+.acc{border:1px solid var(--bd);border-radius:12px;overflow:hidden;margin-bottom:10px}
+.acc-head{padding:14px 18px;cursor:pointer;display:flex;align-items:center;gap:10px;background:var(--s1);transition:.15s;user-select:none}
+.acc-head:hover{background:var(--s2)}
+.acc-arrow{font-size:10px;color:var(--tf);transition:transform .2s}
+.acc.open .acc-arrow{transform:rotate(90deg)}
+.acc-title{font-size:14px;font-weight:600;flex:1}
+.acc-body{display:none;padding:0 18px 16px;background:var(--s1);font-size:13px;color:var(--tm);line-height:1.65}
+.acc.open .acc-body{display:block}
+
+/* FOOTER */
+.footer{border-top:1px solid var(--bd);padding-top:20px;margin-top:32px;font-size:12px;color:var(--tf);text-align:center}
+
+@media(max-width:700px){
+.g2,.g3,.impact-grid{grid-template-columns:1fr}
+.stats{grid-template-columns:1fr 1fr}
+.tabs-inner{padding:0 12px}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<!-- ═══════════════ HERO ═══════════════ -->
+<div class="hero">
+  <div class="ey">Checkpoint Implementation Plan v2</div>
+  <h1>Gen AI Portal UX — <em>Tiered Delivery</em></h1>
+  <p class="sub">A roadblock-proof plan with three shippable checkpoints. Each checkpoint is a complete story for the MD. Commit to C1, target C2, reach for C3. Every data point comes from existing portal content or the 424-response survey.</p>
+  <div class="tags">
+    <span class="chip ch-rs">2–2.5 weeks · background task</span>
+    <span class="chip ch-gn">~20h total · ~2h/day</span>
+    <span class="chip ch-am">3h built-in buffer</span>
+    <span class="chip ch-ac">Usability &gt; utility</span>
+    <span class="chip ch-bl">No new data needed — existing sources only</span>
+  </div>
+</div>
+
+<div class="stats">
+  <div class="stat-card"><div class="sv sv-ac">20h</div><div class="sl">Total budget</div></div>
+  <div class="stat-card"><div class="sv sv-gn">10–12</div><div class="sl">Working days</div></div>
+  <div class="stat-card"><div class="sv sv-am">3h</div><div class="sl">Buffer</div></div>
+  <div class="stat-card"><div class="sv sv-bl">424</div><div class="sl">Survey responses</div></div>
+</div>
+
+<!-- ═══════════════ TABS ═══════════════ -->
+<div class="tabs">
+  <div class="tabs-inner">
+    <button class="tab-btn active" data-tab="overview">Overview</button>
+    <button class="tab-btn" data-tab="c1">Checkpoint 1</button>
+    <button class="tab-btn" data-tab="c2">Checkpoint 2</button>
+    <button class="tab-btn" data-tab="c3">Checkpoint 3</button>
+    <button class="tab-btn" data-tab="timeline">Timeline</button>
+    <button class="tab-btn" data-tab="survey">Survey Backing</button>
+    <button class="tab-btn" data-tab="risks">Roadblocks</button>
+    <button class="tab-btn" data-tab="md">MD Framing</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════ -->
+<!-- OVERVIEW TAB                           -->
+<!-- ═══════════════════════════════════════ -->
+<div id="overview" class="tab-panel active">
+  <div class="sec">
+    <h2>Planning philosophy</h2>
+    <p class="lead">This plan is designed to survive roadblocks. Each checkpoint is independently presentable — you never need to "finish everything" to show progress. The ordering follows impact ÷ effort, with hard dependencies resolved first.</p>
+  </div>
+
+  <div class="callout c-ac">
+    <strong>What changed from v1:</strong> Removed trust metadata panel (requires data that doesn't exist yet). Replaced with survey-backed social proof using your 424-response Excel data. Compressed to 2–2.5 weeks. Added explicit buffer hours. Tool card upgrades now use existing portal metadata only.
+  </div>
+
+  <div class="g3">
+    <div class="card" style="border-left:3px solid var(--gn)">
+      <h3 style="color:var(--gn)">Checkpoint 1 — Floor</h3>
+      <p>Days 1–5 · ~9h + 1h buffer</p>
+      <p style="margin-top:6px">JSON data layer + labeled sidebar + task-first homepage. Always shippable.</p>
+      <div class="prog-wrap"><div class="prog-bar"><div class="prog-fill" style="width:100%;background:var(--gn)"></div></div></div>
+    </div>
+    <div class="card" style="border-left:3px solid var(--bl)">
+      <h3 style="color:var(--bl)">Checkpoint 2 — Target</h3>
+      <p>Days 6–10 · ~9h + 1h buffer</p>
+      <p style="margin-top:6px">Cross-links + card upgrades + hero workflow workspace. Catalog → workbench.</p>
+      <div class="prog-wrap"><div class="prog-bar"><div class="prog-fill" style="width:65%;background:var(--bl)"></div></div></div>
+    </div>
+    <div class="card" style="border-left:3px solid var(--am)">
+      <h3 style="color:var(--am)">Checkpoint 3 — Stretch</h3>
+      <p>Days 11–12+ · ~4h</p>
+      <p style="margin-top:6px">Survey social proof on portal + presentation package. Cherry on top.</p>
+      <div class="prog-wrap"><div class="prog-bar"><div class="prog-fill" style="width:30%;background:var(--am)"></div></div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Core constraints</h3>
+    <div class="g2" style="margin-top:0">
+      <div>
+        <ul>
+          <li><strong>~2h/day</strong> — background task, not full-time</li>
+          <li><strong>React codebase</strong> — unfamiliar, needs exploration time</li>
+          <li><strong>Claude Code</strong> — accelerates implementation</li>
+          <li><strong>JSON configs</strong> — realistic storage for this timeline</li>
+        </ul>
+      </div>
+      <div>
+        <ul>
+          <li><strong>No new data collection</strong> — use only existing portal content + surveys</li>
+          <li><strong>Portal not live yet</strong> — designing for first impression</li>
+          <li><strong>Independence rule</strong> — any item can be skipped without breaking others</li>
+          <li><strong>Config-driven</strong> — new workflow = new JSON record, no code change</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>What's explicitly cut</h3>
+    <p>These stay on the roadmap slide but don't get built in this sprint: second hero workflow (unless C3), save/resume state, My Space upgrade, search overhaul, agentic features, complex storage/backend, user-specific persistence, mobile optimization, any new data collection or metadata creation.</p>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════ -->
+<!-- CHECKPOINT 1                           -->
+<!-- ═══════════════════════════════════════ -->
+<div id="c1" class="tab-panel">
+  <div class="sec">
+    <div class="ey" style="color:var(--gn)">Checkpoint 1</div>
+    <h2>The floor — always shippable</h2>
+    <p class="lead">If every roadblock hits — unfamiliar codebase, CSS fights, unexpected dependencies — you still walk into the MD meeting with these done. Each Phase 2 item is independent; skip any one and the rest still work.</p>
+  </div>
+
+  <div class="callout c-gn">
+    <strong>Budget:</strong> ~9h of work + 1h buffer = 10h across 5 days. Commit to this. Everything past this is upside.
+  </div>
+
+  <!-- Phase 0 -->
+  <div class="phase ph-0">Phase 0 · Orient · Days 1–2</div>
+  <div class="change">
+    <div class="change-head">
+      <h3>Read codebase + capture before state</h3>
+      <div class="change-meta">
+        <span class="chip ch-bl">~2–3h</span>
+        <span class="chip ch-am">Non-negotiable</span>
+      </div>
+    </div>
+    <div class="impact-grid">
+      <div class="impact-item">
+        <div class="label">What to do</div>
+        <p>Map the React project: folder structure, state management, styling approach (CSS modules? Tailwind? styled-components?), data sources (hardcoded? API? files?), component patterns, role/BU selector mechanics. Screenshot every page as "before" state.</p>
+      </div>
+      <div class="impact-item">
+        <div class="label">Why it matters</div>
+        <p>Every other change depends on understanding the code. This is where you discover whether data is hardcoded in components (harder) or loaded from files (easier). That discovery determines Phase 1 approach.</p>
+      </div>
+      <div class="impact-item">
+        <div class="label">Timebox rule</div>
+        <p>Hard stop at 3h. Even partial understanding is enough to start changes. You'll learn more by editing than by reading. Focus on: homepage component, sidebar component, and wherever pattern/tool data lives.</p>
+      </div>
+      <div class="impact-item">
+        <div class="label">Roadblock fallback</div>
+        <p>If the codebase is deeply complex (monorepo, many layers of abstraction), narrow your focus to just the homepage component and sidebar. Those two areas are all you need for the remaining C1 items.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Phase 1 -->
+  <div class="phase ph-1">Phase 1 · Data foundation · Day 3</div>
+  <div class="change">
+    <div class="change-head">
+      <h3>JSON config layer</h3>
+      <div class="change-meta">
+        <span class="chip ch-ac">~2h</span>
+        <span class="chip ch-am">Non-negotiable</span>
+      </div>
+    </div>
+    <div class="impact-grid">
+      <div class="impact-item">
+        <div class="label">What to do</div>
+        <p>Create <code>workflows.json</code>, <code>tools.json</code>, <code>prompts.json</code> + helper functions (<code>getWorkflowById</code>, <code>getToolsByCapability</code>, etc.). These are 10-15 line functions over JSON. If the portal already has data files, extend them instead of creating new ones.</p>
+      </div>
+      <div class="impact-item">
+        <div class="label">UX theory</div>
+        <p>Not directly visible to users — but it enables every visible change that follows. It's also the "future-proof architecture" slide in the MD presentation. New workflow = new JSON record. No developer needed for content changes.</p>
+      </div>
+      <div class="impact-item">
+        <div class="label">Code approach</div>
+        <p>If data is hardcoded in components → create new JSON files in a <code>/data</code> folder and import them. If patterns and tools already come from separate data files → extend that pattern. Either way, UI components should read from data, not contain data.</p>
+      </div>
+      <div class="impact-item">
+        <div class="label">Claude Code tip</div>
+        <p>"Here's the schema structure [paste from context doc]. Here's the content for the RFP Response pattern [paste from portal]. Generate the JSON record." Fast and mechanical.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Phase 2 -->
+  <div class="phase ph-2">Phase 2 · Quick wins · Days 4–5</div>
+
+  <div class="callout c-gn">
+    <strong>Independence rule:</strong> Each change below is self-contained. You can do them in any order, skip either one, and the other still works. This protects you from cascading delays.
+  </div>
+
+  <div class="change">
+    <div class="change-head">
+      <h3>Label the sidebar icons</h3>
+      <div class="change-meta">
+        <span class="chip ch-gn">~1h</span>
+        <span class="chip ch-gn">Highest impact/effort ratio</span>
+      </div>
+    </div>
+    <div class="impact-grid">
+      <div class="impact-item">
+        <div class="label">What to do</div>
+        <p>Add persistent text labels below or beside every icon in the left nav rail. If space is tight, expand the sidebar by 40-60px. At absolute minimum, add immediate-show tooltips on hover (no delay).</p>
+      </div>
+      <div class="impact-item">
+        <div class="label">UX theory</div>
+        <p><strong>Recognition over Recall</strong> (Nielsen Heuristic #6). Icon-only nav forces users to recall what icons mean. Labels let them recognize instantly. Research shows labeled nav outperforms icon-only by 2-3x in enterprise tools with infrequent users.</p>
+      </div>
+      <div class="impact-item">
+        <div class="label">Code change</div>
+        <p>Find the sidebar component. Add <code>&lt;span&gt;</code> labels next to each icon. Adjust CSS width/padding. That's it. Possibly the simplest code change in the entire plan.</p>
+      </div>
+      <div class="impact-item">
+        <div class="label">MD talking point</div>
+        <p>"Our users visit the portal occasionally, not daily. They can't learn a custom icon language for a tool they use once a week. Labels eliminate guessing."</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="change">
+    <div class="change-head">
+      <h3>Homepage — task-first entry cards</h3>
+      <div class="change-meta">
+        <span class="chip ch-bl">~2–3h</span>
+        <span class="chip ch-gn">Very high impact</span>
+      </div>
+    </div>
+    <div class="impact-grid">
+      <div class="impact-item">
+        <div class="label">What to do</div>
+        <p>Replace the four equal-weight cards with intent-based groupings. Example: <strong>"I need to do something"</strong> (shows top workflows), <strong>"I need a tool"</strong> (tools catalog), <strong>"I want to learn"</strong> (Academy + Playbooks). Reduce from 4+ equi-weighted choices to 3 clear ones with one prominent.</p>
+      </div>
+      <div class="impact-item">
+        <div class="label">UX theory</div>
+        <p><strong>Hick's Law:</strong> Fewer equi-weighted choices → faster decisions. <strong>Jobs-to-be-Done:</strong> Users arrive with a goal ("respond to RFP"), not a content preference ("I want a Pattern"). Organizing by intent matches their mental model.</p>
+      </div>
+      <div class="impact-item">
+        <div class="label">Survey backing</div>
+        <p>37 respondents (8.7%) said "no clear use case identified" as their biggest barrier. This is directly addressable by organizing the homepage around tasks, not content types. Content generation (82.1%) and research (60.4%) are the top intents — make those prominent.</p>
+      </div>
+      <div class="impact-item">
+        <div class="label">Roadblock fallback</div>
+        <p>If full restructure is too complex, even just: (1) make one card larger/prominent, (2) add a subtitle like "Start here" to the most common intent, (3) reorder so the most-used category is first. This delivers 70% of the value with 30% of the effort.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="border-left:3px solid var(--gn)">
+    <h3>C1 deliverables</h3>
+    <ul>
+      <li><strong>Working code:</strong> Labeled sidebar + task-first homepage live on the portal</li>
+      <li><strong>Before/after screenshots:</strong> Side-by-side for each change</li>
+      <li><strong>Architecture diagram:</strong> 5-layer model + JSON config showing future-proofing</li>
+      <li><strong>Survey justification:</strong> Each change tied to specific survey data points</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════ -->
+<!-- CHECKPOINT 2                           -->
+<!-- ═══════════════════════════════════════ -->
+<div id="c2" class="tab-panel">
+  <div class="sec">
+    <div class="ey" style="color:var(--bl)">Checkpoint 2</div>
+    <h2>The target — catalog becomes workbench</h2>
+    <p class="lead">These items transform the portal from "better organized" to "actually guides your work." Each is still independent — skip any one without breaking the others. All use data already on the portal.</p>
+  </div>
+
+  <div class="callout c-bl">
+    <strong>Budget:</strong> ~9h of work + 1h buffer = 10h across days 6–10. This is your ambitious-but-realistic target.
+  </div>
+
+  <div class="change">
+    <div class="change-head">
+      <h3>Cross-link patterns ↔ tools ↔ prompts</h3>
+      <div class="change-meta">
+        <span class="chip ch-bl">~2h</span>
+        <span class="chip ch-gn">High impact</span>
+      </div>
+    </div>
+    <div class="impact-grid">
+      <div class="impact-item">
+        <div class="label">What to do</div>
+        <p>When viewing a pattern (e.g., RFP Response Acceleration), show linked tools (ARC, Proposal Builder) + relevant prompts. When viewing a tool, show which patterns use it. Use the JSON data layer from C1 to connect existing content that's currently siloed.</p>
+      </div>
+      <div class="impact-item">
+        <div class="label">UX theory</div>
+        <p><strong>Information Foraging Theory</strong> (Pirolli & Card) — users follow "information scent." A dead end ("I found the pattern but now what tool do I use?") kills foraging and the user leaves. Cross-links keep the scent alive.</p>
+      </div>
+      <div class="impact-item">
+        <div class="label">Code change</div>
+        <p>The JSON config from C1 already maps patterns → tools → prompts. This is a UI change: add a "Related tools" and "Related prompts" section to pattern detail pages, and a "Used in patterns" section to tool pages. Small component, reads from JSON.</p>
+      </div>
+      <div class="impact-item">
+        <div class="label">MD talking point</div>
+        <p>"Before, a user found a workflow pattern and then had to separately hunt for the right tools and prompts. Now, the portal connects everything — find one thing, see everything related."</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="change">
+    <div class="change-head">
+      <h3>Upgrade tool/pattern cards with existing metadata</h3>
+      <div class="change-meta">
+        <span class="chip ch-bl">~2h</span>
+        <span class="chip ch-gn">High impact</span>
+      </div>
+    </div>
+    <div class="impact-grid">
+      <div class="impact-item">
+        <div class="label">What to do</div>
+        <p>The portal already shows rich metadata: setup time (visible as "2h setup"), complexity level, "when to use / when not to use", linked AI tools. But it's buried in expandable sections. Surface the 6 most important decision cues directly on the card face: setup time, complexity, top use case, primary tool, role fit, and "not for" warning.</p>
+      </div>
+      <div class="impact-item">
+        <div class="label">UX theory</div>
+        <p><strong>Progressive Disclosure</strong> (Lidwell et al.) — show decision-critical info first. The portal already has this data; the problem is surfacing it at the moment of decision rather than after a click. <strong>First-Click Testing</strong> (Bob Bailey) — 87% task success if first click is correct.</p>
+      </div>
+      <div class="impact-item">
+        <div class="label">Data source</div>
+        <p>All from existing portal content — no new data needed. The patterns page already shows: Official/Community badge, Intermediate/Advanced complexity, setup time estimate, linked AI tools (ARC, Proposal Builder, Amethyst), and expandable "when to use / when not to use" sections.</p>
+      </div>
+      <div class="impact-item">
+        <div class="label">Code change</div>
+        <p>Modify the card component to show key fields at the card level instead of behind an expand. Pull data from the JSON config. Add 2-3 small chip/badge elements per card. Minimal CSS work.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="change">
+    <div class="change-head">
+      <h3>Hero workflow workspace — RFP Response</h3>
+      <div class="change-meta">
+        <span class="chip ch-am">~4h</span>
+        <span class="chip ch-rs">Highest complexity</span>
+        <span class="chip ch-ac">Highest impact</span>
+      </div>
+    </div>
+    <div class="impact-grid">
+      <div class="impact-item">
+        <div class="label">What to do</div>
+        <p>Build a generic <code>WorkflowWorkspace</code> component. Populate it with RFP Response Acceleration (6 steps already defined on the portal: Ingest RFP → Map to capabilities → Human review checkpoint → Draft proposal sections → Win theme layering → Final QA). Stepper UI with expandable steps, direct tool links, prompt templates at each step.</p>
+      </div>
+      <div class="impact-item">
+        <div class="label">UX theory</div>
+        <p>This is the core of the <strong>Hero Workflows First</strong> strategy the MD chose. The biggest portal gap: "catalog, not workbench." Patterns explain workflows but remain read-only. The workspace makes them interactive and launchable — reducing decisions between "I have a task" and "I got a trusted outcome."</p>
+      </div>
+      <div class="impact-item">
+        <div class="label">Architecture</div>
+        <p>The workspace shell must be <strong>generic</strong> — it reads workflow data from JSON and renders any workflow. The RFP content is just the first JSON record. If the MD wants different workflows, swapping is a data change, not a code change. This is the "future-proof" proof.</p>
+      </div>
+      <div class="impact-item">
+        <div class="label">Roadblock fallback</div>
+        <p>If full stepper is too complex in time, build a <strong>simplified version</strong>: an enhanced pattern page with numbered clickable steps, each showing the tool to use + a direct "open in [tool]" link + the prompt to use. Still delivers the "launchable workflow" story without the full workspace component. Ship this, show wireframe for the full one.</p>
+      </div>
+    </div>
+    <div class="callout c-am" style="margin-top:12px">
+      <strong>This is the hardest item.</strong> The 1h buffer specifically protects against this running over. If you're at hour 3 and it's not coming together, switch to the fallback version immediately — an enhanced pattern page is 80% of the value at 40% of the effort.
+    </div>
+  </div>
+
+  <div class="card" style="border-left:3px solid var(--bl)">
+    <h3>C2 deliverables</h3>
+    <ul>
+      <li><strong>Everything from C1</strong> plus:</li>
+      <li><strong>Cross-linked content:</strong> Patterns → tools → prompts and back</li>
+      <li><strong>Upgraded cards:</strong> Decision-critical metadata visible at a glance</li>
+      <li><strong>Working hero workflow:</strong> RFP Response Acceleration as an interactive, launchable workspace</li>
+      <li><strong>Generic workspace shell:</strong> Proof that any new workflow is just a new JSON record</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════ -->
+<!-- CHECKPOINT 3                           -->
+<!-- ═══════════════════════════════════════ -->
+<div id="c3" class="tab-panel">
+  <div class="sec">
+    <div class="ey" style="color:var(--am)">Checkpoint 3</div>
+    <h2>The stretch — cherry on top</h2>
+    <p class="lead">Only attempt when C1 and C2 are solid. These are high-value but not required for a strong MD presentation. Think of them as "bonus slides."</p>
+  </div>
+
+  <div class="callout c-am">
+    <strong>Budget:</strong> ~4h, only if days 11–12+ open up. Do NOT borrow time from C2 for these.
+  </div>
+
+  <div class="change">
+    <div class="change-head">
+      <h3>Survey-backed social proof on the portal</h3>
+      <div class="change-meta">
+        <span class="chip ch-am">~1–2h</span>
+        <span class="chip ch-gn">Uses your Excel data</span>
+      </div>
+    </div>
+    <div class="impact-grid">
+      <div class="impact-item">
+        <div class="label">What to do</div>
+        <p>Surface survey insights where relevant inside the portal. Tool cards show "Used by 87.5% of your colleagues" for Copilot, "55% and growing" for Claude. Pattern cards for content generation show "82.1% of teams use AI for this type of work." Workflow pages show efficiency data: "67% of users report 26%+ improvement."</p>
+      </div>
+      <div class="impact-item">
+        <div class="label">UX theory</div>
+        <p><strong>UTAUT framework</strong> — social influence is a key adoption driver. Peer validation ("87.5% of your colleagues use this") is more persuasive than feature descriptions. This uses YOUR 424-response survey as the trust signal — no new data collection needed.</p>
+      </div>
+      <div class="impact-item">
+        <div class="label">Data source</div>
+        <p>Your 7 Excel survey files. Key stats are already computed in <code>GN_TSA_AI_Adoption_AllCoEs_April2026.xlsx</code> Key Highlights sheet. Just extract the numbers and surface them as small badges or footnotes on relevant cards.</p>
+      </div>
+      <div class="impact-item">
+        <div class="label">Code change</div>
+        <p>Add a small component (e.g. <code>&lt;SurveyBadge tool="copilot" /&gt;</code>) that reads from a <code>survey-stats.json</code> file. Render as subtle badge or footnote. ~20 lines of component code + a small JSON file with pre-computed stats.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="change">
+    <div class="change-head">
+      <h3>Presentation package</h3>
+      <div class="change-meta">
+        <span class="chip ch-am">~2h</span>
+      </div>
+    </div>
+    <div class="impact-grid">
+      <div class="impact-item">
+        <div class="label">What to produce</div>
+        <p>Before/after screenshots with annotations for each change. 5-layer architecture diagram. State 0→1→2→3 roadmap showing progression. Metrics plan (what to measure at launch). Survey-backed justification linking each change to specific data points.</p>
+      </div>
+      <div class="impact-item">
+        <div class="label">Why it matters</div>
+        <p>This turns a good demo into a compelling strategy pitch. The MD doesn't just see "we made it better" — they see "here's why each change was chosen, what data supports it, and what the path forward looks like." This is what makes it a "big deal project."</p>
+      </div>
+      <div class="impact-item">
+        <div class="label">Format</div>
+        <p>Can be an interactive HTML doc (like this one), a deck, or a walkthrough script. The MD conversation suggests he responds well to structured plans with clear rationale. Match that preference.</p>
+      </div>
+      <div class="impact-item">
+        <div class="label">Claude Code tip</div>
+        <p>Generate the architecture diagram as an SVG. Generate the roadmap as a styled HTML section. You've already done the thinking — this is assembly work, not creative work.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="border-left:3px solid var(--am)">
+    <h3>C3 deliverables</h3>
+    <ul>
+      <li><strong>Everything from C1 + C2</strong> plus:</li>
+      <li><strong>Survey social proof:</strong> Peer validation badges on tool/pattern cards from 424 real responses</li>
+      <li><strong>Polished presentation:</strong> Before/after + architecture + roadmap + metrics + survey justification</li>
+      <li><strong>The story:</strong> "We're using our own adoption data to guide users inside the portal"</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════ -->
+<!-- TIMELINE TAB                           -->
+<!-- ═══════════════════════════════════════ -->
+<div id="timeline" class="tab-panel">
+  <div class="sec">
+    <h2>Day-by-day timeline</h2>
+    <p class="lead">Approximate. Some days you'll do 3h, some days 0. The structure matters more than the exact day. Each checkpoint boundary is a safe stopping point.</p>
+  </div>
+
+  <div class="g2">
+    <div>
+      <div class="card" style="border-top:3px solid var(--gn)">
+        <h3 style="color:var(--gn)">Checkpoint 1 · Days 1–5</h3>
+        <div class="timeline">
+          <div class="tl-item active">
+            <div class="tl-day">Days 1–2 · Phase 0</div>
+            <div class="tl-title">Orient</div>
+            <div class="tl-desc">Read codebase. Map folder structure, components, data sources. Screenshot before state. ~2–3h.</div>
+          </div>
+          <div class="tl-item future">
+            <div class="tl-day">Day 3 · Phase 1</div>
+            <div class="tl-title">JSON data layer</div>
+            <div class="tl-desc">Create workflows.json, tools.json, prompts.json + helpers. ~2h.</div>
+          </div>
+          <div class="tl-item future">
+            <div class="tl-day">Day 4 · Phase 2a</div>
+            <div class="tl-title">Sidebar labels</div>
+            <div class="tl-desc">Add text labels to all sidebar icons. ~1h. Then start homepage if time.</div>
+          </div>
+          <div class="tl-item future">
+            <div class="tl-day">Day 5 · Phase 2b</div>
+            <div class="tl-title">Task-first homepage</div>
+            <div class="tl-desc">Restructure homepage cards by intent. ~2–3h. Buffer absorbs overruns.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="card" style="border-top:3px solid var(--bl)">
+        <h3 style="color:var(--bl)">Checkpoint 2 · Days 6–10</h3>
+        <div class="timeline">
+          <div class="tl-item future">
+            <div class="tl-day">Day 6 · Phase 2c</div>
+            <div class="tl-title">Cross-link content</div>
+            <div class="tl-desc">Patterns ↔ tools ↔ prompts links. ~2h.</div>
+          </div>
+          <div class="tl-item future">
+            <div class="tl-day">Day 7 · Phase 2d</div>
+            <div class="tl-title">Card metadata upgrade</div>
+            <div class="tl-desc">Surface existing metadata on card face. ~2h.</div>
+          </div>
+          <div class="tl-item future">
+            <div class="tl-day">Days 8–10 · Phase 3</div>
+            <div class="tl-title">Hero workflow workspace</div>
+            <div class="tl-desc">Generic WorkflowWorkspace + RFP content. ~4h + 1h buffer. Hardest item.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="border-top:3px solid var(--am)">
+        <h3 style="color:var(--am)">Checkpoint 3 · Days 11–12+</h3>
+        <div class="timeline">
+          <div class="tl-item future">
+            <div class="tl-day">Day 11</div>
+            <div class="tl-title">Survey social proof</div>
+            <div class="tl-desc">Add survey badges to portal cards. ~1–2h.</div>
+          </div>
+          <div class="tl-item future">
+            <div class="tl-day">Day 12</div>
+            <div class="tl-title">Presentation package</div>
+            <div class="tl-desc">Before/after + architecture + roadmap + survey justification. ~2h.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout c-ac">
+    <strong>Total:</strong> ~17h of planned work + ~3h buffer = ~20h across 10-12 working days. At 2h/day average, that's 2–2.5 weeks.
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════ -->
+<!-- SURVEY BACKING TAB                     -->
+<!-- ═══════════════════════════════════════ -->
+<div id="survey" class="tab-panel">
+  <div class="sec">
+    <h2>Survey data backing each change</h2>
+    <p class="lead">424 responses across 6 CoEs. Every design decision ties to a specific data point. This is your ammunition for the MD conversation.</p>
+  </div>
+
+  <div class="card">
+    <h3>Response breakdown</h3>
+    <div class="bar-row"><div class="bar-head"><span>EADC</span><span>144 (34.0%)</span></div><div class="bar-track"><div class="bar-fill" style="width:100%;background:linear-gradient(90deg,#a78bfa,#60a5fa)"></div></div></div>
+    <div class="bar-row"><div class="bar-head"><span>Cloud</span><span>128 (30.2%)</span></div><div class="bar-track"><div class="bar-fill" style="width:89%;background:linear-gradient(90deg,#a78bfa,#60a5fa)"></div></div></div>
+    <div class="bar-row"><div class="bar-head"><span>TS&OM</span><span>94 (22.2%)</span></div><div class="bar-track"><div class="bar-fill" style="width:65%;background:linear-gradient(90deg,#a78bfa,#60a5fa)"></div></div></div>
+    <div class="bar-row"><div class="bar-head"><span>TO&VM</span><span>28 (6.6%)</span></div><div class="bar-track"><div class="bar-fill" style="width:19%;background:linear-gradient(90deg,#a78bfa,#60a5fa)"></div></div></div>
+    <div class="bar-row"><div class="bar-head"><span>Tech Value</span><span>20 (4.7%)</span></div><div class="bar-track"><div class="bar-fill" style="width:14%;background:linear-gradient(90deg,#a78bfa,#60a5fa)"></div></div></div>
+    <div class="bar-row"><div class="bar-head"><span>Data & AI</span><span>10 (2.4%)</span></div><div class="bar-track"><div class="bar-fill" style="width:7%;background:linear-gradient(90deg,#a78bfa,#60a5fa)"></div></div></div>
+  </div>
+
+  <div class="card">
+    <h3>Top tools in use</h3>
+    <div class="bar-row"><div class="bar-head"><span>Microsoft Copilot</span><span>371 (87.5%)</span></div><div class="bar-track"><div class="bar-fill" style="width:100%;background:var(--bl)"></div></div></div>
+    <div class="bar-row"><div class="bar-head"><span>ChatGPT (OpenAI)</span><span>331 (78.1%)</span></div><div class="bar-track"><div class="bar-fill" style="width:89%;background:var(--gn)"></div></div></div>
+    <div class="bar-row"><div class="bar-head"><span>Claude (Anthropic)</span><span>234 (55.2%)</span></div><div class="bar-track"><div class="bar-fill" style="width:63%;background:var(--ac)"></div></div></div>
+    <div class="bar-row"><div class="bar-head"><span>Accenture Amethyst</span><span>161 (38.0%)</span></div><div class="bar-track"><div class="bar-fill" style="width:43%;background:var(--tl)"></div></div></div>
+    <div class="bar-row"><div class="bar-head"><span>Gemini (Google)</span><span>106 (25.0%)</span></div><div class="bar-track"><div class="bar-fill" style="width:29%;background:var(--am)"></div></div></div>
+    <div class="bar-row"><div class="bar-head"><span>Generate Insights</span><span>86 (20.3%)</span></div><div class="bar-track"><div class="bar-fill" style="width:23%;background:var(--or)"></div></div></div>
+  </div>
+
+  <div class="g2">
+    <div class="card">
+      <h3>Top barriers</h3>
+      <table>
+        <tr><td><strong>Client data restrictions</strong></td><td>133 (31.4%)</td><td><span class="risk risk-med">Outside UX scope</span></td></tr>
+        <tr><td><strong>No significant barrier</strong></td><td>99 (23.3%)</td><td></td></tr>
+        <tr><td><strong>Lack of trust in output</strong></td><td>40 (9.4%)</td><td><span class="risk risk-low">Addressable via UI</span></td></tr>
+        <tr><td><strong>No clear use case</strong></td><td>37 (8.7%)</td><td><span class="risk risk-low">Directly addressable</span></td></tr>
+        <tr><td><strong>Lack of access/licensing</strong></td><td>35 (8.3%)</td><td><span class="risk risk-med">Outside scope</span></td></tr>
+        <tr><td><strong>Skills gap in team</strong></td><td>~30</td><td><span class="risk risk-low">Partially addressable</span></td></tr>
+      </table>
+    </div>
+    <div class="card">
+      <h3>Top work patterns</h3>
+      <table>
+        <tr><td><strong>Content & document generation</strong></td><td>348 (82.1%)</td></tr>
+        <tr><td><strong>Data analysis & insights</strong></td><td>271 (63.9%)</td></tr>
+        <tr><td><strong>Research & competitive intelligence</strong></td><td>256 (60.4%)</td></tr>
+        <tr><td><strong>Client-facing deliverables</strong></td><td>231 (54.5%)</td></tr>
+        <tr><td><strong>Process automation</strong></td><td>184 (43.4%)</td></tr>
+        <tr><td><strong>Code generation & review</strong></td><td>156 (36.8%)</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="sec" style="margin-top:24px">
+    <h2>Change → survey data mapping</h2>
+  </div>
+
+  <div class="card">
+    <h3>How each change connects to survey findings</h3>
+    <table>
+      <thead><tr><th>Change</th><th>Survey data point</th><th>Connection</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Sidebar labels</strong></td><td>Portal used by 424 people across 6 CoEs with different expertise</td><td>Diverse, infrequent users can't learn icon language — labels are essential</td></tr>
+        <tr><td><strong>Task-first homepage</strong></td><td>37 (8.7%) "no clear use case" + top 3 work patterns dominate (82%, 64%, 60%)</td><td>Organize homepage by these intents, not by content type. Directly solves the "don't know what to do here" barrier</td></tr>
+        <tr><td><strong>Cross-linking</strong></td><td>13 tools in use, complex relationships between patterns and tools</td><td>Users shouldn't need to know the taxonomy to find related assets</td></tr>
+        <tr><td><strong>Card metadata upgrade</strong></td><td>40 (9.4%) "lack of trust" + visible "when to use / not to use" already exists</td><td>Surfacing existing trust cues reduces uncertainty at the decision point</td></tr>
+        <tr><td><strong>Hero workflow (RFP)</strong></td><td>Content gen (82.1%) + client deliverables (54.5%) + research (60.4%) all feed into proposal work</td><td>RFP response is the highest cross-CoE workflow. Making it launchable addresses the top 3 use patterns</td></tr>
+        <tr><td><strong>Survey social proof</strong></td><td>All 424 responses with tool usage and efficiency data</td><td>Peer validation ("87.5% use Copilot") is more persuasive than feature descriptions</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout c-tl">
+    <strong>Top tool request across all CoEs:</strong> Claude Enterprise License — 22 mentions (#1 named request). Largest capability gap: agentic AI — 75+ mentions with no dedicated platform yet. Both are outside your scope but worth noting on the roadmap slide.
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════ -->
+<!-- ROADBLOCKS TAB                         -->
+<!-- ═══════════════════════════════════════ -->
+<div id="risks" class="tab-panel">
+  <div class="sec">
+    <h2>Roadblock playbook</h2>
+    <p class="lead">For each item, the most likely thing that goes wrong and what to do about it. The meta-strategy: if stuck for more than 30 minutes on any single issue, switch to the fallback immediately.</p>
+  </div>
+
+  <div class="acc open" id="r1">
+    <div class="acc-head" onclick="toggleAcc('r1')">
+      <span class="acc-arrow">▶</span>
+      <span class="acc-title">Phase 0: Codebase is more complex than expected</span>
+      <span class="risk risk-high">High likelihood</span>
+    </div>
+    <div class="acc-body">
+      <p><strong>What happens:</strong> The React project uses unfamiliar patterns (custom hooks, context providers, unusual state management), or the folder structure is deeply nested, or components are tightly coupled.</p>
+      <p style="margin-top:8px"><strong>Mitigation:</strong> Timebox at 3h hard. Focus only on finding: (1) the sidebar component, (2) the homepage component, (3) wherever data for patterns/tools lives. You don't need to understand the whole app — just the parts you're changing.</p>
+      <p style="margin-top:8px"><strong>Claude Code tip:</strong> "Here's my project structure [paste tree output]. I need to find where the sidebar navigation is rendered and where the homepage cards are defined. Show me the relevant files." Let Claude Code do the exploration.</p>
+    </div>
+  </div>
+
+  <div class="acc" id="r2">
+    <div class="acc-head" onclick="toggleAcc('r2')">
+      <span class="acc-arrow">▶</span>
+      <span class="acc-title">Phase 1: Data is hardcoded in components</span>
+      <span class="risk risk-med">Medium likelihood</span>
+    </div>
+    <div class="acc-body">
+      <p><strong>What happens:</strong> Pattern and tool data is directly written inside React components instead of loaded from files or an API. Extracting it means refactoring existing code.</p>
+      <p style="margin-top:8px"><strong>Mitigation:</strong> Do NOT refactor existing components. Create new JSON files in a <code>/data</code> folder and import them. Your new components and changes read from JSON; existing components stay as-is. Over time, existing components can be migrated — but not now.</p>
+      <p style="margin-top:8px"><strong>Key principle:</strong> Don't fight the existing code. Add alongside it. The JSON layer exists for YOUR new features, not as a refactor of the old ones.</p>
+    </div>
+  </div>
+
+  <div class="acc" id="r3">
+    <div class="acc-head" onclick="toggleAcc('r3')">
+      <span class="acc-arrow">▶</span>
+      <span class="acc-title">Sidebar: CSS breaks when adding labels</span>
+      <span class="risk risk-low">Low likelihood</span>
+    </div>
+    <div class="acc-body">
+      <p><strong>What happens:</strong> Adding text labels pushes the sidebar width and breaks the main content layout, or the sidebar uses fixed positioning with hardcoded widths.</p>
+      <p style="margin-top:8px"><strong>Mitigation:</strong> Three fallback levels: (1) Expand sidebar by 40-60px and adjust main content margin, (2) If layout is too coupled, use icon-size labels only (abbreviations), (3) At absolute minimum, add instant-show tooltips on hover. Even option 3 is a clear improvement over the current state.</p>
+    </div>
+  </div>
+
+  <div class="acc" id="r4">
+    <div class="acc-head" onclick="toggleAcc('r4')">
+      <span class="acc-arrow">▶</span>
+      <span class="acc-title">Homepage: Component is too complex to restructure</span>
+      <span class="risk risk-med">Medium likelihood</span>
+    </div>
+    <div class="acc-body">
+      <p><strong>What happens:</strong> The homepage component has complex state, fetches data from multiple sources, or is deeply nested with other components. A full restructure would take 5+ hours.</p>
+      <p style="margin-top:8px"><strong>Mitigation (70% value for 30% effort):</strong> Instead of restructuring, make three small changes: (1) Reorder cards so the most-used category is first, (2) Make one card visually larger/prominent, (3) Add a subtitle like "Most teams start here" to the top card. This delivers the "task-first" story without touching the component architecture.</p>
+    </div>
+  </div>
+
+  <div class="acc" id="r5">
+    <div class="acc-head" onclick="toggleAcc('r5')">
+      <span class="acc-arrow">▶</span>
+      <span class="acc-title">Hero workflow: Full stepper component is too ambitious</span>
+      <span class="risk risk-high">High likelihood</span>
+    </div>
+    <div class="acc-body">
+      <p><strong>What happens:</strong> Building a generic WorkflowWorkspace with a stepper UI, expandable steps, tool links, and prompt templates takes more than 4 hours. Component state management gets complex.</p>
+      <p style="margin-top:8px"><strong>Mitigation — simplified version (80% of value):</strong> Don't build a stepper. Instead, build an enhanced pattern page: a single scrollable page with numbered sections for each step. Each section shows: step name, description, which tool to use (with a link), the prompt to use, and any "watch out for" notes. This is essentially a styled list — much simpler than a stateful stepper component.</p>
+      <p style="margin-top:8px"><strong>Decision point:</strong> At hour 3, assess. If the stepper is coming together, finish it. If not, switch to the simplified version immediately. Either version delivers the "catalog → workbench" narrative.</p>
+    </div>
+  </div>
+
+  <div class="acc" id="r6">
+    <div class="acc-head" onclick="toggleAcc('r6')">
+      <span class="acc-arrow">▶</span>
+      <span class="acc-title">General: Running out of time before C2</span>
+      <span class="risk risk-med">Medium likelihood</span>
+    </div>
+    <div class="acc-body">
+      <p><strong>What happens:</strong> C1 items took longer than expected. You're at day 7 and C1 is barely done.</p>
+      <p style="margin-top:8px"><strong>Mitigation:</strong> C1 alone is a presentable story. If you're short on time, skip C2 entirely and spend remaining time on the C3 presentation package instead — before/after screenshots, architecture diagram, roadmap. A polished C1 with a great presentation beats a rough C2 with no narrative.</p>
+      <p style="margin-top:8px"><strong>The frame to use:</strong> "Here's what we've built (C1), here's the data supporting each decision (survey), and here's the roadmap for the next iteration (C2 items become 'planned' instead of 'done')."</p>
+    </div>
+  </div>
+
+  <div class="callout c-rs">
+    <strong>The 30-minute rule:</strong> If you're stuck on any single technical issue for more than 30 minutes, switch to the fallback version. Don't debug CSS layout issues when you could be building the next feature. The fallback versions exist specifically for this — use them without guilt.
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════ -->
+<!-- MD FRAMING TAB                         -->
+<!-- ═══════════════════════════════════════ -->
+<div id="md" class="tab-panel">
+  <div class="sec">
+    <h2>MD framing — what to say at each level</h2>
+    <p class="lead">Three scripts depending on how far you get. Each is self-contained and presents a strong story. The frame gets progressively stronger, but even the first one is solid.</p>
+  </div>
+
+  <div class="card" style="border-left:3px solid var(--gn)">
+    <h3 style="color:var(--gn)">If you ship Checkpoint 1 only</h3>
+    <p style="font-style:italic;margin-bottom:10px">"Here's what we changed, why, and where we go next."</p>
+    <ol>
+      <li><strong>Before/After:</strong> "The sidebar had unlabeled icons — users had to guess. Now every icon has a label. This is the single highest-ROI change backed by Nielsen's recognition-over-recall research."</li>
+      <li><strong>Before/After:</strong> "The homepage gave users four equal choices with no guidance. Now it's organized by intent — 'I need to do something,' 'I need a tool,' 'I want to learn.' This directly addresses the 8.7% of survey respondents who said their biggest barrier was 'no clear use case.'"</li>
+      <li><strong>Architecture:</strong> "Under the hood, we built a config-driven data layer. New workflow = new JSON record. Updated tool = edit a field. No code changes needed for content updates. This is the future-proof foundation."</li>
+      <li><strong>Roadmap:</strong> "Here's what's planned next: cross-linked content, hero workflow workspaces, and survey-powered social proof. Each builds on this foundation."</li>
+    </ol>
+  </div>
+
+  <div class="card" style="border-left:3px solid var(--bl)">
+    <h3 style="color:var(--bl)">If you ship Checkpoint 2</h3>
+    <p style="font-style:italic;margin-bottom:10px">"We turned the catalog into a workbench."</p>
+    <ol>
+      <li><strong>Everything from C1</strong> plus:</li>
+      <li><strong>Cross-linking demo:</strong> "Before, finding a pattern and then finding the right tools was two separate journeys. Now they're connected — find one, see everything related. No more dead ends."</li>
+      <li><strong>Card upgrade demo:</strong> "Decision-critical information — setup time, 'best for,' 'not for' — is now visible at a glance instead of hidden behind expandable sections. Users make faster, more confident choices."</li>
+      <li><strong>Hero workflow demo:</strong> "Here's the big one. An analyst can now launch an RFP response directly from the portal. Six steps, each with the right tool and the right prompt. And the workspace shell is generic — it reads from JSON. Adding a new workflow is a content task, not a development task."</li>
+      <li><strong>Survey data:</strong> "Every decision was backed by our 424-response survey. Content generation is the #1 use case (82.1%), RFP work touches the top 3 categories, and 'no clear use case' is a barrier we've directly addressed."</li>
+    </ol>
+  </div>
+
+  <div class="card" style="border-left:3px solid var(--am)">
+    <h3 style="color:var(--am)">If you ship Checkpoint 3</h3>
+    <p style="font-style:italic;margin-bottom:10px">"The portal uses its own data to guide users."</p>
+    <ol>
+      <li><strong>Everything from C1 + C2</strong> plus:</li>
+      <li><strong>Social proof demo:</strong> "Tool cards now show peer validation — '87.5% of your colleagues use Copilot.' This leverages our actual survey data as a trust signal. Research shows peer validation drives adoption more than feature descriptions."</li>
+      <li><strong>Full roadmap:</strong> "Here's the State 0→1→2→3 progression. We're at State 1. State 2 adds more hero workflows, save/resume, and smarter search. State 3 is agentic — the portal doesn't just show you workflows, it helps you execute them. The architecture we built supports all of this without redesign."</li>
+      <li><strong>Metrics plan:</strong> "Here's what to measure: activation (time to first meaningful action), repeat use (weekly active users), and workflow value (assisted hours). These tell us whether the changes actually work."</li>
+    </ol>
+  </div>
+
+  <div class="callout c-ac">
+    <strong>Setting expectations up front:</strong> "I'm targeting Checkpoint 2 — labeled navigation, task-first homepage, cross-linked content, and one working hero workflow. C1 is my safety net if roadblocks hit hard. If things go well, C3 adds survey-powered social proof and a polished presentation package."
+  </div>
+
+  <div class="card">
+    <h3>Anticipated MD questions</h3>
+    <div class="g2" style="margin-top:0">
+      <div>
+        <p><strong>"Why these specific changes?"</strong></p>
+        <p>"Each one is the highest impact-to-effort change in its category, backed by specific survey data points and UX research. I can show you the mapping."</p>
+        <p style="margin-top:12px"><strong>"What about [different workflow]?"</strong></p>
+        <p>"The architecture is generic — the workspace shell reads from JSON. Swapping RFP for any other workflow is a content change, not a code change. That's the whole point of the config-driven design."</p>
+      </div>
+      <div>
+        <p><strong>"How do we scale this?"</strong></p>
+        <p>"New workflow = new JSON record. New tool = new JSON record. The 5-layer architecture means we can upgrade any layer independently — smarter routing tomorrow, agentic capabilities later, all without redesigning what we've built."</p>
+        <p style="margin-top:12px"><strong>"What about the agentic search?"</strong></p>
+        <p>"The search bar mockup is the future state (State 3). We're building the foundations (States 1-2) that make State 3 possible. You can't do agentic search well without structured workflow data, trust metadata, and cross-linked content — which is exactly what we're building now."</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div><!-- /wrap -->
+
+<div class="wrap">
+  <div class="footer">
+    Gen AI Portal UX · Checkpoint Plan v2 · April 2026 · Based on 424 survey responses across 6 CoEs
+  </div>
+</div>
+
+<script>
+document.querySelectorAll('.tab-btn').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById(btn.dataset.tab).classList.add('active');
+  });
+});
+function toggleAcc(id){
+  document.getElementById(id).classList.toggle('open');
+}
+</script>
+</body>
+</html>

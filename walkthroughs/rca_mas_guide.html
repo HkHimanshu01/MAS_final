@@ -1,0 +1,2229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI-Powered Bug Diagnosis · Builder's Guide</title>
+<style>
+:root {
+  --pur: #6b21a8;
+  --pur-2: #7c3aed;
+  --pur-mid: #4c1d95;
+  --pur-dark: #3b0764;
+  --pur-soft: #a78bfa;
+  --lav: #ede4ff;
+  --lav-2: #f4ecff;
+  --gold: #fbbf24;
+  --gold-2: #f59e0b;
+  --ok: #22c55e;
+  --ok-2: #15803d;
+  --red: #ef4444;
+  --red-2: #7f1d1d;
+  --amber: #f59e0b;
+  --ink: #1a1530;
+  --ink-2: #3a3252;
+  --muted: #6b6680;
+  --hair: #e6e1f3;
+  --paper: #ffffff;
+  --paper-2: #f8f6ff;
+  --bg: #fafaff;
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  --sidebar-w: 260px;
+  --content-max: none;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: var(--font);
+  font-size: 15px;
+  line-height: 1.7;
+  color: var(--ink);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── LAYOUT ── */
+.shell { display: flex; min-height: 100vh; }
+
+/* SIDEBAR */
+.sidebar {
+  width: var(--sidebar-w);
+  flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+  background: var(--pur-dark);
+  padding: 28px 0 40px;
+  border-right: 1px solid rgba(255,255,255,.08);
+}
+.sidebar-brand {
+  padding: 0 22px 24px;
+  border-bottom: 1px solid rgba(255,255,255,.1);
+  margin-bottom: 18px;
+}
+.sidebar-brand .logo-row { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+.sidebar-brand .glyph { width:16px;height:16px;border-radius:4px;background:var(--gold);flex-shrink:0; }
+.sidebar-brand .name { font-size:13px;font-weight:700;color:#fff;letter-spacing:-.01em; }
+.sidebar-brand .sub { font-size:11px;color:#c4b5fd;line-height:1.4; }
+.nav-label {
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  color: #a78bfa;
+  padding: 0 22px;
+  margin-bottom: 6px;
+  margin-top: 18px;
+}
+.nav-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 22px;
+  text-decoration: none;
+  color: #c4b5fd;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.3;
+  transition: background .15s, color .15s;
+  border-left: 3px solid transparent;
+}
+.nav-link:hover, .nav-link.active {
+  background: rgba(255,255,255,.07);
+  color: #fff;
+  border-left-color: var(--gold);
+}
+.nav-link .num {
+  font-size: 10px;
+  font-weight: 800;
+  color: var(--gold);
+  background: rgba(251,191,36,.15);
+  border-radius: 4px;
+  padding: 1px 5px;
+  flex-shrink: 0;
+  font-family: var(--mono);
+}
+.nav-link .label { line-height: 1.35; }
+
+/* CONTENT */
+.content {
+  flex: 1;
+  min-width: 0;
+  padding: 32px 40px 80px;
+}
+.content-inner { width: 100%; }
+
+/* ── HERO ── */
+.hero {
+  background: linear-gradient(135deg, var(--pur-dark), var(--pur-mid));
+  border-radius: 16px;
+  padding: 48px 52px;
+  color: #f0ebff;
+  margin-bottom: 60px;
+  position: relative;
+  overflow: hidden;
+}
+.hero::after {
+  content: "";
+  position: absolute;
+  right: -60px; top: -60px;
+  width: 300px; height: 300px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(167,139,250,.15), transparent 70%);
+}
+.hero .pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: rgba(251,191,36,.15); border: 1px solid var(--gold);
+  color: var(--gold); font-size: 11px; font-weight: 700;
+  letter-spacing: .14em; text-transform: uppercase;
+  padding: 4px 12px; border-radius: 99px; margin-bottom: 18px;
+}
+.hero h1 { font-size: 34px; font-weight: 800; line-height: 1.1; letter-spacing: -.02em; color: #fff; margin-bottom: 16px; }
+.hero h1 span { color: var(--gold); }
+.hero p { font-size: 16px; color: #d8caf5; line-height: 1.6; max-width: 72ch; margin-bottom: 24px; }
+.hero-cards { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-top: 28px; }
+.hero-card { background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.12); border-radius: 10px; padding: 14px 16px; }
+.hero-card .hc-icon { font-size: 22px; margin-bottom: 6px; }
+.hero-card .hc-t { font-size: 12.5px; font-weight: 700; color: #fff; margin-bottom: 3px; }
+.hero-card .hc-s { font-size: 11.5px; color: #c4b5fd; line-height: 1.4; }
+
+/* ── SECTION ── */
+.section { margin-bottom: 72px; scroll-margin-top: 32px; }
+.section-header { display: flex; align-items: center; gap: 14px; margin-bottom: 24px; }
+.section-num {
+  width: 36px; height: 36px; border-radius: 10px; flex-shrink: 0;
+  background: linear-gradient(135deg, var(--pur-2), var(--pur));
+  color: #fff; display: flex; align-items: center; justify-content: center;
+  font-size: 14px; font-weight: 800; line-height: 1;
+  box-shadow: 0 4px 12px -4px rgba(124,58,237,.4);
+}
+.section-header h2 {
+  font-size: 26px; font-weight: 800; letter-spacing: -.015em;
+  color: var(--ink); line-height: 1.1;
+}
+.section-header h2 span { color: var(--pur-2); }
+.section-sub { font-size: 15px; color: var(--ink-2); line-height: 1.65; margin-bottom: 28px; max-width: 90ch; }
+.section-sub code { font-family: var(--mono); font-size: 13px; color: var(--pur); background: var(--lav); padding: 1px 6px; border-radius: 4px; }
+
+h3 { font-size: 18px; font-weight: 700; color: var(--ink); margin: 32px 0 12px; letter-spacing: -.005em; }
+h4 { font-size: 15px; font-weight: 700; color: var(--ink); margin: 22px 0 8px; }
+p { color: var(--ink-2); line-height: 1.7; margin-bottom: 14px; max-width: 90ch; }
+p code, li code {
+  font-family: var(--mono); font-size: 12.5px; color: var(--pur);
+  background: var(--lav); padding: 1px 6px; border-radius: 4px;
+}
+ul, ol { padding-left: 22px; color: var(--ink-2); line-height: 1.7; margin-bottom: 14px; }
+li { margin-bottom: 5px; }
+a { color: var(--pur-2); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+hr { border: none; border-top: 1px solid var(--hair); margin: 40px 0; }
+
+/* ── PIPELINE DIAGRAM ── */
+.pipeline {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  flex-wrap: wrap;
+  margin: 32px 0 40px;
+  background: var(--paper);
+  border: 1px solid var(--hair);
+  border-radius: 12px;
+  padding: 24px 20px;
+  overflow-x: auto;
+}
+.pipe-node {
+  flex-shrink: 0;
+  background: var(--paper-2);
+  border: 1px solid var(--hair);
+  border-radius: 9px;
+  padding: 10px 14px;
+  text-align: center;
+  min-width: 100px;
+}
+.pipe-node .pn-num { font-size: 9px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--pur); margin-bottom: 3px; }
+.pipe-node .pn-name { font-size: 12.5px; font-weight: 700; color: var(--ink); line-height: 1.2; }
+.pipe-node .pn-sub { font-size: 10px; color: var(--muted); margin-top: 2px; line-height: 1.3; }
+.pipe-node.active { border-color: var(--pur-soft); background: var(--lav-2); }
+.pipe-node.active .pn-name { color: var(--pur); }
+.pipe-arr { flex-shrink: 0; color: var(--pur-soft); font-size: 16px; font-weight: 700; padding: 0 6px; }
+
+/* ── STAGE CARD ── */
+.stage-card {
+  background: var(--paper);
+  border: 1px solid var(--hair);
+  border-radius: 12px;
+  overflow: hidden;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 12px -5px rgba(60,40,100,.1);
+}
+.stage-card-head {
+  display: flex; align-items: center; gap: 14px;
+  padding: 14px 18px;
+  background: var(--paper-2);
+  border-bottom: 1px solid var(--hair);
+}
+.stage-card-head .sc-num {
+  width: 28px; height: 28px; border-radius: 7px;
+  background: linear-gradient(135deg, var(--pur-2), var(--pur));
+  color: #fff; display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 800; flex-shrink: 0;
+}
+.stage-card-head .sc-title { font-size: 15px; font-weight: 700; color: var(--ink); }
+.stage-card-head .sc-badge { margin-left: auto; font-size: 9.5px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); background: var(--hair); padding: 2px 8px; border-radius: 99px; }
+.stage-card-body { padding: 16px 18px; }
+.stage-card-body .desc { font-size: 13.5px; color: var(--ink-2); line-height: 1.6; margin-bottom: 12px; }
+.stage-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
+.stage-meta-item { background: var(--paper-2); border: 1px solid var(--hair); border-radius: 7px; padding: 8px 11px; }
+.stage-meta-item .k { font-size: 9.5px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin-bottom: 2px; }
+.stage-meta-item .v { font-size: 12px; color: var(--ink); font-weight: 500; }
+.stage-meta-item .v code { font-family: var(--mono); font-size: 11px; color: var(--pur); background: var(--lav); padding: 1px 5px; border-radius: 3px; }
+
+/* ── CALLOUT BOXES ── */
+.callout {
+  border-radius: 10px;
+  padding: 14px 18px;
+  margin: 22px 0;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 12px;
+  align-items: start;
+}
+.callout .co-ic { font-size: 20px; line-height: 1; margin-top: 1px; flex-shrink: 0; }
+.callout .co-body {}
+.callout .co-title { font-size: 12px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; margin-bottom: 4px; }
+.callout .co-text { font-size: 13px; line-height: 1.55; }
+.callout .co-text code { font-family: var(--mono); font-size: 12px; padding: 1px 5px; border-radius: 3px; }
+.callout.claude { background: var(--lav-2); border: 1px solid var(--pur-soft); }
+.callout.claude .co-title { color: var(--pur); }
+.callout.claude .co-text { color: var(--ink-2); }
+.callout.claude .co-text code { background: var(--lav); color: var(--pur); }
+.callout.safe { background: #dcfce7; border: 1px solid #86efac; }
+.callout.safe .co-title { color: var(--ok-2); }
+.callout.safe .co-text { color: #14532d; }
+.callout.careful { background: #fef3c7; border: 1px solid #fbbf24; }
+.callout.careful .co-title { color: #92400e; }
+.callout.careful .co-text { color: #5b3a07; }
+.callout.careful .co-text code { background: rgba(251,191,36,.25); color: #78350f; }
+.callout.danger { background: #fee2e2; border: 1px solid #fca5a5; }
+.callout.danger .co-title { color: var(--red-2); }
+.callout.danger .co-text { color: #7f1d1d; }
+.callout.ask { background: linear-gradient(135deg, #fef9e7, #fef3c7); border: 1px solid var(--gold); }
+.callout.ask .co-title { color: #78350f; }
+.callout.ask .co-text { color: #5b3a07; }
+.callout.writes { background: var(--lav-2); border: 1px solid var(--pur-2); }
+.callout.writes .co-title { color: var(--pur); }
+.callout.writes .co-text { color: var(--ink-2); }
+
+/* ── CODE BLOCK ── */
+.code-block {
+  background: #1e1b2e;
+  border-radius: 9px;
+  padding: 18px 20px;
+  margin: 16px 0;
+  overflow-x: auto;
+  border: 1px solid rgba(124,58,237,.3);
+}
+.code-block pre {
+  font-family: var(--mono);
+  font-size: 12.5px;
+  line-height: 1.65;
+  color: #e9d5ff;
+  margin: 0;
+  white-space: pre;
+}
+.code-block .cmt { color: #a78bfa; font-style: italic; }
+.code-block .kw { color: #fbbf24; }
+.code-block .str { color: #86efac; }
+.code-block .file-label {
+  font-family: var(--font);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: #a78bfa;
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(167,139,250,.2);
+}
+
+/* ── CHANGE TABLE ── */
+.change-table { width: 100%; border-collapse: collapse; margin: 24px 0; font-size: 13.5px; }
+.change-table thead tr { background: var(--pur-dark); color: #fff; }
+.change-table thead th { padding: 12px 14px; text-align: left; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; font-weight: 700; }
+.change-table tbody tr { border-bottom: 1px solid var(--hair); transition: background .12s; }
+.change-table tbody tr:hover { background: var(--lav-2); }
+.change-table tbody td { padding: 12px 14px; vertical-align: top; color: var(--ink-2); line-height: 1.5; }
+.change-table tbody td:first-child { font-weight: 600; color: var(--ink); }
+.change-table tbody td code { font-family: var(--mono); font-size: 11.5px; color: var(--pur); background: var(--lav); padding: 1px 5px; border-radius: 3px; }
+.claude-pill {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: var(--lav); color: var(--pur); border: 1px solid var(--pur-soft);
+  font-size: 10.5px; font-weight: 700; border-radius: 99px; padding: 2px 9px;
+  white-space: nowrap;
+}
+
+/* ── PROMPT CARD ── */
+.prompt-card {
+  background: var(--paper);
+  border: 1px solid var(--hair);
+  border-radius: 12px;
+  margin-bottom: 22px;
+  overflow: hidden;
+  box-shadow: 0 2px 14px -6px rgba(60,40,100,.1);
+}
+.prompt-card-head {
+  display: flex; align-items: center; gap: 12px;
+  padding: 13px 18px;
+  background: linear-gradient(95deg, var(--pur-dark), var(--pur-mid));
+  color: #fff;
+}
+.prompt-card-head .ph-badge {
+  font-size: 10px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase;
+  background: rgba(255,255,255,.15); border-radius: 4px; padding: 2px 8px;
+}
+.prompt-card-head .ph-title { font-size: 14px; font-weight: 700; }
+.prompt-card-head .ph-file { font-family: var(--mono); font-size: 11.5px; color: #c4b5fd; margin-left: auto; }
+.prompt-card-body { padding: 18px 18px 14px; display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.prompt-card-section .pcs-label {
+  font-size: 9.5px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase;
+  color: var(--muted); margin-bottom: 6px;
+}
+.prompt-card-section p { font-size: 13px; color: var(--ink-2); line-height: 1.55; margin-bottom: 0; }
+.prompt-card-section p strong { color: var(--ink); font-weight: 600; }
+.prompt-card-snippet { border-top: 1px solid var(--hair); padding: 14px 18px; }
+.prompt-card-snippet .pcs-label { font-size: 9.5px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
+.snippet-block { background: #1e1b2e; border-radius: 7px; padding: 12px 14px; font-family: var(--mono); font-size: 11.5px; line-height: 1.6; color: #e9d5ff; overflow-x: auto; }
+.warning-row { display: flex; align-items: start; gap: 8px; padding: 10px 18px 14px; background: #fef9e7; border-top: 1px solid #fbbf24; font-size: 12.5px; color: #5b3a07; line-height: 1.5; }
+.warning-row .wi { flex-shrink: 0; font-size: 16px; }
+
+/* ── EXTENSION CARDS ── */
+.ext-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin: 24px 0; }
+.ext-card { background: var(--paper); border: 1px solid var(--hair); border-radius: 12px; padding: 18px; box-shadow: 0 2px 12px -5px rgba(60,40,100,.08); }
+.ext-card .ec-num { font-size: 28px; font-weight: 800; color: var(--lav); letter-spacing: -.03em; line-height: 1; margin-bottom: 10px; }
+.ext-card .ec-title { font-size: 14px; font-weight: 700; color: var(--ink); margin-bottom: 8px; letter-spacing: -.005em; }
+.ext-card .ec-desc { font-size: 12.5px; color: var(--ink-2); line-height: 1.55; margin-bottom: 12px; }
+.ext-card .ec-steps { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 5px; }
+.ext-card .ec-steps li { display: flex; gap: 8px; font-size: 12px; color: var(--ink-2); line-height: 1.45; }
+.ext-card .ec-steps li::before { content: "→"; color: var(--pur-soft); flex-shrink: 0; font-weight: 700; }
+.ext-card .ec-steps li code { font-family: var(--mono); font-size: 11px; color: var(--pur); background: var(--lav); padding: 1px 4px; border-radius: 3px; }
+
+/* ── TEST SUITE ── */
+.test-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; margin: 20px 0; }
+.test-card-wide{grid-column:1/-1}
+.test-card { background: var(--paper); border: 1px solid var(--hair); border-radius: 9px; padding: 14px 16px; }
+.test-card .tc-name { font-family: var(--mono); font-size: 12px; font-weight: 700; color: var(--pur); margin-bottom: 4px; }
+.test-card .tc-what { font-size: 13px; font-weight: 600; color: var(--ink); margin-bottom: 4px; }
+.test-card .tc-desc { font-size: 12px; color: var(--ink-2); line-height: 1.5; }
+.test-card .tc-cmd { font-family: var(--mono); font-size: 11px; color: var(--ok-2); background: #dcfce7; border-radius: 4px; padding: 2px 8px; margin-top: 8px; display: inline-block; }
+
+/* ── STEP LIST (numbered) ── */
+.step-list { display: grid; gap: 12px; margin: 20px 0; counter-reset: steps; }
+.step-item {
+  display: grid;
+  grid-template-columns: 36px 1fr;
+  gap: 14px;
+  align-items: start;
+  background: var(--paper);
+  border: 1px solid var(--hair);
+  border-radius: 9px;
+  padding: 14px 16px;
+}
+.step-item .si-num {
+  width: 28px; height: 28px; border-radius: 8px;
+  background: linear-gradient(135deg, var(--pur-2), var(--pur));
+  color: #fff; display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 800; flex-shrink: 0;
+}
+.step-item .si-body .si-title { font-size: 13.5px; font-weight: 700; color: var(--ink); margin-bottom: 4px; }
+.step-item .si-body .si-desc { font-size: 12.5px; color: var(--ink-2); line-height: 1.55; }
+.step-item .si-body .si-desc code { font-family: var(--mono); font-size: 11.5px; color: var(--pur); background: var(--lav); padding: 1px 5px; border-radius: 3px; }
+
+/* ── CLAUDE CAN DO THIS ── */
+.cc-block {
+  background: linear-gradient(135deg, var(--pur-dark), var(--pur-mid));
+  border-radius: 12px;
+  padding: 20px 22px;
+  margin: 28px 0;
+  color: #f0ebff;
+}
+.cc-block .cc-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .2em;
+  text-transform: uppercase;
+  color: var(--gold);
+  margin-bottom: 8px;
+}
+.cc-block .cc-label::before {
+  content: "✦";
+  font-size: 12px;
+}
+.cc-block .cc-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 8px;
+  line-height: 1.35;
+  letter-spacing: -.005em;
+}
+.cc-block .cc-desc {
+  font-size: 13px;
+  color: #d8caf5;
+  line-height: 1.6;
+  margin-bottom: 14px;
+}
+.cc-block .cc-prompt-label {
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--gold);
+  margin-bottom: 7px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.cc-block .cc-prompt-label::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: rgba(251,191,36,.3);
+}
+.cc-prompt {
+  background: rgba(0,0,0,.35);
+  border: 1px solid rgba(251,191,36,.25);
+  border-radius: 8px;
+  padding: 12px 16px;
+  font-family: var(--font);
+  font-size: 13px;
+  font-style: italic;
+  color: #fef3c7;
+  line-height: 1.6;
+  cursor: text;
+  -webkit-user-select: all;
+  user-select: all;
+  margin-bottom: 8px;
+}
+.cc-prompt strong {
+  font-style: normal;
+  color: var(--gold);
+  font-weight: 700;
+}
+.cc-copy-hint {
+  font-size: 10.5px;
+  color: #c4b5fd;
+  text-align: right;
+  margin-top: 4px;
+}
+.cc-multi {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.cc-multi .cc-scenario {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 10px;
+  align-items: start;
+}
+.cc-multi .cc-scenario .cs-tag {
+  font-size: 9.5px;
+  font-weight: 700;
+  color: var(--pur-dark);
+  background: var(--gold);
+  padding: 2px 8px;
+  border-radius: 99px;
+  white-space: nowrap;
+  margin-top: 2px;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  line-height: 1.5;
+}
+
+/* ── PHASE GRID (setup section) ── */
+.phase-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin:24px 0}
+.phase-card{background:var(--paper);border:1px solid var(--hair);border-radius:11px;overflow:hidden;box-shadow:0 2px 12px -5px rgba(60,40,100,.1)}
+.phase-card .pc-head{padding:12px 16px;display:flex;align-items:center;gap:10px}
+.phase-card .pc-head.p1{background:linear-gradient(95deg,#fef3c7,#fde68a);border-bottom:1px solid var(--gold)}
+.phase-card .pc-head.p2{background:linear-gradient(95deg,var(--lav),var(--lav-2));border-bottom:1px solid var(--pur-soft)}
+.phase-card .pc-head.p3{background:linear-gradient(95deg,#dcfce7,#bbf7d0);border-bottom:1px solid #86efac}
+.phase-card .pc-head .pnum{width:26px;height:26px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex-shrink:0}
+.p1 .pnum{background:var(--gold);color:#78350f}
+.p2 .pnum{background:var(--pur-2);color:#fff}
+.p3 .pnum{background:var(--ok);color:#fff}
+.phase-card .pc-head .ptitle{font-size:13.5px;font-weight:800;color:var(--ink);line-height:1.2}
+.phase-card .pc-head .psub{font-size:10.5px;color:var(--muted);margin-top:1px}
+.phase-card .pc-body{padding:10px 14px;display:flex;flex-direction:column;gap:0}
+
+/* numbered step row */
+.g-step{display:grid;grid-template-columns:26px 1fr auto;gap:10px;align-items:start;padding:8px 0;border-bottom:1px dashed var(--hair-soft)}
+.g-step:last-child{border-bottom:none}
+.g-step .gs-n{width:22px;height:22px;border-radius:5px;background:linear-gradient(135deg,var(--pur-2),var(--pur));color:#fff;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;flex-shrink:0;margin-top:2px;line-height:1}
+.g-step .gs-n.done{background:linear-gradient(135deg,var(--ok),var(--ok-2))}
+.g-step .gs-n.key{background:linear-gradient(135deg,var(--gold),var(--gold-2));color:#78350f}
+.g-step .gs-body .gs-t{font-size:13px;font-weight:700;color:var(--ink);margin-bottom:3px;line-height:1.3}
+.g-step .gs-body .gs-d{font-size:12.5px;color:var(--ink-2);line-height:1.5}
+.g-step .gs-body .gs-d code{font-family:var(--mono);font-size:11.5px;color:var(--pur);background:var(--lav);padding:1px 5px;border-radius:3px}
+.g-step .gs-body .gs-cmd{font-family:var(--mono);font-size:11.5px;color:var(--ok-2);background:#dcfce7;border-radius:5px;padding:5px 10px;margin-top:6px;display:block;line-height:1.55;border:1px solid #86efac}
+.g-step .gs-tag{font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;padding:2px 7px;border-radius:99px;white-space:nowrap;flex-shrink:0;margin-top:3px;align-self:start}
+.g-step .gs-tag.req{background:#fee2e2;color:#7f1d1d;border:1px solid #fca5a5}
+.g-step .gs-tag.opt{background:var(--lav);color:var(--pur);border:1px solid var(--pur-soft)}
+.g-step .gs-tag.done{background:#dcfce7;color:var(--ok-2);border:1px solid #86efac}
+.g-step .gs-tag.tune{background:#fef3c7;color:#92400e;border:1px solid #fbbf24}
+.gs-cmd-it{font-style:italic}
+.gs-cmd-mt{margin-top:4px}
+.gs-cmd-mt6{margin-top:6px}
+.nav-label-mt{margin-top:28px}
+.section-zero{background:linear-gradient(135deg,var(--gold),var(--gold-2));color:#78350f}
+.hero-section{margin-bottom:0}
+.test-card-wide{grid-column:span 2}
+.footer-p-mt{margin-top:16px}
+
+/* check table */
+.check-table{width:100%;border-collapse:collapse;margin:16px 0;font-size:13px}
+.check-table thead tr{background:var(--pur-dark);color:#fff}
+.check-table thead th{padding:10px 14px;text-align:left;font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;font-weight:700}
+.check-table tbody tr{border-bottom:1px solid var(--hair)}
+.check-table tbody td{padding:10px 14px;vertical-align:top;line-height:1.5;color:var(--ink-2)}
+.check-table tbody td:first-child{font-weight:600;color:var(--ink)}
+.check-table tbody td code{font-family:var(--mono);font-size:11.5px;color:var(--pur);background:var(--lav);padding:1px 5px;border-radius:3px}
+.check-table .tick{color:var(--ok);font-weight:800;font-size:15px}
+.check-table .cross{color:var(--red);font-weight:800;font-size:15px}
+
+/* ── FOOTER ── */
+.footer {
+  background: linear-gradient(135deg, var(--pur-dark), var(--pur-mid));
+  border-radius: 14px;
+  padding: 40px 44px;
+  text-align: center;
+  color: #f0ebff;
+  margin-top: 80px;
+}
+.footer h2 { font-size: 26px; font-weight: 800; color: #fff; margin-bottom: 12px; letter-spacing: -.015em; }
+.footer h2 span { color: var(--gold); }
+.footer p { font-size: 15px; color: #d8caf5; max-width: 52ch; margin: 0 auto 20px; line-height: 1.6; }
+.footer .footer-links { display: flex; justify-content: center; gap: 12px; flex-wrap: wrap; margin-top: 24px; }
+.footer-link {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 16px;
+  background: rgba(255,255,255,.08);
+  border: 1px solid rgba(255,255,255,.15);
+  border-radius: 99px;
+  color: #e9d5ff;
+  font-size: 12.5px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background .15s;
+}
+.footer-link:hover { background: rgba(255,255,255,.14); text-decoration: none; }
+
+/* ── DIVIDER ── */
+.section-divider {
+  display: flex; align-items: center; gap: 12px;
+  margin: 48px 0 36px;
+  font-size: 10px; font-weight: 700; letter-spacing: .18em;
+  text-transform: uppercase; color: var(--muted);
+}
+.section-divider::before, .section-divider::after { content: ""; flex: 1; height: 1px; background: var(--hair); }
+
+/* ── INLINE FILE TAG ── */
+.file-tag {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-family: var(--mono); font-size: 11.5px;
+  color: var(--pur-dark); background: var(--lav-2);
+  padding: 2px 8px; border-radius: 5px;
+  border: 1px solid var(--lav);
+}
+
+/* ── INDEX TABLE ── */
+.index-table { width: 100%; font-size: 13.5px; border-collapse: collapse; margin: 20px 0; }
+.index-table tr { border-bottom: 1px solid var(--hair); }
+.index-table tr:last-child { border-bottom: none; }
+.index-table td { padding: 10px 12px; vertical-align: top; }
+.index-table td:first-child { width: 40%; font-family: var(--mono); font-size: 12px; color: var(--pur-dark); }
+.index-table td:last-child { color: var(--ink-2); }
+
+</style>
+</head>
+<body>
+
+<div class="shell">
+
+  <!-- SIDEBAR -->
+  <nav class="sidebar">
+    <div class="sidebar-brand">
+      <div class="logo-row">
+        <div class="glyph"></div>
+        <span class="name">Builder's Guide</span>
+      </div>
+      <div class="sub">AI-Powered Bug Diagnosis<br>and Resolution</div>
+    </div>
+
+    <div class="nav-label">Contents</div>
+
+    <a href="#setup" class="nav-link">
+      <span class="num">0</span>
+      <span class="label">Setup &amp; Deploy</span>
+    </a>
+    <a href="#hero" class="nav-link">
+      <span class="num">→</span>
+      <span class="label">Welcome</span>
+    </a>
+    <a href="#architecture" class="nav-link">
+      <span class="num">1</span>
+      <span class="label">How the System is Built</span>
+    </a>
+    <a href="#testing" class="nav-link">
+      <span class="num">2</span>
+      <span class="label">How Testing Works</span>
+    </a>
+    <a href="#new-repo" class="nav-link">
+      <span class="num">3</span>
+      <span class="label">Adding a New Repo to Test</span>
+    </a>
+    <a href="#change-table" class="nav-link">
+      <span class="num">4</span>
+      <span class="label">What to Change and Where</span>
+    </a>
+    <a href="#prompts" class="nav-link">
+      <span class="num">5</span>
+      <span class="label">How Prompt Files Work</span>
+    </a>
+    <a href="#extensions" class="nav-link">
+      <span class="num">6</span>
+      <span class="label">Common Extension Patterns</span>
+    </a>
+
+    <div class="nav-label nav-label-mt">Quick reference</div>
+    <a href="#run-commands" class="nav-link">
+      <span class="num">⌘</span>
+      <span class="label">Run Commands</span>
+    </a>
+    <a href="#file-index" class="nav-link">
+      <span class="num">⌘</span>
+      <span class="label">File Index</span>
+    </a>
+  </nav>
+
+  <!-- MAIN CONTENT -->
+  <main class="content">
+    <div class="content-inner">
+
+      <!-- HERO -->
+      <section id="hero" class="section hero-section">
+        <div class="hero">
+          <div class="pill">✦ Builder's Guide</div>
+          <h1>Your guide to understanding,<br>testing and <span>extending the agent.</span></h1>
+          <p>
+            This guide is written for anyone, from analyst to MD to experienced developer.
+            You do not need to write code or understand programming. Every step tells you exactly what to do and why.
+            Every section ends with a copy-paste prompt you can give to Claude Code, which does the actual work for you.
+          </p>
+
+          <div class="hero-cards">
+            <div class="hero-card">
+              <div class="hc-icon">✦</div>
+              <div class="hc-t">Every section has a Claude prompt</div>
+              <div class="hc-s">Each section ends with ready-made prompts in a dark panel. Copy any of them into Claude Code chat. Claude reads the files, makes the change and runs the tests.</div>
+            </div>
+            <div class="hero-card">
+              <div class="hc-icon">📖</div>
+              <div class="hc-t">Plain English throughout</div>
+              <div class="hc-s">No jargon, no assumed knowledge. Each concept is explained when it appears. You will understand what every part does before you change anything.</div>
+            </div>
+            <div class="hero-card">
+              <div class="hc-icon">🧪</div>
+              <div class="hc-t">Tests before and after every change</div>
+              <div class="hc-s">5 test suites, under 10 minutes, no AI cost. Ask Claude to run them. They tell you immediately if anything broke so you can move forward confidently.</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SECTION 0: COMPLETE SETUP TO DEPLOY -->
+      <section id="setup" class="section">
+        <div class="section-header">
+          <div class="section-num section-zero">0</div>
+          <h2>Complete Setup <span>to Deploy</span></h2>
+        </div>
+        <p class="section-sub">
+          Everything you need. in order. to go from a blank laptop to a running agent, then to a client deployment.
+          No step assumes any coding experience. Every command is written out in full. Every output is described so you know what success looks like.
+        </p>
+
+        <div class="cc-block">
+          <div class="cc-label">Claude guides every step</div>
+          <div class="cc-title">If anything fails or looks wrong, tell Claude exactly what happened</div>
+          <div class="cc-desc">Open the Claude Code chat panel in VS Code and describe the problem in plain English. Claude knows this system end to end and will diagnose the issue, suggest the fix, and run it with you.</div>
+          <div class="cc-multi">
+            <div class="cc-scenario">
+              <span class="cs-tag">Stuck</span>
+              <div class="cc-prompt">"I ran <strong>claude auth login</strong> but the terminal says 'command not found'. I'm on a Mac. What do I do?"</div>
+            </div>
+            <div class="cc-scenario">
+              <span class="cs-tag">Bad output</span>
+              <div class="cc-prompt">"The report says NO_FIX but I'm sure there's a bug. Here is what I put in bug.md: [paste]. What should I check or add to the bug report to help the agent find it?"</div>
+            </div>
+            <div class="cc-scenario">
+              <span class="cs-tag">Client setup</span>
+              <div class="cc-prompt">"I'm setting up the agent on a client's machine. They have VS Code but no Claude Code. Walk me through the exact steps for a Windows 11 machine."</div>
+            </div>
+          </div>
+          <div class="cc-copy-hint">Click any prompt above to select it, then paste into Claude Code chat</div>
+        </div>
+
+        <!-- PHASE OVERVIEW -->
+        <div class="phase-grid">
+          <div class="phase-card">
+            <div class="pc-head p1">
+              <div class="pnum">1</div>
+              <div>
+                <div class="ptitle">Machine Ready</div>
+                <div class="psub">One-time setup · your own laptop</div>
+              </div>
+            </div>
+            <div class="pc-body">
+              <div class="g-step">
+                <div class="gs-n done">✓</div>
+                <div class="gs-body">
+                  <div class="gs-t">VS Code installed</div>
+                  <div class="gs-d">Download from <code>code.visualstudio.com</code>. Confirm it opens.</div>
+                </div>
+                <span class="gs-tag req">Required</span>
+              </div>
+              <div class="g-step">
+                <div class="gs-n">2</div>
+                <div class="gs-body">
+                  <div class="gs-t">Install Claude Code extension</div>
+                  <div class="gs-d">VS Code Extensions panel → search <code>Claude Code</code> → Install. A chat panel appears on the left sidebar.</div>
+                </div>
+                <span class="gs-tag req">Required</span>
+              </div>
+              <div class="g-step">
+                <div class="gs-n">3</div>
+                <div class="gs-body">
+                  <div class="gs-t">Sign in to Claude Code</div>
+                  <div class="gs-d">Open a terminal (View → Terminal in VS Code). Run the command. A browser tab opens. sign in with your Anthropic account.</div>
+                  <span class="gs-cmd">claude auth login</span>
+                </div>
+                <span class="gs-tag req">Required</span>
+              </div>
+              <div class="g-step">
+                <div class="gs-n">4</div>
+                <div class="gs-body">
+                  <div class="gs-t">Install Git</div>
+                  <div class="gs-d"><strong>macOS:</strong> pre-installed. <strong>Windows:</strong> download from <code>git-scm.com</code>, install Git Bash. <strong>Linux:</strong> <code>sudo apt install git</code>. Verify:</div>
+                  <span class="gs-cmd">git --version</span>
+                </div>
+                <span class="gs-tag req">Required</span>
+              </div>
+              <div class="g-step">
+                <div class="gs-n">5</div>
+                <div class="gs-body">
+                  <div class="gs-t">Install jq (JSON processor)</div>
+                  <div class="gs-d"><strong>macOS:</strong> <code>brew install jq</code> · <strong>Windows:</strong> <code>scoop install jq</code> · <strong>Linux:</strong> <code>sudo apt install jq</code></div>
+                  <span class="gs-cmd">jq --version</span>
+                </div>
+                <span class="gs-tag req">Required</span>
+              </div>
+              <div class="g-step">
+                <div class="gs-n">6</div>
+                <div class="gs-body">
+                  <div class="gs-t">Install ripgrep (faster search)</div>
+                  <div class="gs-d"><strong>macOS:</strong> <code>brew install ripgrep</code> · <strong>Windows:</strong> <code>scoop install ripgrep</code> · <strong>Linux:</strong> <code>sudo apt install ripgrep</code>. The agent falls back to grep if missing but ripgrep is faster and the briefing collectors use it.</div>
+                </div>
+                <span class="gs-tag opt">Optional</span>
+              </div>
+              <div class="g-step">
+                <div class="gs-n">7</div>
+                <div class="gs-body">
+                  <div class="gs-t">Install gh CLI (GitHub Issues mode)</div>
+                  <div class="gs-d">Only needed if you want to pass a GitHub Issue number directly (<code>--issue 42</code>). Download from <code>cli.github.com</code> and run <code>gh auth login</code>.</div>
+                </div>
+                <span class="gs-tag opt">Optional</span>
+              </div>
+              <div class="g-step">
+                <div class="gs-n key">✓</div>
+                <div class="gs-body">
+                  <div class="gs-t">Verify Phase 1 is complete</div>
+                  <div class="gs-d">All three must print a version number. If any says "command not found", that tool is not installed yet.</div>
+                  <span class="gs-cmd">claude --version &amp;&amp; git --version &amp;&amp; jq --version</span>
+                </div>
+                <span class="gs-tag done">Check</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="phase-card">
+            <div class="pc-head p2">
+              <div class="pnum">2</div>
+              <div>
+                <div class="ptitle">Develop &amp; Test</div>
+                <div class="psub">Wire the agent to a repo, run it on a real bug</div>
+              </div>
+            </div>
+            <div class="pc-body">
+              <div class="g-step">
+                <div class="gs-n">1</div>
+                <div class="gs-body">
+                  <div class="gs-t">Copy the agent into your repo</div>
+                  <div class="gs-d">Run this from inside the repo you want to analyse. Replace the path with wherever you have the <code>rca-mas/</code> folder.</div>
+                  <span class="gs-cmd">cp -r /path/to/rca-mas/ ./rca-mas/</span>
+                </div>
+                <span class="gs-tag req">Required</span>
+              </div>
+              <div class="g-step">
+                <div class="gs-n">2</div>
+                <div class="gs-body">
+                  <div class="gs-t">Append the chat snippet to CLAUDE.md</div>
+                  <div class="gs-d">Teaches Claude Code what "rca-mas:" means in chat. Creates CLAUDE.md if it doesn't exist yet.</div>
+                  <span class="gs-cmd">cat rca-mas/templates/CLAUDE.md.snippet >> CLAUDE.md</span>
+                </div>
+                <span class="gs-tag req">Required</span>
+              </div>
+              <div class="g-step">
+                <div class="gs-n">3</div>
+                <div class="gs-body">
+                  <div class="gs-t">Add to .gitignore</div>
+                  <div class="gs-d">Keeps the agent code and all run artifacts out of version control. Run once per repo.</div>
+                  <span class="gs-cmd">echo 'rca-mas/' >> .gitignore &amp;&amp; echo '.rca-mas/' >> .gitignore</span>
+                </div>
+                <span class="gs-tag req">Required</span>
+              </div>
+              <div class="g-step">
+                <div class="gs-n">4</div>
+                <div class="gs-body">
+                  <div class="gs-t">Write a bug report</div>
+                  <div class="gs-d">Create <code>bug.md</code> in the repo root. Write in plain English: what broke, the <em>exact</em> error message in quotes, steps to reproduce, version. More detail = better diagnosis. You can also just paste the bug into Claude Code chat. it will create the file for you.</div>
+                </div>
+                <span class="gs-tag req">Required</span>
+              </div>
+              <div class="g-step">
+                <div class="gs-n">5</div>
+                <div class="gs-body">
+                  <div class="gs-t">Run the agent (report-only, safe mode)</div>
+                  <div class="gs-d">Never edits your code. Produces a report only. Wait 4–10 minutes. You'll see log output in the terminal.</div>
+                  <span class="gs-cmd">bash ./rca-mas/rca-mas.sh bug.md</span>
+                </div>
+                <span class="gs-tag req">Required</span>
+              </div>
+              <div class="g-step">
+                <div class="gs-n">6</div>
+                <div class="gs-body">
+                  <div class="gs-t">Read the report</div>
+                  <div class="gs-d">11 sections: Status, Root Cause, Confidence, Evidence, Affected Files, Proposed Fix, Patch, Validation, Cost, Unknowns, Next Action. Confidence ≥ 0.7 means high-quality diagnosis. Below 0.5 means the agent didn't find enough evidence.</div>
+                  <span class="gs-cmd">cat .rca-mas/runs/latest/report.md</span>
+                </div>
+                <span class="gs-tag req">Required</span>
+              </div>
+              <div class="g-step">
+                <div class="gs-n">7</div>
+                <div class="gs-body">
+                  <div class="gs-t">Run with validation (applies fix in sandbox)</div>
+                  <div class="gs-d">Applies the proposed patch in an isolated copy of the repo and runs the test suite. Your actual repo is never touched. Shows whether the fix works.</div>
+                  <span class="gs-cmd">bash ./rca-mas/rca-mas.sh bug.md --validate</span>
+                </div>
+                <span class="gs-tag opt">Optional</span>
+              </div>
+              <div class="g-step">
+                <div class="gs-n">8</div>
+                <div class="gs-body">
+                  <div class="gs-t">Run the test suite</div>
+                  <div class="gs-d">Run from inside the <code>rca-mas/</code> folder. No AI calls, no cost, ~6 minutes. All 4 suites should show green. Run this before and after any change you make.</div>
+                  <span class="gs-cmd">cd rca-mas &amp;&amp; bash run.sh test</span>
+                </div>
+                <span class="gs-tag req">Required</span>
+              </div>
+              <div class="g-step">
+                <div class="gs-n">9</div>
+                <div class="gs-body">
+                  <div class="gs-t">Tune for your codebase (optional)</div>
+                  <div class="gs-d">Open <code>rca-mas/config/defaults.env</code>. Every parameter has a comment explaining when to raise or lower it. Large repo? Raise the timeout. Expensive? Lower the cost cap. Wants stricter fixes? Raise <code>RCA_CONFIDENCE_NOFX</code>.</div>
+                </div>
+                <span class="gs-tag tune">Tune</span>
+              </div>
+              <div class="g-step">
+                <div class="gs-n key">✓</div>
+                <div class="gs-body">
+                  <div class="gs-t">Verify Phase 2: chat trigger works</div>
+                  <div class="gs-d">Open Claude Code chat in VS Code. Type this and press Enter. Claude should run the agent and show the report. no terminal needed.</div>
+                  <span class="gs-cmd gs-cmd-it">"rca-mas: [paste your bug description here]"</span>
+                </div>
+                <span class="gs-tag done">Check</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="phase-card">
+            <div class="pc-head p3">
+              <div class="pnum">3</div>
+              <div>
+                <div class="ptitle">Deploy to Client</div>
+                <div class="psub">Set up on a client machine from scratch</div>
+              </div>
+            </div>
+            <div class="pc-body">
+              <div class="g-step">
+                <div class="gs-n">1</div>
+                <div class="gs-body">
+                  <div class="gs-t">On client machine: install Claude Code CLI</div>
+                  <div class="gs-d">The client developer needs an Anthropic account at <code>claude.ai</code>. Run this in their terminal. Requires Node.js. If not installed: <code>nodejs.org</code>.</div>
+                  <span class="gs-cmd">npm install -g @anthropic-ai/claude-code</span>
+                </div>
+                <span class="gs-tag req">Required</span>
+              </div>
+              <div class="g-step">
+                <div class="gs-n">2</div>
+                <div class="gs-body">
+                  <div class="gs-t">On client machine: sign in</div>
+                  <div class="gs-d">Run once. Opens a browser, they sign in with their own Anthropic account, session is saved locally on their machine.</div>
+                  <span class="gs-cmd">claude auth login</span>
+                </div>
+                <span class="gs-tag req">Required</span>
+              </div>
+              <div class="g-step">
+                <div class="gs-n">3</div>
+                <div class="gs-body">
+                  <div class="gs-t">Install VS Code + Claude Code extension</div>
+                  <div class="gs-d">Same as Phase 1 steps 1 and 2, but on the client machine. They need the extension for the chat trigger to work without a terminal.</div>
+                </div>
+                <span class="gs-tag req">Required</span>
+              </div>
+              <div class="g-step">
+                <div class="gs-n">4</div>
+                <div class="gs-body">
+                  <div class="gs-t">Verify prerequisites on client machine</div>
+                  <div class="gs-d">All three must return a version number before proceeding. If jq is missing: macOS <code>brew install jq</code>, Windows <code>scoop install jq</code>, Linux <code>sudo apt install jq</code>.</div>
+                  <span class="gs-cmd">claude --version &amp;&amp; git --version &amp;&amp; jq --version</span>
+                </div>
+                <span class="gs-tag req">Required</span>
+              </div>
+              <div class="g-step">
+                <div class="gs-n">5</div>
+                <div class="gs-body">
+                  <div class="gs-t">Copy the agent into the client's repo</div>
+                  <div class="gs-d">Share the <code>rca-mas/</code> folder via zip, git, USB, or network share. Then on their machine, inside their repo root:</div>
+                  <span class="gs-cmd">cp -r /path/to/rca-mas/ ./rca-mas/</span>
+                </div>
+                <span class="gs-tag req">Required</span>
+              </div>
+              <div class="g-step">
+                <div class="gs-n">6</div>
+                <div class="gs-body">
+                  <div class="gs-t">Append the snippet + update .gitignore</div>
+                  <div class="gs-d">Two commands, run once in the client's repo root:</div>
+                  <span class="gs-cmd">cat rca-mas/templates/CLAUDE.md.snippet >> CLAUDE.md</span>
+                  <span class="gs-cmd gs-cmd-mt">echo 'rca-mas/' >> .gitignore &amp;&amp; echo '.rca-mas/' >> .gitignore</span>
+                </div>
+                <span class="gs-tag req">Required</span>
+              </div>
+              <div class="g-step">
+                <div class="gs-n">7</div>
+                <div class="gs-body">
+                  <div class="gs-t">Run an acceptance test with a real bug</div>
+                  <div class="gs-d">Write a known bug as <code>bug.md</code> in their repo, run the agent, confirm a report is produced with a specific root cause. This is your handoff acceptance test.</div>
+                  <span class="gs-cmd">bash ./rca-mas/rca-mas.sh bug.md</span>
+                </div>
+                <span class="gs-tag req">Required</span>
+              </div>
+              <div class="g-step">
+                <div class="gs-n">8</div>
+                <div class="gs-body">
+                  <div class="gs-t">Tune for the client's codebase</div>
+                  <div class="gs-d">In <code>rca-mas/config/defaults.env</code>: raise timeouts for large repos, lower cost caps if they have budget constraints, change the model if they want faster or smarter output. Ask Claude: <em>"Open defaults.env and tell me what to change for a 50,000-file Java monorepo."</em></div>
+                </div>
+                <span class="gs-tag tune">Tune</span>
+              </div>
+              <div class="g-step">
+                <div class="gs-n">9</div>
+                <div class="gs-body">
+                  <div class="gs-t">Create a wrapper script (convenience)</div>
+                  <div class="gs-d">Gives client developers a one-word command. Run in their repo root:</div>
+                  <span class="gs-cmd">echo '#!/usr/bin/env bash' > run-rca.sh &amp;&amp; echo 'bash ./rca-mas/rca-mas.sh "$@"' >> run-rca.sh &amp;&amp; chmod +x run-rca.sh</span>
+                  <span class="gs-cmd gs-cmd-mt">./run-rca.sh bug.md --validate</span>
+                </div>
+                <span class="gs-tag opt">Optional</span>
+              </div>
+              <div class="g-step">
+                <div class="gs-n key">✓</div>
+                <div class="gs-body">
+                  <div class="gs-t">Hand off these three trigger phrases to the team</div>
+                  <div class="gs-d">Share these with every developer on the client team. They type them in the Claude Code chat panel inside VS Code. no terminal needed:
+                    <span class="gs-cmd gs-cmd-mt6">"rca-mas: [paste the bug here]"</span>
+                    <span class="gs-cmd gs-cmd-mt">"use rca-mas to investigate bug.md"</span>
+                    <span class="gs-cmd gs-cmd-mt">"show me the last rca-mas report"</span>
+                  </div>
+                </div>
+                <span class="gs-tag done">Handoff</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- WHAT SUCCESS LOOKS LIKE TABLE -->
+        <h3>What success looks like at each phase</h3>
+        <table class="check-table">
+          <thead>
+            <tr><th>Check</th><th>Command</th><th>What you expect</th><th>If it fails</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Prerequisites installed</td>
+              <td><code>claude --version &amp;&amp; git --version &amp;&amp; jq --version</code></td>
+              <td>Three version numbers printed, no errors</td>
+              <td>Install the missing tool following Phase 1 above</td>
+            </tr>
+            <tr>
+              <td>Claude signed in</td>
+              <td><code>claude --version</code></td>
+              <td>Prints a version without asking you to sign in</td>
+              <td>Run <code>claude auth login</code> again</td>
+            </tr>
+            <tr>
+              <td>Agent can run</td>
+              <td><code>bash ./rca-mas/rca-mas.sh --help</code></td>
+              <td>Prints the usage information with available flags</td>
+              <td>Check that <code>rca-mas/</code> is in the repo root and that <code>bash</code> is available</td>
+            </tr>
+            <tr>
+              <td>Briefing works</td>
+              <td><code>cat .rca-mas/runs/latest/briefing.md</code> after a run</td>
+              <td>Has sections for Git History, Dependencies, Error Sources, Test Mapping. TEST_COMMAND is not UNKNOWN.</td>
+              <td>The bug report may be very sparse. add the exact error string and a file path to help the collectors find signal</td>
+            </tr>
+            <tr>
+              <td>Diagnosis produced</td>
+              <td><code>cat .rca-mas/runs/latest/report.md</code></td>
+              <td>Root Cause section names a specific file and function. Confidence ≥ 0.5.</td>
+              <td>Confidence below 0.5 means thin evidence. enrich the bug report, or raise <code>RCA_GIT_LOOKBACK</code> in defaults.env for older bugs</td>
+            </tr>
+            <tr>
+              <td>Test suite passes</td>
+              <td><code>cd rca-mas &amp;&amp; bash run.sh test</code></td>
+              <td>All 4 suites show PASSED. No FAILED lines.</td>
+              <td>Ask Claude: "run.sh test failed. Here is the output: [paste]. What broke?"</td>
+            </tr>
+            <tr>
+              <td>Chat trigger works</td>
+              <td>Type <code>rca-mas: describe the bug</code> in Claude Code chat</td>
+              <td>Claude runs the agent and shows the report inside the chat panel</td>
+              <td>Check that <code>CLAUDE.md</code> exists in the repo root and contains the snippet. Run the append command again if not.</td>
+            </tr>
+            <tr>
+              <td>Client deployment live</td>
+              <td>Client developer types <code>rca-mas: [bug]</code> in VS Code chat</td>
+              <td>Agent runs, report is produced, root cause is specific</td>
+              <td>Walk through Phase 3 checklist step by step. The most common miss is jq not installed on their machine.</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="callout ask">
+          <div class="co-ic">💬</div>
+          <div class="co-body">
+            <div class="co-title">Not sure what's wrong? Describe it to Claude</div>
+            <div class="co-text">
+              You don't need to diagnose setup problems yourself. Open Claude Code chat and say:
+              <em>"I followed the setup steps but [describe what happened]. I'm on [Windows / macOS / Linux]. What should I check?"</em>
+              Claude will read the error, identify the cause, and give you the exact command to fix it.
+            </div>
+          </div>
+        </div>
+
+      </section>
+
+      <div class="section-divider">The System</div>
+
+      <!-- SECTION 1: ARCHITECTURE -->
+      <section id="architecture" class="section">
+        <div class="section-header">
+          <div class="section-num">1</div>
+          <h2>How the System is <span>Built</span></h2>
+        </div>
+        <p class="section-sub">
+          The agent is a chain of six stages. Each stage does one job, passes its results to the next stage and stops. No stage ever touches the developer's actual code. Understanding each stage tells you exactly which file to open when you want better results.
+        </p>
+
+        <div class="cc-block">
+          <div class="cc-label">Claude can do this</div>
+          <div class="cc-title">Understand any part of the pipeline, in plain English</div>
+          <div class="cc-desc">Open Claude Code in VS Code (inside the rca-mas folder) and paste any of these. You don't need to read the code yourself first. Claude will read it and explain.</div>
+          <div class="cc-multi">
+            <div class="cc-scenario">
+              <span class="cs-tag">Explain</span>
+              <div class="cc-prompt">"Read <strong>scripts/orchestrator.sh</strong> and explain what each stage of the pipeline does in plain English, as if explaining to a product designer."</div>
+            </div>
+            <div class="cc-scenario">
+              <span class="cs-tag">Map</span>
+              <div class="cc-prompt">"Show me which file controls each stage of the pipeline and what I would change in each one to improve diagnosis quality."</div>
+            </div>
+            <div class="cc-scenario">
+              <span class="cs-tag">Trace</span>
+              <div class="cc-prompt">"Walk me through exactly what happens when I run <strong>rca-mas.sh bug.md --validate</strong>. step by step through which scripts run and in what order."</div>
+            </div>
+          </div>
+          <div class="cc-copy-hint">Click any prompt above to select it, then paste into Claude Code chat</div>
+        </div>
+
+        <!-- Pipeline diagram -->
+        <div class="pipeline">
+          <div class="pipe-node">
+            <div class="pn-num">Stage 1</div>
+            <div class="pn-name">Intake</div>
+            <div class="pn-sub">bash only</div>
+          </div>
+          <div class="pipe-arr">→</div>
+          <div class="pipe-node">
+            <div class="pn-num">Stage 2</div>
+            <div class="pn-name">Briefing</div>
+            <div class="pn-sub">bash only</div>
+          </div>
+          <div class="pipe-arr">→</div>
+          <div class="pipe-node active">
+            <div class="pn-num">Stage 3</div>
+            <div class="pn-name">Diagnose</div>
+            <div class="pn-sub">Agent 1a + 1b</div>
+          </div>
+          <div class="pipe-arr">→</div>
+          <div class="pipe-node active">
+            <div class="pn-num">Stage 4</div>
+            <div class="pn-name">Fix</div>
+            <div class="pn-sub">Agent 2</div>
+          </div>
+          <div class="pipe-arr">→</div>
+          <div class="pipe-node active">
+            <div class="pn-num">Stage 5</div>
+            <div class="pn-name">Verify</div>
+            <div class="pn-sub">Agent 2.5</div>
+          </div>
+          <div class="pipe-arr">→</div>
+          <div class="pipe-node">
+            <div class="pn-num">Stage 6</div>
+            <div class="pn-name">Report</div>
+            <div class="pn-sub">bash only</div>
+          </div>
+        </div>
+
+        <div class="callout safe">
+          <div class="co-ic">✅</div>
+          <div class="co-body">
+            <div class="co-title">Safe to know</div>
+            <div class="co-text">The grey nodes (Stage 1, 2, 6) never call the AI. They are deterministic bash scripts. They are fast, cheap, and easy to understand. The purple nodes (Stages 3, 4, 5) are where the AI does its work.</div>
+          </div>
+        </div>
+
+        <!-- Stage 1 -->
+        <div class="stage-card">
+          <div class="stage-card-head">
+            <div class="sc-num">1</div>
+            <div class="sc-title">Intake: the bug arrives</div>
+            <div class="sc-badge">Bash · No AI</div>
+          </div>
+          <div class="stage-card-body">
+            <div class="desc">
+              A QA tester writes a bug report (a <code>bug.md</code> file, a GitHub Issue, or a pasted stack trace). The entry script
+              <code>rca-mas.sh</code> receives it, validates that prerequisites are in place (<code>git</code>, <code>jq</code>, <code>claude</code>),
+              treats the bug text as untrusted input, and opens a clean run folder under <code>.rca-mas/runs/&lt;RUN_ID&gt;/</code>.
+              No AI is called. No code is read. Takes about 1 second.
+            </div>
+            <div class="stage-meta">
+              <div class="stage-meta-item">
+                <div class="k">Entry point</div>
+                <div class="v"><code>rca-mas.sh</code></div>
+              </div>
+              <div class="stage-meta-item">
+                <div class="k">You can change</div>
+                <div class="v">How the bug report is passed in. Add new input modes.</div>
+              </div>
+              <div class="stage-meta-item">
+                <div class="k">Output</div>
+                <div class="v"><code>bug.md</code> + <code>manifest.json</code> in the run folder</div>
+              </div>
+              <div class="stage-meta-item">
+                <div class="k">What you can't break</div>
+                <div class="v">The run folder creation . Everything else reads from it.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Stage 2 -->
+        <div class="stage-card">
+          <div class="stage-card-head">
+            <div class="sc-num">2</div>
+            <div class="sc-title">Briefing: bash scans the repo before the AI starts</div>
+            <div class="sc-badge">Bash · No AI</div>
+          </div>
+          <div class="stage-card-body">
+            <div class="desc">
+              Four bash scripts run in parallel against the target repo. They are called "collectors". Each one
+              extracts one type of information and writes it into <code>briefing.md</code>. This file is what the
+              AI agents read first . It saves them 8 to 12 turns they would otherwise spend
+              exploring the repo from scratch. No AI is called here. No code is modified.
+            </div>
+            <div class="stage-meta">
+              <div class="stage-meta-item">
+                <div class="k">Main script</div>
+                <div class="v"><code>scripts/briefing.sh</code></div>
+              </div>
+              <div class="stage-meta-item">
+                <div class="k">Collectors</div>
+                <div class="v"><code>collectors/git.sh</code>, <code>deps.sh</code>, <code>errors.sh</code>, <code>testrunner.sh</code></div>
+              </div>
+              <div class="stage-meta-item">
+                <div class="k">Output</div>
+                <div class="v"><code>briefing.md</code> + <code>errors.txt</code></div>
+              </div>
+              <div class="stage-meta-item">
+                <div class="k">Tunable</div>
+                <div class="v"><code>RCA_GIT_LOOKBACK</code>, <code>RCA_ERROR_GREP_LIMIT</code>, <code>RCA_COLLECTOR_TIMEOUT</code></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="callout ask">
+          <div class="co-ic">💬</div>
+          <div class="co-body">
+            <div class="co-title">Not sure? Ask Claude</div>
+            <div class="co-text">
+              If you want to add support for a new programming language to the import-tracing collector, just ask:
+              <em>"Add Ruby import tracing to collectors/deps.sh. Look at how Python is handled and follow the same pattern."</em>
+              Claude will read the existing code and write the new case for you.
+            </div>
+          </div>
+        </div>
+
+        <!-- Stage 3 -->
+        <div class="stage-card">
+          <div class="stage-card-head">
+            <div class="sc-num">3</div>
+            <div class="sc-title">Diagnose: Agent 1a investigates, Agent 1b writes the verdict</div>
+            <div class="sc-badge">Agent 1a + 1b · AI</div>
+          </div>
+          <div class="stage-card-body">
+            <div class="desc">
+              <strong>Agent 1a (the investigator)</strong> reads the briefing and uses tools (Read, Grep, Glob, git commands) to
+              explore the codebase. It fills in a structured ledger every turn: current hypothesis, evidence, confidence, next action.
+              Before stopping it must pass 3 mandatory checks: re-read cited files from the actual working tree,
+              challenge its own conclusion, and justify its confidence score with a concrete observation count.
+              <br><br>
+              <strong>Agent 1b (the synthesiser)</strong> then reads the investigator's checkpoint and converts it into
+              a schema-validated <code>diagnosis.json</code>. the clean, structured verdict that travels to the next stage.
+            </div>
+            <div class="stage-meta">
+              <div class="stage-meta-item">
+                <div class="k">Investigator prompt</div>
+                <div class="v"><code>prompts/investigation.md</code></div>
+              </div>
+              <div class="stage-meta-item">
+                <div class="k">Checkpoint format</div>
+                <div class="v"><code>prompts/investigation_write.md</code></div>
+              </div>
+              <div class="stage-meta-item">
+                <div class="k">Synthesiser prompt</div>
+                <div class="v"><code>prompts/diagnosis.md</code></div>
+              </div>
+              <div class="stage-meta-item">
+                <div class="k">Output</div>
+                <div class="v"><code>diagnosis.json</code>. schema-validated, includes confidence score</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Stage 4 -->
+        <div class="stage-card">
+          <div class="stage-card-head">
+            <div class="sc-num">4</div>
+            <div class="sc-title">Fix: Agent 2 writes the code change</div>
+            <div class="sc-badge">Agent 2 · AI</div>
+          </div>
+          <div class="stage-card-body">
+            <div class="desc">
+              Agent 2 reads the diagnosis and the verbatim current code of the fix location (carried in the
+              <code>fix_context</code> field of the diagnosis). It proposes a unified diff: a precise, line-by-line
+              description of the change. It never sees the full repo. If confidence is below the threshold
+              (<code>0.5</code> by default) it returns <code>NO_FIX</code> instead of guessing.
+            </div>
+            <div class="stage-meta">
+              <div class="stage-meta-item">
+                <div class="k">Prompt file</div>
+                <div class="v"><code>prompts/solution.md</code></div>
+              </div>
+              <div class="stage-meta-item">
+                <div class="k">Output</div>
+                <div class="v"><code>solution.json</code> + <code>patches/fix.diff</code></div>
+              </div>
+              <div class="stage-meta-item">
+                <div class="k">Threshold</div>
+                <div class="v"><code>RCA_CONFIDENCE_NOFX=0.5</code> in <code>defaults.env</code></div>
+              </div>
+              <div class="stage-meta-item">
+                <div class="k">Weak-evidence band</div>
+                <div class="v">0.5–0.6 → fix ships, flagged for review. ≥0.6 → normal fix.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Stage 5 -->
+        <div class="stage-card">
+          <div class="stage-card-head">
+            <div class="sc-num">5</div>
+            <div class="sc-title">Verify: Agent 2.5 proves the fix in an isolated copy</div>
+            <div class="sc-badge">Agent 2.5 · AI + Bash</div>
+          </div>
+          <div class="stage-card-body">
+            <div class="desc">
+              Only runs with the <code>--validate</code> flag. Bash creates a sibling <code>git worktree</code>
+              (a temporary isolated copy of the repo) and applies the patch. The existing test suite runs.
+              Then Agent 2.5 is called once to generate one targeted regression test. The orchestrator applies
+              that test and runs it. Each step gates the next. If anything fails, the chain stops and reports honestly.
+              The developer's actual repo is never touched.
+            </div>
+            <div class="stage-meta">
+              <div class="stage-meta-item">
+                <div class="k">Prompt file</div>
+                <div class="v"><code>prompts/validation.md</code></div>
+              </div>
+              <div class="stage-meta-item">
+                <div class="k">Output</div>
+                <div class="v"><code>validation.json</code> + <code>patches/generated_test.diff</code></div>
+              </div>
+              <div class="stage-meta-item">
+                <div class="k">Test timeout</div>
+                <div class="v"><code>RCA_AGENT25_TEST_TIMEOUT=1200</code> (20 min)</div>
+              </div>
+              <div class="stage-meta-item">
+                <div class="k">Total budget</div>
+                <div class="v"><code>RCA_AGENT25_TIMEOUT=1800</code> (30 min)</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Stage 6 -->
+        <div class="stage-card">
+          <div class="stage-card-head">
+            <div class="sc-num">6</div>
+            <div class="sc-title">Report Creation: all artifacts assembled for the developer</div>
+            <div class="sc-badge">Bash · No AI</div>
+          </div>
+          <div class="stage-card-body">
+            <div class="desc">
+              <code>scripts/report.sh</code> reads every JSON file produced by the previous stages and assembles
+              a human-readable 11-section <code>report.md</code>. The developer reads it in about 90 seconds:
+              root cause, confidence, evidence, proposed diff, validation status, next action.
+              This script never calls the AI and never modifies source code.
+            </div>
+            <div class="stage-meta">
+              <div class="stage-meta-item">
+                <div class="k">Script</div>
+                <div class="v"><code>scripts/report.sh</code></div>
+              </div>
+              <div class="stage-meta-item">
+                <div class="k">Output</div>
+                <div class="v"><code>report.md</code> + <code>cost_summary.json</code></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <h3 id="file-index">File index: what lives where</h3>
+        <table class="index-table">
+          <tr><td>rca-mas/rca-mas.sh</td><td>Entry point. Parses args, checks prereqs, calls the orchestrator.</td></tr>
+          <tr><td>rca-mas/config/defaults.env</td><td>Every tunable number in one place. Change here, not in scripts.</td></tr>
+          <tr><td>rca-mas/scripts/orchestrator.sh</td><td>Pipeline controller. Runs every stage in order, handles failures.</td></tr>
+          <tr><td>rca-mas/scripts/briefing.sh</td><td>Runs the 4 collectors, writes briefing.md.</td></tr>
+          <tr><td>rca-mas/collectors/git.sh</td><td>git log, git blame for mentioned files.</td></tr>
+          <tr><td>rca-mas/collectors/deps.sh</td><td>Import tracing for Python, JS/TS, Go.</td></tr>
+          <tr><td>rca-mas/collectors/errors.sh</td><td>Fixed-string grep across the repo for each error string.</td></tr>
+          <tr><td>rca-mas/collectors/testrunner.sh</td><td>Detects the test framework (never runs tests).</td></tr>
+          <tr><td>rca-mas/prompts/investigation.md</td><td>How the investigator thinks. The most impactful file to tune.</td></tr>
+          <tr><td>rca-mas/prompts/diagnosis.md</td><td>How the synthesiser writes the verdict.</td></tr>
+          <tr><td>rca-mas/prompts/solution.md</td><td>How the fix-writer decides FIX vs NO_FIX.</td></tr>
+          <tr><td>rca-mas/prompts/validation.md</td><td>How Agent 2.5 writes a regression test.</td></tr>
+          <tr><td>rca-mas/schemas/*.schema.json</td><td>The JSON contracts between agents. Changing these is advanced.</td></tr>
+          <tr><td>rca-mas/scripts/report.sh</td><td>Reads all JSON outputs, writes report.md.</td></tr>
+        </table>
+      </section>
+
+      <!-- SECTION 2: TESTING -->
+      <section id="testing" class="section">
+        <div class="section-header">
+          <div class="section-num">2</div>
+          <h2>How <span>Testing Works</span></h2>
+        </div>
+        <p class="section-sub">
+          The system has 5 test suites. The first four are synthetic tests: they check that all the parts of the pipeline connect correctly without calling the AI or spending money. The fifth tests quality on real bugs from a real open-source project. You can run all four synthetic tests in under 10 minutes.
+        </p>
+
+        <div class="cc-block">
+          <div class="cc-label">Claude can do this</div>
+          <div class="cc-title">Run the tests and tell you what's passing or failing</div>
+          <div class="cc-desc">You never need to interpret raw test output yourself. Ask Claude to run the suite and summarise the results in human terms.</div>
+          <div class="cc-multi">
+            <div class="cc-scenario">
+              <span class="cs-tag">Run</span>
+              <div class="cc-prompt">"Run the full test suite with <strong>bash run.sh test</strong> and tell me which tests passed and which failed. Explain any failures in plain English."</div>
+            </div>
+            <div class="cc-scenario">
+              <span class="cs-tag">After change</span>
+              <div class="cc-prompt">"I just changed <strong>prompts/investigation.md</strong>. Run <strong>make lint &amp;&amp; make test</strong> and tell me if anything broke. If it did, explain what and suggest a fix."</div>
+            </div>
+            <div class="cc-scenario">
+              <span class="cs-tag">Real repo</span>
+              <div class="cc-prompt">"Run <strong>make test-real-repo-quick</strong> (bugs 1 and 4 only). Tell me the confidence scores the agent produced and whether they match the expected fix files."</div>
+            </div>
+          </div>
+          <div class="cc-copy-hint">Click any prompt above to select it, then paste into Claude Code chat</div>
+        </div>
+
+        <h3 id="run-commands">Run commands</h3>
+
+        <div class="code-block">
+          <div class="file-label">From inside rca-mas/ (on macOS or Linux)</div>
+          <pre><span class="cmt"># If you have `make` installed (most Mac / Linux):</span>
+make lint              <span class="cmt"># bash syntax check, takes ~5 seconds</span>
+make test              <span class="cmt"># all 4 synthetic suites, ~6 minutes, no AI needed</span>
+make test-real-repo    <span class="cmt"># 5 real bugs on pallets/click, ~3 minutes, calls AI</span>
+
+<span class="cmt"># If you don't have make (Windows / some Linux):</span>
+bash run.sh lint
+bash run.sh test
+bash run.sh test-real-repo</pre>
+        </div>
+
+        <div class="callout writes">
+          <div class="co-ic">✦</div>
+          <div class="co-body">
+            <div class="co-title">Claude will run this for you</div>
+            <div class="co-text">
+              If you're not comfortable running terminal commands, open Claude Code in your VS Code, navigate to the rca-mas folder, and say:
+              <em>"Run the test suite and tell me if anything fails."</em> Claude will execute the commands and explain the output.
+            </div>
+          </div>
+        </div>
+
+        <h3>The 5 test suites: what each one checks</h3>
+        <div class="test-grid">
+          <div class="test-card">
+            <div class="tc-name">test_briefing.sh</div>
+            <div class="tc-what">Briefing end-to-end</div>
+            <div class="tc-desc">Creates a tiny controlled repo and checks that briefing.md is produced correctly, has the right sections, and that error strings and file paths are extracted properly.</div>
+            <div class="tc-cmd">bash run.sh test-briefing</div>
+          </div>
+          <div class="test-card">
+            <div class="tc-name">test_collectors.sh</div>
+            <div class="tc-what">Each collector individually</div>
+            <div class="tc-desc">Checks git.sh, deps.sh, errors.sh, testrunner.sh each in isolation. Edge cases: empty input, excluded directories, unsupported language.</div>
+            <div class="tc-cmd">bash run.sh test-briefing</div>
+          </div>
+          <div class="test-card">
+            <div class="tc-name">test_json_schemas.sh</div>
+            <div class="tc-what">Schemas and JSON helpers</div>
+            <div class="tc-desc">Validates that sample JSON fixtures pass their schemas. Checks the JSON extraction helpers in lib/json.sh. Takes ~5 seconds. No Claude, no repo.</div>
+            <div class="tc-cmd">bash run.sh test-schemas</div>
+          </div>
+          <div class="test-card">
+            <div class="tc-name">test_smoke_report_only.sh</div>
+            <div class="tc-what">Full pipeline wiring</div>
+            <div class="tc-desc">Runs the entire pipeline using fixture JSON (no real AI calls). Checks that all output files are created, report.md has 11 sections, and the pipeline exits 0.</div>
+            <div class="tc-cmd">bash run.sh test</div>
+          </div>
+          <div class="test-card test-card-wide">
+            <div class="tc-name">test_real_repo_briefing.sh</div>
+            <div class="tc-what">Quality on real GitHub bugs</div>
+            <div class="tc-desc">
+              Runs the briefing against 5 real bugs from the <code>pallets/click</code> Python library. Each bug has a known fix commit. The test checks
+              that briefing.md surfaces the right files, that the error strings match real code locations, and that the test framework is detected.
+              <strong>This is the quality gate . If briefing is broken, Agent 1a gets useless context.</strong>
+              Requires the click repo to be cloned at <code>C:/MAS_final/test-repos/click</code> (or wherever <code>RCA_REAL_REPO_ROOT</code> points).
+            </div>
+            <div class="tc-cmd">bash run.sh test-real-repo</div>
+          </div>
+        </div>
+
+        <h3>What "real repo testing" means</h3>
+        <p>
+          The click fixture contains 5 real bugs that were filed as GitHub Issues and fixed by the pallets/click
+          maintainers in real commits. For each one we have the original bug report (as <code>bug1.md</code> through <code>bug5.md</code>)
+          and the expected output (which file should appear in the diagnosis, which commit introduced the bug, etc.).
+        </p>
+        <p>
+          Here is an example. Bug 1 is titled <em>"Error hint shows env var when one doesn't exist"</em>. The bug report is a real
+          GitHub issue from a real user. The agent is expected to diagnose it, identify <code>src/click/core.py</code> as the affected file,
+          and propose removing the incorrect env var display from the error message.
+        </p>
+
+        <div class="code-block">
+          <div class="file-label">tests/real_repos/click/bugs/bug1.md (first few lines)</div>
+          <pre><span class="kw"># Error hint shows env var when one doesn't exist</span>
+
+#2696 added the environment variable to the error hint when
+`show_envvar` is set. However, it does not check to see if
+an `envvar` exists.
+
+$ python ./click-test.py --bar aaa
+Error: Invalid value for '--bar' <span class="str">(env var: 'None')</span>: 'aaa' is not valid...</pre>
+        </div>
+
+        <div class="callout careful">
+          <div class="co-ic">⚠️</div>
+          <div class="co-body">
+            <div class="co-title">Change carefully</div>
+            <div class="co-text">
+              The real-repo tests call Claude and cost real money (~$1–2 per full run across 5 bugs).
+              Use <code>bash run.sh test-real-repo-quick</code> to run only bugs 1 and 4 for a faster $0.40 sanity check.
+              Only run the full suite before declaring a major change complete.
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SECTION 3: NEW REPO -->
+      <section id="new-repo" class="section">
+        <div class="section-header">
+          <div class="section-num">3</div>
+          <h2>Adding a New Repo to <span>Test Against</span></h2>
+        </div>
+        <p class="section-sub">
+          You can run the agent against any git repository. You write a bug report, point the agent at the repo and read the output. No coding required.
+        </p>
+
+        <div class="cc-block">
+          <div class="cc-label">Claude can do this</div>
+          <div class="cc-title">Run the agent on any repo and explain the output to you</div>
+          <div class="cc-desc">Claude will run the commands, watch the logs, and translate the report into actionable language. You describe the bug; Claude handles the rest.</div>
+          <div class="cc-multi">
+            <div class="cc-scenario">
+              <span class="cs-tag">Run</span>
+              <div class="cc-prompt">"I have a bug in the repo at <strong>/path/to/repo</strong>. I've saved the bug report at <strong>/path/to/bug.md</strong>. Run the agent on it and tell me what the diagnosis says."</div>
+            </div>
+            <div class="cc-scenario">
+              <span class="cs-tag">Explain</span>
+              <div class="cc-prompt">"Read the latest report at <strong>.rca-mas/runs/latest/report.md</strong> and explain the root cause and proposed fix in plain English. Is the confidence score high enough to trust the fix?"</div>
+            </div>
+            <div class="cc-scenario">
+              <span class="cs-tag">Add fixture</span>
+              <div class="cc-prompt">"I just ran the agent on a real bug in <strong>django/django</strong> and the diagnosis was accurate. Create a real-repo test fixture for this bug using the pallets/click fixture as the template. The confirmed fix is in commit <strong>[SHA]</strong> touching <strong>[file]</strong>."</div>
+            </div>
+          </div>
+          <div class="cc-copy-hint">Click any prompt above to select it, then paste into Claude Code chat</div>
+        </div>
+
+        <div class="step-list">
+          <div class="step-item">
+            <div class="si-num">1</div>
+            <div class="si-body">
+              <div class="si-title">Clone the repository you want to test against</div>
+              <div class="si-desc">
+                Open a terminal and run: <code>git clone https://github.com/owner/repo /path/to/local/repo</code>
+                . For example, <code>git clone https://github.com/django/django /tmp/django</code>.
+                You only need to do this once.
+              </div>
+            </div>
+          </div>
+          <div class="step-item">
+            <div class="si-num">2</div>
+            <div class="si-body">
+              <div class="si-title">Write a bug report as a plain text file</div>
+              <div class="si-desc">
+                Create a file called <code>bug.md</code> anywhere on your computer. Write the bug report in plain English.
+                The more detail the better. Include the error message (copy it exactly, with surrounding quotes),
+                a code snippet if you have one, and the version of the software. No special format required.
+              </div>
+            </div>
+          </div>
+          <div class="step-item">
+            <div class="si-num">3</div>
+            <div class="si-body">
+              <div class="si-title">Navigate to the cloned repo and run the agent</div>
+              <div class="si-desc">
+                <code>cd /path/to/local/repo</code> then
+                <code>bash /path/to/rca-mas/rca-mas.sh /path/to/bug.md</code>
+                . To run with validation, add <code>--validate</code> at the end.
+                The agent will start running. You will see log output in your terminal.
+              </div>
+            </div>
+          </div>
+          <div class="step-item">
+            <div class="si-num">4</div>
+            <div class="si-body">
+              <div class="si-title">Read the report</div>
+              <div class="si-desc">
+                When the run finishes (typically 4–10 minutes), run:
+                <code>cat .rca-mas/runs/latest/report.md</code>
+                The report has 11 sections: Status, Root Cause, Confidence, Evidence, Affected Files,
+                Proposed Fix, Patch Files, Validation, Cost, Unknowns, and Next Action.
+              </div>
+            </div>
+          </div>
+          <div class="step-item">
+            <div class="si-num">5</div>
+            <div class="si-body">
+              <div class="si-title">Add the bug as a formal test fixture (optional)</div>
+              <div class="si-desc">
+                Copy the bug report into <code>rca-mas/tests/real_repos/&lt;your-repo&gt;/bugs/bug1.md</code>.
+                Create a <code>README.md</code> in that folder describing the repo and the known fixes.
+                Add an <code>expected/</code> folder with <code>bug1.json</code> containing the file paths and
+                commit SHA you expect the agent to find. Then ask Claude to wire it into the test runner.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="callout writes">
+          <div class="co-ic">✦</div>
+          <div class="co-body">
+            <div class="co-title">Claude will write the test fixture for you</div>
+            <div class="co-text">
+              After you have run the agent on your new repo and seen reasonable output, paste the report into Claude and say:
+              <em>"Create a real-repo test fixture for this. Use the pallets/click fixture as the template. The repo is at /path/to/repo."</em>
+              Claude will create the directory structure, write the expected output JSON, and show you how to run it.
+            </div>
+          </div>
+        </div>
+
+        <h3>What output tells you the agent is working well</h3>
+        <ul>
+          <li>The <strong>Root Cause section</strong> names a specific file and function, not a vague description.</li>
+          <li>The <strong>Confidence score</strong> is 0.7 or above. Below 0.5 means the agent wasn't sure enough to propose a fix.</li>
+          <li>The <strong>Evidence section</strong> cites real file paths and line numbers that you can verify.</li>
+          <li>The <strong>Briefing Warnings section</strong> in <code>briefing.md</code> is empty or mentions only minor issues.</li>
+          <li>Agent 1a used <strong>fewer than 30 turns</strong> (visible in cost_summary.json). More turns = the agent was hunting around and may not have found a clear signal.</li>
+        </ul>
+
+        <div class="callout careful">
+          <div class="co-ic">⚠️</div>
+          <div class="co-body">
+            <div class="co-title">Change carefully: things to watch for</div>
+            <div class="co-text">
+              If the report says <code>NO_FIX</code> with a coherent reason ("the real cause is in a dependency, not this repo"),
+              that is the system working correctly. If it says <code>NO_FIX</code> with a vague reason, try adding more detail
+              to your bug report. Add exact error strings, file paths, version numbers. The briefing collectors pull from
+              whatever you put in the bug report.
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SECTION 4: CHANGE TABLE -->
+      <section id="change-table" class="section">
+        <div class="section-header">
+          <div class="section-num">4</div>
+          <h2>What to Change and <span>Where</span></h2>
+        </div>
+        <p class="section-sub">
+          Every improvement has a clear location. This table is the map. For each improvement you want to make, it tells you which file to open, what to change and the exact prompt to give Claude so it makes the change for you.
+        </p>
+
+        <div class="cc-block">
+          <div class="cc-label">Claude can do this</div>
+          <div class="cc-title">Make any of these changes for you. Just describe what you want.</div>
+          <div class="cc-desc">You don't need to write bash or edit config files yourself. Copy the relevant prompt from the table below, open Claude Code in the rca-mas folder, and paste it. Claude will open the right file, make the change, and run the tests.</div>
+          <div class="cc-multi">
+            <div class="cc-scenario">
+              <span class="cs-tag">Config</span>
+              <div class="cc-prompt">"Open <strong>config/defaults.env</strong> and change the model to <strong>claude-opus-4-7</strong>. Then run <strong>make lint</strong> to confirm nothing broke."</div>
+            </div>
+            <div class="cc-scenario">
+              <span class="cs-tag">Threshold</span>
+              <div class="cc-prompt">"In <strong>config/defaults.env</strong>, raise <strong>RCA_CONFIDENCE_NOFX</strong> from 0.5 to 0.65 so only well-evidenced diagnoses produce a patch. Explain what effect this will have on how often the agent says NO_FIX."</div>
+            </div>
+            <div class="cc-scenario">
+              <span class="cs-tag">Language</span>
+              <div class="cc-prompt">"Add <strong>Ruby import tracing</strong> to <strong>collectors/deps.sh</strong>. Ruby uses <strong>require</strong> and <strong>require_relative</strong>. Follow the exact same pattern used for Python. Then run <strong>make test-briefing</strong> to verify."</div>
+            </div>
+          </div>
+          <div class="cc-copy-hint">Click any prompt above to select it, then paste into Claude Code chat</div>
+        </div>
+
+        <table class="change-table">
+          <thead>
+            <tr>
+              <th>I want to…</th>
+              <th>Change this file</th>
+              <th>Claude helps</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Use a smarter (but more expensive) model</td>
+              <td><code>config/defaults.env</code><br>Change <code>RCA_MODEL=""</code> to <code>RCA_MODEL=claude-opus-4-7</code></td>
+              <td><span class="claude-pill">✦ Ask Claude</span><br>"Change the model in defaults.env to claude-opus-4-7 for all agents."</td>
+            </tr>
+            <tr>
+              <td>Give the investigator more time on large repos</td>
+              <td><code>config/defaults.env</code><br>Raise <code>RCA_A1A_TIMEOUT_L</code> and <code>RCA_A1A_BUDGET_USD</code></td>
+              <td><span class="claude-pill">✦ Ask Claude</span><br>"Increase Agent 1a's budget to $20 and timeout to 30 minutes for L-tier repos."</td>
+            </tr>
+            <tr>
+              <td>Make the diagnosis more rigorous (catch more edge cases)</td>
+              <td><code>prompts/investigation.md</code><br>Add a 4th self-critique check before FINAL FINDINGS</td>
+              <td><span class="claude-pill">✦ Ask Claude</span><br>"Add a check that the agent must verify the fix_context is the current working-tree version, not a git-show version."</td>
+            </tr>
+            <tr>
+              <td>Make Agent 2 produce safer diffs (stricter rules)</td>
+              <td><code>prompts/solution.md</code><br>Tighten the patch rules section</td>
+              <td><span class="claude-pill">✦ Ask Claude</span><br>"Update solution.md to require that Agent 2 always sets risk=high when changing more than 5 lines."</td>
+            </tr>
+            <tr>
+              <td>Raise the confidence threshold before a fix ships</td>
+              <td><code>config/defaults.env</code><br>Change <code>RCA_CONFIDENCE_NOFX=0.5</code> (default) to a higher value like <code>0.65</code></td>
+              <td><span class="claude-pill">✦ Ask Claude</span><br>"Set the NO_FIX threshold to 0.65 so only high-confidence diagnoses produce a patch."</td>
+            </tr>
+            <tr>
+              <td>Add Ruby or Rust import tracing to the briefing</td>
+              <td><code>collectors/deps.sh</code><br>Add a new case branch for the language</td>
+              <td><span class="claude-pill">✦ Ask Claude</span><br>"Add Ruby require/load tracing to collectors/deps.sh. Follow the Python pattern exactly."</td>
+            </tr>
+            <tr>
+              <td>Detect a new test framework (e.g. RSpec, Vitest)</td>
+              <td><code>collectors/testrunner.sh</code><br>Add a detection branch for the framework</td>
+              <td><span class="claude-pill">✦ Ask Claude</span><br>"Add RSpec detection to testrunner.sh. It uses a Gemfile and rspec.yml. The command is `bundle exec rspec`."</td>
+            </tr>
+            <tr>
+              <td>Change how the regression test is written (Agent 2.5)</td>
+              <td><code>prompts/validation.md</code><br>Update the test format rules</td>
+              <td><span class="claude-pill">✦ Ask Claude</span><br>"Update validation.md to require that the generated test always adds a descriptive docstring explaining the bug it covers."</td>
+            </tr>
+            <tr>
+              <td>Change what the final report looks like</td>
+              <td><code>scripts/report.sh</code><br>Edit the section rendering</td>
+              <td><span class="claude-pill">✦ Ask Claude</span><br>"Add a 12th section to report.md called 'Similar Past Bugs' that lists the introducing commit's message."</td>
+            </tr>
+            <tr>
+              <td>Add a new section to the briefing (e.g. open PRs)</td>
+              <td>New file in <code>collectors/</code>, registered in <code>scripts/briefing.sh</code></td>
+              <td><span class="claude-pill">✦ Ask Claude</span><br>"Create a new collector that lists open PRs touching the mentioned files. Use the gh CLI. Follow the git.sh pattern."</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="callout danger">
+          <div class="co-ic">🚫</div>
+          <div class="co-body">
+            <div class="co-title">Don't touch without tests</div>
+            <div class="co-text">
+              Do not edit <code>scripts/orchestrator.sh</code>, <code>lib/json.sh</code>, <code>lib/cleanup.sh</code>, or the JSON schemas
+              without running the full test suite before and after. These files are the plumbing that connects everything. A small error
+              can cause the pipeline to fail silently or produce corrupted output. Always run <code>make test</code> after any change here.
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SECTION 5: PROMPTS -->
+      <section id="prompts" class="section">
+        <div class="section-header">
+          <div class="section-num">5</div>
+          <h2>How Prompt Files Shape <span>Agent Behaviour</span></h2>
+        </div>
+        <p class="section-sub">
+          Prompt files are plain text documents. They contain the instructions each AI agent reads before it starts work. Changing a prompt changes how the agent behaves: what it looks for, what it is allowed to do and what it must produce. These are the highest-leverage files in the whole system. The cards below explain what each one currently says and what you might want to change.
+        </p>
+
+        <div class="cc-block">
+          <div class="cc-label">Claude can do this</div>
+          <div class="cc-title">Edit any prompt file for you. Just describe the improvement in plain English.</div>
+          <div class="cc-desc">You don't need to write the prompt change yourself. Describe the behaviour you want, and Claude will find the right section of the prompt file, write the change, and tell you how to verify it worked.</div>
+          <div class="cc-multi">
+            <div class="cc-scenario">
+              <span class="cs-tag">Investigation</span>
+              <div class="cc-prompt">"Open <strong>prompts/investigation.md</strong>. I want the investigator to always check if the bug was introduced in a merge commit from an external PR, not just a direct commit. Add this as a step in the investigation policy after the git history step."</div>
+            </div>
+            <div class="cc-scenario">
+              <span class="cs-tag">Fix quality</span>
+              <div class="cc-prompt">"Open <strong>prompts/solution.md</strong>. Add a rule that if the patch changes more than 10 lines, Agent 2 must set <strong>risk: high</strong> and add a manual_review_note explaining why the change is large. Make sure this doesn't conflict with the existing weak-evidence rules."</div>
+            </div>
+            <div class="cc-scenario">
+              <span class="cs-tag">Regression test</span>
+              <div class="cc-prompt">"Open <strong>prompts/validation.md</strong>. Add a requirement that the generated regression test must include a one-line docstring that says which bug report it was written for. Show me what the test output would look like after this change."</div>
+            </div>
+            <div class="cc-scenario">
+              <span class="cs-tag">Audit</span>
+              <div class="cc-prompt">"Read all five prompt files in <strong>prompts/</strong> and tell me: are there any places where the instructions are vague or ambiguous? What are the top 3 changes that would most improve diagnosis accuracy?"</div>
+            </div>
+          </div>
+          <div class="cc-copy-hint">Click any prompt above to select it, then paste into Claude Code chat</div>
+        </div>
+
+        <div class="callout ask">
+          <div class="co-ic">💬</div>
+          <div class="co-body">
+            <div class="co-title">Not sure what to change? Describe what you want in plain English</div>
+            <div class="co-text">
+              You don't need to write prompt engineering yourself. Open Claude Code, open the prompt file in your editor,
+              and say: <em>"This prompt controls how the investigator agent works. I want it to also check
+              if the bug was recently introduced by a merge commit. Add that as a step in the investigation policy."</em>
+              Claude will read the existing prompt and write the addition.
+            </div>
+          </div>
+        </div>
+
+        <!-- investigation.md card -->
+        <div class="prompt-card">
+          <div class="prompt-card-head">
+            <div class="ph-badge">Agent 1a</div>
+            <div class="ph-title">The investigator's rulebook</div>
+            <div class="ph-file">prompts/investigation.md</div>
+          </div>
+          <div class="prompt-card-body">
+            <div class="prompt-card-section">
+              <div class="pcs-label">What it does</div>
+              <p>
+                Tells Agent 1a exactly how to investigate: which tools it can use, what format to fill in
+                every single turn (the FINDINGS LEDGER), and the 3 mandatory checks it must pass before
+                calling it done. <strong>This is the most impactful file</strong> . Changes here directly affect
+                how well the agent finds bugs.
+              </p>
+            </div>
+            <div class="prompt-card-section">
+              <div class="pcs-label">Good things to add</div>
+              <p>
+                More investigation steps (e.g. always check open issues for related bugs).
+                Stricter self-critique checks. Language-specific hints if you work in Go or Java.
+                Domain-specific evidence patterns your team knows about.
+              </p>
+            </div>
+          </div>
+          <div class="prompt-card-snippet">
+            <div class="pcs-label">Snippet from the actual file</div>
+            <div class="snippet-block">## Investigation policy
+
+Use tools only when the result can change the diagnosis.
+
+Preferred order:
+1. Read the bug report and briefing.
+2. Inspect Error Sources first.
+3. Read source files around matching functions.
+4. Use Grep only for targeted symbols.
+5. Use git history only after identifying likely files.
+6. Consider one alternative cause and check it briefly.
+7. Stop when confidence reaches 0.70.</div>
+          </div>
+          <div class="warning-row">
+            <div class="wi">⚠️</div>
+            <div>
+              <strong>Watch for:</strong> Adding too many mandatory steps slows the agent down significantly.
+              Each extra tool call costs time and money. Keep additions focused on high-signal evidence, not exhaustive checking.
+            </div>
+          </div>
+        </div>
+
+        <!-- investigation_write.md card -->
+        <div class="prompt-card">
+          <div class="prompt-card-head">
+            <div class="ph-badge">Agent 1a → 1b</div>
+            <div class="ph-title">How the investigator writes its notes</div>
+            <div class="ph-file">prompts/investigation_write.md</div>
+          </div>
+          <div class="prompt-card-body">
+            <div class="prompt-card-section">
+              <div class="pcs-label">What it does</div>
+              <p>
+                After Agent 1a finishes investigating, a separate one-turn call converts its free-text findings
+                into the structured <code>checkpoint.json</code> that Agent 1b reads. This prompt defines the
+                JSON shape, including the critical <code>fix_context</code> field that carries the verbatim
+                current code of the fix location to Agent 2.
+              </p>
+            </div>
+            <div class="prompt-card-section">
+              <div class="pcs-label">Good things to add</div>
+              <p>
+                Fields that carry important context to downstream agents. For example: an estimated commit range,
+                a list of related functions the developer should also check, or a short "what the developer needs to know" summary.
+              </p>
+            </div>
+          </div>
+          <div class="prompt-card-snippet">
+            <div class="pcs-label">Snippet from the actual file</div>
+            <div class="snippet-block">`fix_context`: for every function or block identified
+as the fix location, copy its current verbatim content
+from the evidence transcript. Include function signature
++ full body so Agent 2 can write a unified diff with
+correct @@ hunk markers and context lines.</div>
+          </div>
+          <div class="warning-row">
+            <div class="wi">⚠️</div>
+            <div>
+              <strong>Watch for:</strong> If you add new fields to checkpoint.json, also update
+              <code>prompts/diagnosis.md</code> to tell Agent 1b how to use the new fields. Otherwise they are silently dropped.
+            </div>
+          </div>
+        </div>
+
+        <!-- diagnosis.md card -->
+        <div class="prompt-card">
+          <div class="prompt-card-head">
+            <div class="ph-badge">Agent 1b</div>
+            <div class="ph-title">The synthesiser's rules</div>
+            <div class="ph-file">prompts/diagnosis.md</div>
+          </div>
+          <div class="prompt-card-body">
+            <div class="prompt-card-section">
+              <div class="pcs-label">What it does</div>
+              <p>
+                Agent 1b reads the checkpoint and converts it into a schema-validated JSON verdict.
+                This prompt tells it to <strong>never invent files, commits, or functions</strong> not in the checkpoint,
+                to preserve confidence, and to cap confidence at 0.4 when upstream evidence was weak.
+              </p>
+            </div>
+            <div class="prompt-card-section">
+              <div class="pcs-label">Good things to add</div>
+              <p>
+                Extra fields to carry forward to the report (e.g. a "summary for a non-technical reader").
+                Stricter rules about what qualifies as a concrete file reference vs a vague reference.
+              </p>
+            </div>
+          </div>
+          <div class="prompt-card-snippet">
+            <div class="pcs-label">Snippet from the actual file</div>
+            <div class="snippet-block">- Do not invent files, commits, functions, or evidence
+  not in the checkpoint.
+- Preserve uncertainty through confidence fields and unknowns.
+- If checkpoint evidence is weak, produce a low-confidence
+  diagnosis rather than fabricating.</div>
+          </div>
+          <div class="warning-row">
+            <div class="wi">⚠️</div>
+            <div>
+              <strong>Watch for:</strong> This prompt directly controls what travels to Agent 2. If you add permissiveness
+              here (e.g. allowing inference), Agent 2 can end up writing diffs for code that doesn't exist.
+            </div>
+          </div>
+        </div>
+
+        <!-- solution.md card -->
+        <div class="prompt-card">
+          <div class="prompt-card-head">
+            <div class="ph-badge">Agent 2</div>
+            <div class="ph-title">The fix-writer's decision rules</div>
+            <div class="ph-file">prompts/solution.md</div>
+          </div>
+          <div class="prompt-card-body">
+            <div class="prompt-card-section">
+              <div class="pcs-label">What it does</div>
+              <p>
+                Tells Agent 2 when to write a patch (FIX) vs when to decline (NO_FIX). Sets the unified-diff format
+                rules that make the patch apply cleanly with <code>git apply</code>. Defines how weak evidence
+                must be flagged. The confidence cap,, forced risk level, mandatory reviewer notes.
+              </p>
+            </div>
+            <div class="prompt-card-section">
+              <div class="pcs-label">Good things to add</div>
+              <p>
+                Language-specific diff conventions (e.g. "for Python, always preserve the indent style of the surrounding function").
+                Additional reviewer-note requirements for high-risk changes.
+                A rule requiring the agent to name the test that should cover the fix.
+              </p>
+            </div>
+          </div>
+          <div class="prompt-card-snippet">
+            <div class="pcs-label">Snippet from the actual file</div>
+            <div class="snippet-block">Hunk header format is @@ -start,count +start,count @@
+where count is the total number of lines in the hunk.
+Never write @@ -line,1 +line,1 @@. that is invalid
+and git apply will reject it.</div>
+          </div>
+          <div class="warning-row">
+            <div class="wi">⚠️</div>
+            <div>
+              <strong>Watch for:</strong> Relaxing the NO_FIX conditions causes the agent to produce diffs for uncertain diagnoses.
+              These diffs often don't apply cleanly or fix the wrong thing. More conservative is safer.
+            </div>
+          </div>
+        </div>
+
+        <!-- validation.md card -->
+        <div class="prompt-card">
+          <div class="prompt-card-head">
+            <div class="ph-badge">Agent 2.5</div>
+            <div class="ph-title">How to write a regression test</div>
+            <div class="ph-file">prompts/validation.md</div>
+          </div>
+          <div class="prompt-card-body">
+            <div class="prompt-card-section">
+              <div class="pcs-label">What it does</div>
+              <p>
+                Tells Agent 2.5 to write exactly one test function that fails on the unfixed code
+                and passes on the fixed code. Sets the output format: a JSON object with
+                <code>test_path</code>, <code>test_diff</code>, and <code>explanation</code>.
+                The test must use the project's existing framework.
+              </p>
+            </div>
+            <div class="prompt-card-section">
+              <div class="pcs-label">Good things to add</div>
+              <p>
+                Framework-specific conventions for your codebase (e.g. "always use pytest fixtures, never bare assertions").
+                A naming convention for the test function.
+                A rule requiring the test to have a docstring explaining the bug it covers.
+              </p>
+            </div>
+          </div>
+          <div class="prompt-card-snippet">
+            <div class="pcs-label">Snippet from the actual file</div>
+            <div class="snippet-block">Write exactly ONE regression test:
+- The test MUST FAIL on the unfixed code.
+- The test MUST PASS on the fixed code.
+- Use the same framework the project already uses.
+- Write a single test function only. not a class, not a suite.
+- Do not modify any existing file.</div>
+          </div>
+          <div class="warning-row">
+            <div class="wi">⚠️</div>
+            <div>
+              <strong>Watch for:</strong> If you make the test requirements too strict, Agent 2.5 will sometimes fail to produce
+              a valid test and the validation stage will skip the regression test (but still report the existing-suite result).
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SECTION 6: EXTENSIONS -->
+      <section id="extensions" class="section">
+        <div class="section-header">
+          <div class="section-num">6</div>
+          <h2>Common Extension <span>Patterns</span></h2>
+        </div>
+        <p class="section-sub">
+          These are the three most common ways people extend the system. Each one follows an existing pattern already in the codebase. You describe what you want to add, Claude reads the existing code and writes the new piece following the same structure.
+        </p>
+
+        <div class="cc-block">
+          <div class="cc-label">Claude can do this</div>
+          <div class="cc-title">Build any of these extensions for you from scratch</div>
+          <div class="cc-desc">These extensions follow well-established patterns already in the codebase. Claude can read the existing pattern and apply it to your new case. whether that's a new language, a new test framework, or a stronger self-critique check.</div>
+          <div class="cc-multi">
+            <div class="cc-scenario">
+              <span class="cs-tag">New collector</span>
+              <div class="cc-prompt">"Read <strong>collectors/git.sh</strong> to understand the pattern, then create a new collector <strong>collectors/openissues.sh</strong> that uses the <strong>gh</strong> CLI to list any open GitHub Issues that mention the same files as the bug report. Register it in <strong>scripts/briefing.sh</strong> and run <strong>make test-briefing</strong> to verify."</div>
+            </div>
+            <div class="cc-scenario">
+              <span class="cs-tag">New framework</span>
+              <div class="cc-prompt">"Read <strong>collectors/testrunner.sh</strong> and add detection for <strong>RSpec</strong> (Ruby test framework). It uses a <strong>Gemfile</strong> and optionally a <strong>.rspec</strong> config file. The command is <strong>bundle exec rspec</strong>. Follow the exact same detection pattern as the existing frameworks."</div>
+            </div>
+            <div class="cc-scenario">
+              <span class="cs-tag">Stronger self-critique</span>
+              <div class="cc-prompt">"Read <strong>prompts/investigation.md</strong>, specifically the Self-critique section. Add a 4th mandatory check: before writing FINAL FINDINGS, the agent must confirm it has Read the fix-location code at the current HEAD (not from a cached git-show result). Write the check in the same style as the existing three checks."</div>
+            </div>
+            <div class="cc-scenario">
+              <span class="cs-tag">Full plan</span>
+              <div class="cc-prompt">"I want to extend the system to support <strong>[your idea here]</strong>. Read the architecture in <strong>architecture.md</strong> and tell me: which files would I need to change, what pattern should I follow, and what tests should I run to verify it works?"</div>
+            </div>
+          </div>
+          <div class="cc-copy-hint">Click any prompt above to select it, then paste into Claude Code chat</div>
+        </div>
+
+        <div class="ext-grid">
+
+          <div class="ext-card">
+            <div class="ec-num">01</div>
+            <div class="ec-title">Add a new briefing collector for a new language</div>
+            <div class="ec-desc">
+              Each collector is a self-contained bash script that reads from the environment and writes Markdown to stdout.
+              You can add one for any language, tool, or data source.
+            </div>
+            <ul class="ec-steps">
+              <li>Create <code>collectors/myname.sh</code> following the pattern in <code>collectors/git.sh</code></li>
+              <li>Start with <code>printf '## My Section\n\n'</code> and write your data below</li>
+              <li>Register it in <code>scripts/briefing.sh</code>. Find the block where the four collectors are called</li>
+              <li>Run <code>make test-briefing</code> to confirm the new section appears and the pipeline still passes</li>
+              <li>Ask Claude: <em>"Create a collector that traces C++ #include chains for mentioned .cpp files. Follow the pattern in deps.sh."</em></li>
+            </ul>
+          </div>
+
+          <div class="ext-card">
+            <div class="ec-num">02</div>
+            <div class="ec-title">Add a new test framework to detect</div>
+            <div class="ec-desc">
+              The test runner detector reads project config files and returns the correct command.
+              Adding a new framework is just adding a new detection case.
+            </div>
+            <ul class="ec-steps">
+              <li>Open <code>collectors/testrunner.sh</code> and find the detection block</li>
+              <li>Add a new case: check for the framework's config file (e.g. <code>rspec.yml</code>, <code>phpunit.xml</code>)</li>
+              <li>Write the detected command to <code>$TEST_CMD_FILE</code></li>
+              <li>Run <code>make test-briefing</code>. The smoke test will check the detection.</li>
+              <li>Ask Claude: <em>"Add PHPUnit detection to testrunner.sh. Config file is phpunit.xml. Command is `./vendor/bin/phpunit`."</em></li>
+            </ul>
+          </div>
+
+          <div class="ext-card">
+            <div class="ec-num">03</div>
+            <div class="ec-title">Strengthen the self-critique checks in the investigator</div>
+            <div class="ec-desc">
+              The 3 mandatory checks before FINAL FINDINGS are the quality gate for diagnosis.
+              Adding a 4th check is the highest-leverage prompt improvement possible.
+            </div>
+            <ul class="ec-steps">
+              <li>Open <code>prompts/investigation.md</code> and find the "Self-critique" section</li>
+              <li>Add a new numbered check describing what the agent must verify</li>
+              <li>Include the pass/fail criteria so the agent knows when it has satisfied the check</li>
+              <li>Run the real-repo test to compare confidence scores before and after</li>
+              <li>Ask Claude: <em>"Add a 4th self-critique check to investigation.md: the agent must confirm that the fix_context it copied exactly matches what Read returns for that file at the current HEAD."</em></li>
+            </ul>
+          </div>
+
+        </div>
+
+        <div class="callout claude">
+          <div class="co-ic">✦</div>
+          <div class="co-body">
+            <div class="co-title">Claude's role at each step</div>
+            <div class="co-text">
+              You don't need to write any of this yourself. For every extension pattern above, you can describe what you want in plain English
+              and Claude will read the existing code, write the new piece, and tell you which tests to run to verify it.
+              The key is to tell Claude <em>where to look</em> (which file) and <em>what pattern to follow</em> (which existing file looks similar).
+              Claude Code is good at reading structure and continuing it.
+            </div>
+          </div>
+        </div>
+
+        <h3>A note on testing your changes</h3>
+        <p>
+          Every change you make should be verified with the test suite. The pattern is always the same:
+        </p>
+        <ol>
+          <li>Make your change.</li>
+          <li>Run <code>make lint</code> (catches bash syntax errors instantly).</li>
+          <li>Run <code>make test</code> (6 minutes, no AI, checks the whole pipeline).</li>
+          <li>If you changed a prompt or a collector, run <code>make test-real-repo-quick</code> (40 seconds, 2 real bugs, calls AI).</li>
+          <li>If everything passes, you're done.</li>
+        </ol>
+
+        <div class="code-block">
+          <div class="file-label">The standard change-and-verify cycle</div>
+          <pre><span class="cmt"># 1. Make your change (prompt file, collector, or config)</span>
+<span class="kw">vi</span> prompts/investigation.md
+
+<span class="cmt"># 2. Syntax check (instant)</span>
+make lint
+
+<span class="cmt"># 3. Full test suite (no AI, ~6 min)</span>
+make test
+
+<span class="cmt"># 4. Quick real-repo check (calls AI, ~40 sec, costs ~$0.40)</span>
+make test-real-repo-quick
+
+<span class="cmt"># 5. Read the latest report to see if quality improved</span>
+cat .rca-mas/runs/latest/report.md</pre>
+        </div>
+
+      </section>
+
+      <!-- FOOTER -->
+      <div class="footer">
+        <h2>You are <span>not alone.</span></h2>
+        <p>
+          Every dark purple panel in this guide contains a ready-made prompt you can paste directly into Claude Code.
+          Claude reads the relevant files, makes the change, runs the tests, and explains what it did.
+          You bring the intent; Claude brings the implementation.
+        </p>
+        <p class="footer-p-mt">
+          If you get stuck on anything. Whether it is understanding a failure, planning an extension or deciding which threshold to change,
+          open Claude Code in VS Code, navigate to the <code>rca-mas/</code> folder, and describe what you're trying to do in plain English.
+          Claude has full context of the architecture, the prompts, the config and the test suite. It knows what to touch and what to leave alone.
+        </p>
+        <div class="footer-links">
+          <a href="mas_demo.html" class="footer-link">← Open the Demo</a>
+          <a href="#architecture" class="footer-link">Back to the architecture</a>
+          <a href="#change-table" class="footer-link">What to change and where</a>
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<script>
+// Highlight active nav link on scroll
+const sections = document.querySelectorAll('.section[id]');
+const navLinks = document.querySelectorAll('.nav-link[href^="#"]');
+
+const obs = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      navLinks.forEach(l => l.classList.remove('active'));
+      const match = document.querySelector(`.nav-link[href="#${e.target.id}"]`);
+      if (match) match.classList.add('active');
+    }
+  });
+}, { rootMargin: '-20% 0px -70% 0px' });
+
+sections.forEach(s => obs.observe(s));
+</script>
+
+</body>
+</html>

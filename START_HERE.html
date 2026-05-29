@@ -1,0 +1,1271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RCA MAS · Start Here · Repository Knowledge Transfer</title>
+<style>
+:root {
+  --pur: #6b21a8; --pur-2: #7c3aed; --pur-mid: #4c1d95; --pur-dark: #3b0764; --pur-soft: #a78bfa;
+  --lav: #ede4ff; --lav-2: #f4ecff; --lav-3: #faf7ff;
+  --gold: #fbbf24; --gold-2: #f59e0b; --gold-soft: #fef3c7;
+  --ok: #22c55e; --ok-2: #15803d; --ok-soft: #d1fae5;
+  --red: #ef4444; --red-2: #b91c1c; --red-soft: #fee2e2;
+  --amber: #f59e0b; --amber-soft: #fef3c7;
+  --blue: #3b82f6; --blue-2: #1e40af; --blue-soft: #dbeafe;
+  --teal: #14b8a6;
+  --ink: #1a1530; --ink-2: #3a3252; --ink-3: #524a6e; --muted: #6b6680; --dim: #a39ebb;
+  --hair: #e6e1f3; --hair-soft: #f0ecf8;
+  --paper: #ffffff; --paper-2: #f8f6ff; --bg: #fafaff;
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  --serif: "Iowan Old Style", "Palatino Linotype", Palatino, "URW Palladio L", Georgia, serif;
+  --sidebar-w: 280px;
+  --content-max: 1100px;
+  --shadow-sm: 0 1px 2px rgba(59, 7, 100, .06);
+  --shadow-md: 0 4px 16px rgba(59, 7, 100, .08);
+  --shadow-lg: 0 18px 48px rgba(59, 7, 100, .14);
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: var(--font);
+  font-size: 15px;
+  line-height: 1.65;
+  color: var(--ink);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  background-image:
+    radial-gradient(ellipse 70% 50% at 12% 8%, rgba(124,58,237,.05), transparent 60%),
+    radial-gradient(ellipse 60% 50% at 90% 92%, rgba(251,191,36,.04), transparent 60%);
+}
+a { color: var(--pur-2); text-decoration: none; }
+a:hover { color: var(--pur); }
+code { font-family: var(--mono); font-size: 0.92em; background: var(--lav-2); padding: 1px 6px; border-radius: 4px; color: var(--pur-mid); border: 1px solid var(--hair); }
+
+.shell { display: flex; min-height: 100vh; }
+
+/* ─────────── SIDEBAR ─────────── */
+.sidebar {
+  width: var(--sidebar-w);
+  flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+  background: linear-gradient(180deg, var(--pur-dark) 0%, #2d0552 100%);
+  padding: 28px 0 40px;
+  border-right: 1px solid rgba(255,255,255,.08);
+}
+.sidebar-brand { padding: 0 22px 22px; border-bottom: 1px solid rgba(255,255,255,.1); margin-bottom: 16px; }
+.sidebar-brand .logo-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.sidebar-brand .glyph {
+  width: 22px; height: 22px;
+  background: linear-gradient(135deg, var(--gold), var(--gold-2));
+  border-radius: 6px;
+  position: relative;
+  box-shadow: 0 2px 8px rgba(251,191,36,.4);
+}
+.sidebar-brand .glyph::after {
+  content: ""; position: absolute; inset: 4px;
+  background: var(--pur-dark);
+  border-radius: 3px;
+}
+.sidebar-brand .name { font-size: 14px; font-weight: 700; color: #fff; letter-spacing: -.01em; }
+.sidebar-brand .sub { font-size: 11px; color: #c4b5fd; line-height: 1.4; margin-top: 4px; }
+.nav-label { font-size: 9.5px; font-weight: 700; letter-spacing: .18em; text-transform: uppercase; color: var(--pur-soft); padding: 0 22px; margin-bottom: 6px; margin-top: 18px; }
+.nav-link {
+  display: flex; align-items: center; gap: 10px;
+  padding: 7px 22px;
+  text-decoration: none;
+  color: #c4b5fd;
+  font-size: 12.5px;
+  font-weight: 500;
+  line-height: 1.35;
+  transition: background .15s, color .15s, border-color .15s;
+  border-left: 3px solid transparent;
+}
+.nav-link:hover, .nav-link.active { background: rgba(255,255,255,.07); color: #fff; border-left-color: var(--gold); }
+.nav-link .num {
+  font-size: 10px; font-weight: 800; color: var(--gold);
+  background: rgba(251,191,36,.15);
+  border-radius: 4px; padding: 1px 6px;
+  flex-shrink: 0; font-family: var(--mono);
+  min-width: 22px; text-align: center;
+}
+
+/* ─────────── CONTENT ─────────── */
+.content { flex: 1; min-width: 0; padding: 48px 56px 100px; }
+.content-inner { max-width: var(--content-max); margin: 0 auto; }
+
+/* HERO */
+.hero {
+  background: linear-gradient(135deg, var(--pur-dark) 0%, var(--pur-mid) 55%, var(--pur-2) 100%);
+  color: #fff;
+  padding: 52px 52px 46px;
+  border-radius: 18px;
+  margin-bottom: 40px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: var(--shadow-lg);
+}
+.hero::before {
+  content: ""; position: absolute; left: -120px; bottom: -120px;
+  width: 320px; height: 320px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(167,139,250,.22), transparent 70%);
+}
+.hero::after {
+  content: ""; position: absolute; right: -80px; top: -80px;
+  width: 280px; height: 280px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(251,191,36,.22), transparent 70%);
+}
+.hero-content { position: relative; z-index: 1; }
+.hero-eyebrow {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-size: 11px; font-weight: 700; letter-spacing: .25em; text-transform: uppercase;
+  color: var(--gold); margin-bottom: 18px;
+}
+.hero-eyebrow::before { content: ""; width: 24px; height: 1px; background: var(--gold); }
+.hero h1 {
+  font-size: 40px; font-weight: 800; letter-spacing: -.025em;
+  line-height: 1.1; margin-bottom: 18px; max-width: 760px;
+}
+.hero h1 .accent { color: var(--gold); }
+.hero p.lede { font-size: 17px; color: #ddd6fe; max-width: 700px; line-height: 1.6; }
+.hero .stats { display: flex; gap: 36px; margin-top: 36px; flex-wrap: wrap; }
+.hero .stat { display: flex; flex-direction: column; gap: 4px; }
+.hero .stat .v { font-size: 28px; font-weight: 800; color: #fff; letter-spacing: -.02em; font-family: var(--serif); font-style: italic; }
+.hero .stat .l { font-size: 11px; font-weight: 600; color: var(--pur-soft); letter-spacing: .12em; text-transform: uppercase; }
+
+/* SECTION */
+.section { margin-bottom: 56px; scroll-margin-top: 24px; }
+.section-eyebrow {
+  font-size: 10.5px; font-weight: 700; letter-spacing: .22em; text-transform: uppercase;
+  color: var(--pur-2); margin-bottom: 10px;
+  display: flex; align-items: center; gap: 8px;
+}
+.section-eyebrow::before { content: ""; width: 28px; height: 2px; background: var(--gold); }
+.section h2 {
+  font-size: 28px; font-weight: 800; letter-spacing: -.02em;
+  color: var(--ink); margin-bottom: 12px; line-height: 1.2;
+}
+.section h2 .em { color: var(--pur-2); }
+.section .lead {
+  font-size: 16px; color: var(--ink-3); margin-bottom: 28px; max-width: 760px; line-height: 1.65;
+}
+
+/* ─────── WALKTHROUGH CARDS ─────── */
+.walkthrough-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 18px;
+  margin-bottom: 24px;
+}
+.walkthrough-card {
+  background: var(--paper);
+  border: 1px solid var(--hair);
+  border-radius: 14px;
+  padding: 26px 24px 24px;
+  text-decoration: none;
+  color: inherit;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease;
+  box-shadow: var(--shadow-sm);
+}
+.walkthrough-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-lg);
+  border-color: var(--pur-soft);
+}
+.walkthrough-card::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0; height: 4px;
+  background: linear-gradient(90deg, var(--pur-2), var(--gold));
+}
+.walkthrough-card .tag {
+  font-size: 10px; font-weight: 700; letter-spacing: .18em; text-transform: uppercase;
+  color: var(--pur-2); margin-bottom: 12px;
+}
+.walkthrough-card h3 {
+  font-size: 19px; font-weight: 800; color: var(--ink); letter-spacing: -.015em;
+  line-height: 1.25; margin-bottom: 10px;
+}
+.walkthrough-card p {
+  font-size: 13.5px; color: var(--ink-3); line-height: 1.55; margin-bottom: 18px; flex: 1;
+}
+.walkthrough-card .open-link {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 12px; font-weight: 700; color: var(--pur-2);
+  letter-spacing: .04em; text-transform: uppercase;
+}
+.walkthrough-card .open-link::after {
+  content: "↗"; font-size: 14px;
+  transition: transform .15s ease;
+}
+.walkthrough-card:hover .open-link::after { transform: translate(2px, -2px); }
+.walkthrough-card .meta {
+  font-size: 11px; color: var(--muted); font-family: var(--mono);
+  margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--hair-soft);
+}
+
+/* ─────── DIRECTORY TREE ─────── */
+.tree {
+  background: linear-gradient(180deg, var(--pur-dark), var(--pur-mid));
+  color: #ddd6fe;
+  padding: 26px 28px;
+  border-radius: 12px;
+  font-family: var(--mono);
+  font-size: 13px;
+  line-height: 1.8;
+  margin: 8px 0 28px;
+  overflow-x: auto;
+  position: relative;
+  box-shadow: var(--shadow-md);
+}
+.tree::before {
+  content: "MAS_final/";
+  display: block;
+  color: var(--gold);
+  font-weight: 700;
+  margin-bottom: 6px;
+  font-size: 13px;
+}
+.tree .folder { color: var(--gold); font-weight: 600; }
+.tree .file { color: #ddd6fe; }
+.tree .comment { color: #a78bfa; font-style: italic; }
+.tree .hl { color: #fff; font-weight: 600; }
+
+/* ─────── FOLDER CARDS ─────── */
+.folder-section {
+  background: var(--paper);
+  border: 1px solid var(--hair);
+  border-radius: 14px;
+  padding: 28px 30px;
+  margin-bottom: 20px;
+  box-shadow: var(--shadow-sm);
+  scroll-margin-top: 24px;
+}
+.folder-section .folder-head {
+  display: flex; align-items: flex-start; gap: 14px; margin-bottom: 8px;
+}
+.folder-section .folder-icon {
+  width: 38px; height: 38px;
+  border-radius: 9px;
+  background: linear-gradient(135deg, var(--lav), var(--lav-2));
+  border: 1px solid var(--hair);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  font-family: var(--mono);
+  font-weight: 800;
+  color: var(--pur-2);
+  font-size: 14px;
+}
+.folder-section .folder-title {
+  font-family: var(--mono);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--pur-dark);
+  letter-spacing: -.01em;
+  margin-bottom: 2px;
+}
+.folder-section .folder-sub {
+  font-size: 13.5px;
+  color: var(--ink-3);
+  line-height: 1.55;
+}
+.folder-section .folder-body { margin-top: 18px; }
+
+/* file table */
+.file-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13.5px;
+  margin-top: 6px;
+}
+.file-table th {
+  text-align: left;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: .15em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: 8px 10px 8px 0;
+  border-bottom: 1px solid var(--hair);
+}
+.file-table td {
+  padding: 9px 12px 9px 0;
+  border-bottom: 1px solid var(--hair-soft);
+  vertical-align: top;
+  line-height: 1.55;
+}
+.file-table tr:last-child td { border-bottom: none; }
+.file-table .fname {
+  font-family: var(--mono);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--pur-mid);
+  white-space: nowrap;
+}
+.file-table .fname a { color: var(--pur-2); }
+.file-table .fname a:hover { text-decoration: underline; }
+.file-table .desc { color: var(--ink-2); }
+.file-table .desc .pin { color: var(--gold-2); font-weight: 700; font-size: 11px; letter-spacing: .1em; text-transform: uppercase; }
+
+/* subfolder block within folder */
+.subfolder {
+  background: var(--lav-3);
+  border: 1px solid var(--hair-soft);
+  border-radius: 10px;
+  padding: 16px 18px;
+  margin-top: 14px;
+}
+.subfolder .sf-title {
+  font-family: var(--mono);
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--pur-mid);
+  margin-bottom: 4px;
+}
+.subfolder .sf-desc {
+  font-size: 12.5px;
+  color: var(--ink-3);
+  margin-bottom: 10px;
+  line-height: 1.55;
+}
+
+/* ─────── CALLOUTS ─────── */
+.callout {
+  border-radius: 12px;
+  padding: 22px 24px;
+  margin: 24px 0;
+  display: flex;
+  gap: 16px;
+  border-left: 4px solid;
+}
+.callout.gold {
+  background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+  border-left-color: var(--gold-2);
+}
+.callout.pur {
+  background: linear-gradient(135deg, var(--lav-3) 0%, var(--lav-2) 100%);
+  border-left-color: var(--pur-2);
+}
+.callout.ok {
+  background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+  border-left-color: var(--ok);
+}
+.callout .icon {
+  font-size: 22px;
+  flex-shrink: 0;
+  font-weight: 800;
+  width: 36px; height: 36px;
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+}
+.callout.gold .icon { background: var(--gold); color: var(--ink); }
+.callout.pur .icon { background: var(--pur-2); color: #fff; }
+.callout.ok .icon { background: var(--ok); color: #fff; }
+.callout .body { flex: 1; }
+.callout .body h4 {
+  font-size: 14px; font-weight: 800; color: var(--ink);
+  margin-bottom: 4px; letter-spacing: -.005em;
+}
+.callout .body p { font-size: 13.5px; color: var(--ink-2); line-height: 1.6; }
+.callout .body p + p { margin-top: 8px; }
+
+/* ─────── CODE BLOCKS ─────── */
+.code-block {
+  background: var(--pur-dark);
+  color: #e9d5ff;
+  padding: 16px 20px;
+  border-radius: 10px;
+  font-family: var(--mono);
+  font-size: 13px;
+  line-height: 1.7;
+  margin: 16px 0;
+  overflow-x: auto;
+  border-left: 3px solid var(--gold);
+}
+.code-block .c { color: #a78bfa; font-style: italic; }
+.code-block .k { color: var(--gold); font-weight: 600; }
+
+/* ─────── INLINE LIST ─────── */
+.kv-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 14px;
+  margin: 18px 0;
+}
+.kv-item {
+  background: var(--paper);
+  border: 1px solid var(--hair);
+  border-radius: 10px;
+  padding: 14px 16px;
+}
+.kv-item .k {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--pur-2);
+  margin-bottom: 4px;
+}
+.kv-item .v {
+  font-size: 13.5px;
+  color: var(--ink);
+  line-height: 1.5;
+}
+.kv-item .v code { font-size: 12.5px; }
+
+/* ─────── PIPELINE FLOW ─────── */
+.pipeline {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 18px 0 8px;
+  align-items: stretch;
+}
+.pipeline .stage {
+  flex: 1 1 130px;
+  background: var(--paper);
+  border: 1px solid var(--hair);
+  border-radius: 10px;
+  padding: 12px 14px;
+  position: relative;
+}
+.pipeline .stage .label {
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--gold-2);
+  margin-bottom: 3px;
+}
+.pipeline .stage .title {
+  font-family: var(--mono);
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--ink);
+  margin-bottom: 4px;
+}
+.pipeline .stage .role {
+  font-size: 11.5px;
+  color: var(--muted);
+  line-height: 1.4;
+}
+.pipeline .arrow {
+  display: flex;
+  align-items: center;
+  color: var(--pur-soft);
+  font-size: 16px;
+}
+
+/* ─────── FOOTER ─────── */
+.footer {
+  margin-top: 56px;
+  padding: 36px 40px;
+  background: linear-gradient(135deg, var(--pur-dark) 0%, var(--pur-mid) 100%);
+  border-radius: 16px;
+  color: #ddd6fe;
+  position: relative;
+  overflow: hidden;
+  box-shadow: var(--shadow-lg);
+}
+.footer::after {
+  content: ""; position: absolute; right: -60px; bottom: -60px;
+  width: 220px; height: 220px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(251,191,36,.18), transparent 70%);
+}
+.footer .ftr-inner { position: relative; z-index: 1; max-width: 720px; }
+.footer .ftr-eyebrow {
+  font-size: 11px; font-weight: 700; letter-spacing: .22em;
+  text-transform: uppercase; color: var(--gold); margin-bottom: 14px;
+}
+.footer h3 {
+  font-size: 24px; font-weight: 800; color: #fff;
+  letter-spacing: -.015em; line-height: 1.25; margin-bottom: 12px;
+}
+.footer p {
+  font-size: 14.5px; line-height: 1.65; color: #ddd6fe;
+}
+.footer p + p { margin-top: 12px; }
+.footer .sig {
+  display: flex; align-items: center; gap: 10px;
+  margin-top: 22px; padding-top: 18px;
+  border-top: 1px solid rgba(255,255,255,.12);
+  font-size: 12px; color: var(--pur-soft);
+}
+.footer .sig .dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--gold);
+  box-shadow: 0 0 12px var(--gold);
+}
+
+/* ─────── UTILS ─────── */
+ul.clean { list-style: none; padding: 0; margin: 0; }
+ul.clean li {
+  padding: 8px 0 8px 22px;
+  position: relative;
+  font-size: 14px;
+  color: var(--ink-2);
+  line-height: 1.55;
+  border-bottom: 1px solid var(--hair-soft);
+}
+ul.clean li:last-child { border-bottom: none; }
+ul.clean li::before {
+  content: "";
+  position: absolute;
+  left: 4px; top: 16px;
+  width: 6px; height: 6px;
+  background: var(--gold);
+  border-radius: 50%;
+}
+
+.divider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--hair) 20%, var(--hair) 80%, transparent);
+  margin: 40px 0;
+}
+
+@media (max-width: 900px) {
+  .sidebar { display: none; }
+  .content { padding: 28px 24px 60px; }
+  .hero { padding: 36px 28px; }
+  .hero h1 { font-size: 28px; }
+}
+</style>
+</head>
+<body>
+
+<div class="shell">
+
+  <!-- ═══════════════ SIDEBAR ═══════════════ -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="logo-row">
+        <div class="glyph"></div>
+        <div class="name">RCA MAS</div>
+      </div>
+      <div class="sub">Repository Knowledge Transfer</div>
+    </div>
+
+    <div class="nav-label">Begin Here</div>
+    <a class="nav-link active" href="#overview"><span class="num">01</span>Overview</a>
+    <a class="nav-link" href="#walkthroughs"><span class="num">02</span>Walkthroughs</a>
+    <a class="nav-link" href="#quickstart"><span class="num">03</span>Quick Start</a>
+    <a class="nav-link" href="#tree"><span class="num">04</span>Repository Tree</a>
+
+    <div class="nav-label">Folder by Folder</div>
+    <a class="nav-link" href="#root"><span class="num">05</span>Root Files</a>
+    <a class="nav-link" href="#rcamas"><span class="num">06</span>rca-mas/</a>
+    <a class="nav-link" href="#testrepos"><span class="num">07</span>test-repos/</a>
+    <a class="nav-link" href="#reports"><span class="num">08</span>reports/</a>
+    <a class="nav-link" href="#runs"><span class="num">09</span>.rca-mas/runs/</a>
+    <a class="nav-link" href="#walkthroughs-folder"><span class="num">10</span>walkthroughs/</a>
+    <a class="nav-link" href="#other"><span class="num">11</span>archive/ &amp; UX/</a>
+
+    <div class="nav-label">Working With This</div>
+    <a class="nav-link" href="#claudecode"><span class="num">12</span>Built with Claude Code</a>
+    <a class="nav-link" href="#guarantees"><span class="num">13</span>Safety Guarantees</a>
+    <a class="nav-link" href="#handoff"><span class="num">14</span>Handoff Notes</a>
+  </aside>
+
+  <!-- ═══════════════ CONTENT ═══════════════ -->
+  <main class="content">
+    <div class="content-inner">
+
+      <!-- ─── HERO ─── -->
+      <section class="hero" id="overview">
+        <div class="hero-content">
+          <div class="hero-eyebrow">Repository Knowledge Transfer</div>
+          <h1>Start here. <span class="accent">Everything you need to understand this repo</span> in one place.</h1>
+          <p class="lede">
+            This workspace builds an AI bug-diagnosis tool that compresses a 30–60 minute developer investigation
+            into a 3–8 minute automated report. This page is your map: every folder, every file, and the three
+            visual walkthroughs that will get a new engineer productive in an afternoon.
+          </p>
+          <div class="stats">
+            <div class="stat"><div class="v">3</div><div class="l">Visual Walkthroughs</div></div>
+            <div class="stat"><div class="v">5</div><div class="l">Pipeline Stages</div></div>
+            <div class="stat"><div class="v">16</div><div class="l">Reference Docs</div></div>
+            <div class="stat"><div class="v">5</div><div class="l">Real-Repo Test Bugs</div></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ─── WALKTHROUGHS (THE BIG MOMENT) ─── -->
+      <section class="section" id="walkthroughs">
+        <div class="section-eyebrow">If you only read three things</div>
+        <h2>The three <span class="em">visual walkthroughs.</span></h2>
+        <p class="lead">
+          Each opens in a new tab. Together they cover what the tool does, how to extend it, and where it could go next.
+          Designed for anyone — not just engineers — to follow.
+        </p>
+
+        <div class="walkthrough-grid">
+
+          <a class="walkthrough-card" href="walkthroughs/mas_demo.html" target="_blank" rel="noopener">
+            <div class="tag">01 · Live Demo</div>
+            <h3>How a bug becomes a verified fix</h3>
+            <p>
+              A scrolling, slide-by-slide story: QA writes a bug, four bash scripts gather the clues,
+              three agents diagnose, fix, and prove the fix. Five minutes end-to-end, zero rabbit holes.
+            </p>
+            <span class="open-link">Open Walkthrough</span>
+            <div class="meta">walkthroughs/mas_demo.html</div>
+          </a>
+
+          <a class="walkthrough-card" href="walkthroughs/rca_mas_guide.html" target="_blank" rel="noopener">
+            <div class="tag">02 · Builder's Guide</div>
+            <h3>Understand, test &amp; extend the agent</h3>
+            <p>
+              Setup to deploy, how the system is built, how testing works, adding a new repo to test against,
+              what to change and where, and how prompt files shape agent behaviour.
+            </p>
+            <span class="open-link">Open Guide</span>
+            <div class="meta">walkthroughs/rca_mas_guide.html</div>
+          </a>
+
+          <a class="walkthrough-card" href="walkthroughs/rca_mas_improvements.html" target="_blank" rel="noopener">
+            <div class="tag">03 · Roadmap</div>
+            <h3>20 proposed improvements</h3>
+            <p>
+              Architectural changes, testing &amp; quality upgrades, new features, and performance &amp; developer
+              experience wins — organised by category, with rationale for each.
+            </p>
+            <span class="open-link">Open Roadmap</span>
+            <div class="meta">walkthroughs/rca_mas_improvements.html</div>
+          </a>
+
+        </div>
+
+        <div class="callout gold">
+          <div class="icon">★</div>
+          <div class="body">
+            <h4>Why these come first</h4>
+            <p>
+              The three HTML walkthroughs are the highest-bandwidth way to absorb the project. Reading them
+              before opening the code will save hours of orientation. The rest of this page is a map you can
+              come back to as you dig in.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ─── QUICK START ─── -->
+      <section class="section" id="quickstart">
+        <div class="section-eyebrow">Run it in two minutes</div>
+        <h2>Quick start.</h2>
+        <p class="lead">
+          The tool itself lives in <code>rca-mas/</code>. It is self-contained — drop the folder anywhere and run it.
+        </p>
+
+        <div class="code-block">
+<span class="c"># 1. Go to the repo you want to analyze</span>
+<span class="k">cd</span> /path/to/your/repo
+
+<span class="c"># 2. Run the pipeline against a bug report</span>
+<span class="k">bash</span> /path/to/rca-mas/rca-mas.sh /path/to/bug.md
+
+<span class="c"># 3. Read the report</span>
+<span class="k">cat</span> .rca-mas/runs/latest/report.md
+        </div>
+
+        <p style="color: var(--ink-3); margin-top: 12px; font-size: 14px;">
+          To try it immediately against the bundled example, see <code>rca-mas/run.sh</code> — <code>bash run.sh run</code>
+          runs against <code>rca-mas/examples/bug.md</code> inside the tool's own folder.
+        </p>
+      </section>
+
+      <!-- ─── REPO TREE ─── -->
+      <section class="section" id="tree">
+        <div class="section-eyebrow">Bird's eye view</div>
+        <h2>The repository at a glance.</h2>
+        <p class="lead">
+          This is the layout you'll see at the top level. Each piece is explained in detail below.
+        </p>
+
+        <div class="tree">
+<span class="hl">├── START_HERE.html</span>          <span class="comment">← you are here</span>
+<span class="hl">├── walkthroughs/</span>             <span class="comment">← the 3 HTML walkthroughs</span>
+├── <span class="folder">rca-mas/</span>                 <span class="comment">← the tool itself (deployable)</span>
+├── <span class="folder">test-repos/</span>              <span class="comment">← local clones for real-repo testing (gitignored)</span>
+├── <span class="folder">reports/</span>                 <span class="comment">← manually saved reports and strategy notes</span>
+├── <span class="folder">.rca-mas/runs/</span>           <span class="comment">← generated pipeline outputs</span>
+├── <span class="folder">archive/</span>                 <span class="comment">← superseded docs, kept for reference (read-only)</span>
+├── <span class="folder">UX/</span>                      <span class="comment">← visual assets (out of scope here)</span>
+├── <span class="file">CLAUDE.md</span>                  <span class="comment">← workspace rules for Claude Code</span>
+├── <span class="file">README.md</span>                  <span class="comment">← workspace overview</span>
+└── <span class="file">potential_changes.md</span>       <span class="comment">← future ideas (not in current scope)</span>
+        </div>
+
+        <div class="callout pur">
+          <div class="icon">◆</div>
+          <div class="body">
+            <h4>The tool is in <code>rca-mas/</code></h4>
+            <p>
+              The folder you would share, deploy, or drop into another repo is <code>rca-mas/</code>. Everything
+              else at the root is supporting material: walkthroughs, test dependencies, saved outputs,
+              and historical context.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ─── ROOT FILES ─── -->
+      <section class="folder-section" id="root">
+        <div class="folder-head">
+          <div class="folder-icon">/</div>
+          <div>
+            <div class="folder-title">Root files</div>
+            <div class="folder-sub">Top-level files that explain the workspace itself, not the tool.</div>
+          </div>
+        </div>
+        <div class="folder-body">
+          <table class="file-table">
+            <thead>
+              <tr><th style="width: 230px;">File</th><th>What it contains</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="fname"><a href="START_HERE.html">START_HERE.html</a></td>
+                <td class="desc"><span class="pin">★ this page</span> — premium-look knowledge transfer page. The first thing anyone opening this repo should see.</td>
+              </tr>
+              <tr>
+                <td class="fname"><a href="CLAUDE.md">CLAUDE.md</a></td>
+                <td class="desc">Workspace-level rules for Claude Code. Defines what lives where and a small set of safety rules (never auto-commit, never touch <code>archive/</code>, never commit <code>test-repos/</code>).</td>
+              </tr>
+              <tr>
+                <td class="fname"><a href="README.md">README.md</a></td>
+                <td class="desc">Plain-text overview of the workspace and a pointer to <code>rca-mas/</code> as the actual tool.</td>
+              </tr>
+              <tr>
+                <td class="fname"><a href="potential_changes.md">potential_changes.md</a></td>
+                <td class="desc">The single allow-list for future ideas. Architecture is locked, so anything that is not in the current scope is captured here instead of in plan or architecture docs.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ─── WALKTHROUGHS FOLDER ─── -->
+      <section class="folder-section" id="walkthroughs-folder">
+        <div class="folder-head">
+          <div class="folder-icon">⌘</div>
+          <div>
+            <div class="folder-title">walkthroughs/</div>
+            <div class="folder-sub">The three premium HTML presentations that explain the tool visually. Each is self-contained — open in any browser, no server needed.</div>
+          </div>
+        </div>
+        <div class="folder-body">
+          <table class="file-table">
+            <thead>
+              <tr><th style="width: 260px;">File</th><th>What it contains</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="fname"><a href="walkthroughs/mas_demo.html" target="_blank" rel="noopener">mas_demo.html ↗</a></td>
+                <td class="desc"><span class="pin">★ start here</span> — animated, scrollable demo of one bug going through the full pipeline. QA writes a bug → bash gathers clues → Agent 1 finds root cause → Agent 2 writes the fix → Agent 2.5 proves it.</td>
+              </tr>
+              <tr>
+                <td class="fname"><a href="walkthroughs/rca_mas_guide.html" target="_blank" rel="noopener">rca_mas_guide.html ↗</a></td>
+                <td class="desc">Builder's guide. Complete setup to deploy, how the system is built, how testing works, how to add a new repo, what to change and where, how prompt files shape agent behaviour, and common extension patterns.</td>
+              </tr>
+              <tr>
+                <td class="fname"><a href="walkthroughs/rca_mas_improvements.html" target="_blank" rel="noopener">rca_mas_improvements.html ↗</a></td>
+                <td class="desc">Twenty improvements grouped into four categories: architectural changes, testing &amp; quality, new features, and performance &amp; developer experience. Each one has rationale and rough scope.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ─── RCA-MAS FOLDER ─── -->
+      <section class="folder-section" id="rcamas">
+        <div class="folder-head">
+          <div class="folder-icon">◉</div>
+          <div>
+            <div class="folder-title">rca-mas/</div>
+            <div class="folder-sub">The tool itself. Self-contained, no install step — drop it anywhere and run. The folder you would share or deploy.</div>
+          </div>
+        </div>
+        <div class="folder-body">
+
+          <!-- Top-level rca-mas files -->
+          <table class="file-table">
+            <thead>
+              <tr><th style="width: 230px;">File</th><th>What it contains</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="fname"><a href="rca-mas/rca-mas.sh">rca-mas.sh</a></td>
+                <td class="desc"><span class="pin">★ entry point</span> — argument parsing, prerequisite checks, then hands off to the orchestrator. This is the single command operators run.</td>
+              </tr>
+              <tr>
+                <td class="fname"><a href="rca-mas/run.sh">run.sh</a></td>
+                <td class="desc">Convenience wrapper exposing all common dev commands (<code>lint</code>, <code>test-fast</code>, <code>test</code>, <code>test-real-repo</code>, <code>run</code>, <code>report</code>, <code>clean</code>).</td>
+              </tr>
+              <tr>
+                <td class="fname"><a href="rca-mas/Makefile">Makefile</a></td>
+                <td class="desc">Same targets as <code>run.sh</code>, for anyone who prefers <code>make</code> over <code>bash run.sh</code>.</td>
+              </tr>
+              <tr>
+                <td class="fname"><a href="rca-mas/CLAUDE.md">CLAUDE.md</a></td>
+                <td class="desc">Project instructions for Claude Code when working inside the tool. Defines authoritative files, the rules ("architecture is locked"), the path conventions, and a what-to-change-where map.</td>
+              </tr>
+              <tr>
+                <td class="fname"><a href="rca-mas/README.md">README.md</a></td>
+                <td class="desc">Human-facing overview of the tool — what it is, prerequisites, install, quick start, modes, output, configuration, safety guarantees.</td>
+              </tr>
+              <tr>
+                <td class="fname"><a href="rca-mas/architecture.md">architecture.md</a></td>
+                <td class="desc">The locked architecture reference. System boundaries, the pipeline, agent contracts, and the decisions kept versus cut.</td>
+              </tr>
+              <tr>
+                <td class="fname"><a href="rca-mas/code_practices.md">code_practices.md</a></td>
+                <td class="desc">Implementation authority — bash patterns, CLI contract, agent tool restrictions, security rules. The source of truth when style questions come up.</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <!-- Subfolder: scripts -->
+          <div class="subfolder">
+            <div class="sf-title">scripts/ — pipeline orchestration</div>
+            <div class="sf-desc">Bash scripts that run the show. The orchestrator is the controller; everything else is a worker.</div>
+            <table class="file-table">
+              <tbody>
+                <tr><td class="fname"><a href="rca-mas/scripts/orchestrator.sh">orchestrator.sh</a></td><td class="desc">Pipeline controller. Owns the run lifecycle from start to <code>report.md</code>.</td></tr>
+                <tr><td class="fname"><a href="rca-mas/scripts/briefing.sh">briefing.sh</a></td><td class="desc">Pure bash repo scan, zero LLM calls. Calls each of the four collectors and assembles a briefing.</td></tr>
+                <tr><td class="fname"><a href="rca-mas/scripts/claude_json.sh">claude_json.sh</a></td><td class="desc">Shared helper that runs a Claude agent and enforces JSON-schema output. Used by every agent stage.</td></tr>
+                <tr><td class="fname"><a href="rca-mas/scripts/extract_agent1a_stream.sh">extract_agent1a_stream.sh</a></td><td class="desc">Parses the streaming JSONL output from Agent 1a so we can render it live and recover from timeouts.</td></tr>
+                <tr><td class="fname"><a href="rca-mas/scripts/finalize_agent1a_summary.sh">finalize_agent1a_summary.sh</a></td><td class="desc">If Agent 1a runs out of turns mid-investigation, this forces a "FINAL FINDINGS" summary so the next stage has something to work with.</td></tr>
+                <tr><td class="fname"><a href="rca-mas/scripts/check_agent1a_quality.sh">check_agent1a_quality.sh</a></td><td class="desc">Gates the Agent 1a checkpoint as <code>ok</code> or <code>weak</code> — drives the recovery branch.</td></tr>
+                <tr><td class="fname"><a href="rca-mas/scripts/recover_agent1a_findings.sh">recover_agent1a_findings.sh</a></td><td class="desc">Fallback evidence extraction when checkpoint quality is weak. Salvages what Agent 1a did find.</td></tr>
+                <tr><td class="fname"><a href="rca-mas/scripts/report.sh">report.sh</a></td><td class="desc">Reads diagnosis + solution + (optional) validation JSON and writes the human-readable <code>report.md</code>.</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Subfolder: collectors -->
+          <div class="subfolder">
+            <div class="sf-title">collectors/ — bash repo scanners (no LLM)</div>
+            <div class="sf-desc">Each collector is an independent bash script. They run before any agent — fast, deterministic, and free.</div>
+            <table class="file-table">
+              <tbody>
+                <tr><td class="fname"><a href="rca-mas/collectors/git.sh">git.sh</a></td><td class="desc">Git log, blame, and recent merges for files the bug mentions.</td></tr>
+                <tr><td class="fname"><a href="rca-mas/collectors/deps.sh">deps.sh</a></td><td class="desc">Import tracing for Python, JavaScript/TypeScript, and Go — finds what depends on the suspect files.</td></tr>
+                <tr><td class="fname"><a href="rca-mas/collectors/errors.sh">errors.sh</a></td><td class="desc">Fixed-string grep across the repo for each error string in the bug report.</td></tr>
+                <tr><td class="fname"><a href="rca-mas/collectors/testrunner.sh">testrunner.sh</a></td><td class="desc">Detects the test framework and maps source files to test files.</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Subfolder: lib -->
+          <div class="subfolder">
+            <div class="sf-title">lib/ — shared bash helpers</div>
+            <div class="sf-desc">Tiny utilities sourced by orchestrator and collectors. No business logic — only plumbing.</div>
+            <table class="file-table">
+              <tbody>
+                <tr><td class="fname"><a href="rca-mas/lib/log.sh">log.sh</a></td><td class="desc"><code>die / warn / info / log_event</code>. <code>log_event</code> writes JSONL so runs are debuggable after the fact.</td></tr>
+                <tr><td class="fname"><a href="rca-mas/lib/json.sh">json.sh</a></td><td class="desc"><code>extract_structured</code>, <code>jq_field</code>, <code>assert_valid_json</code> — anything that touches JSON.</td></tr>
+                <tr><td class="fname"><a href="rca-mas/lib/paths.sh">paths.sh</a></td><td class="desc"><code>make_run_id</code>, <code>init_run_dir</code>, <code>update_latest_symlink</code> — run-directory lifecycle.</td></tr>
+                <tr><td class="fname"><a href="rca-mas/lib/cleanup.sh">cleanup.sh</a></td><td class="desc"><code>register_worktree</code>, <code>run_cleanup</code> wired into <code>trap EXIT</code>. Ensures worktrees never leak.</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Subfolder: prompts -->
+          <div class="subfolder">
+            <div class="sf-title">prompts/ — agent system prompts</div>
+            <div class="sf-desc">One markdown file per agent role. Editing these is how you tune agent behaviour without touching code.</div>
+            <table class="file-table">
+              <tbody>
+                <tr><td class="fname"><a href="rca-mas/prompts/investigation.md">investigation.md</a></td><td class="desc">Agent 1a — toolful investigation across the whole repo.</td></tr>
+                <tr><td class="fname"><a href="rca-mas/prompts/investigation_write.md">investigation_write.md</a></td><td class="desc">Checkpoint-write phase prompt (1-turn synthesis between 1a and 1b).</td></tr>
+                <tr><td class="fname"><a href="rca-mas/prompts/diagnosis.md">diagnosis.md</a></td><td class="desc">Agent 1b — schema-enforced synthesis. Reads only the checkpoint, not the repo.</td></tr>
+                <tr><td class="fname"><a href="rca-mas/prompts/agent1b_repair.md">agent1b_repair.md</a></td><td class="desc">One-shot repair prompt if Agent 1b's first response fails schema validation.</td></tr>
+                <tr><td class="fname"><a href="rca-mas/prompts/solution.md">solution.md</a></td><td class="desc">Agent 2 — proposes the fix as a diff, read-only access to the repo.</td></tr>
+                <tr><td class="fname"><a href="rca-mas/prompts/agent2_repair.md">agent2_repair.md</a></td><td class="desc">One-shot repair prompt for Agent 2 schema failures.</td></tr>
+                <tr><td class="fname"><a href="rca-mas/prompts/agent1a_force_summary.md">agent1a_force_summary.md</a></td><td class="desc">Forces Agent 1a to finalise findings when it runs out of turns.</td></tr>
+                <tr><td class="fname"><a href="rca-mas/prompts/agent1a_recover_from_evidence.md">agent1a_recover_from_evidence.md</a></td><td class="desc">Reconstructs a usable summary from partial evidence after a weak checkpoint.</td></tr>
+                <tr><td class="fname"><a href="rca-mas/prompts/validation.md">validation.md</a></td><td class="desc">Agent 2.5 — applies the patch in a git worktree and runs the test suite.</td></tr>
+                <tr><td class="fname"><a href="rca-mas/prompts/README.md">README.md</a></td><td class="desc">Index of the prompts folder.</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Subfolder: schemas -->
+          <div class="subfolder">
+            <div class="sf-title">schemas/ — JSON contracts between stages</div>
+            <div class="sf-desc">Every agent output is validated against one of these schemas. Schema failure triggers the matching repair prompt.</div>
+            <table class="file-table">
+              <tbody>
+                <tr><td class="fname"><a href="rca-mas/schemas/diagnosis.schema.json">diagnosis.schema.json</a></td><td class="desc">Agent 1b output contract — root cause, evidence, confidence, affected files.</td></tr>
+                <tr><td class="fname"><a href="rca-mas/schemas/solution.schema.json">solution.schema.json</a></td><td class="desc">Agent 2 output contract — proposed fix, diff, files changed, rationale.</td></tr>
+                <tr><td class="fname"><a href="rca-mas/schemas/validation.schema.json">validation.schema.json</a></td><td class="desc">Agent 2.5 output contract — whether the patch applied, tests passed, regression check.</td></tr>
+                <tr><td class="fname"><a href="rca-mas/schemas/checkpoint.schema.json">checkpoint.schema.json</a></td><td class="desc">Internal contract between Agent 1a (investigation) and Agent 1b (diagnosis).</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Subfolder: config -->
+          <div class="subfolder">
+            <div class="sf-title">config/ — single source of truth for every tunable</div>
+            <table class="file-table">
+              <tbody>
+                <tr><td class="fname"><a href="rca-mas/config/defaults.env">defaults.env</a></td><td class="desc"><span class="pin">★ change here, nowhere else</span> — turn budgets, timeouts, confidence thresholds, model choice. Every parameter the tool knobs is in this file.</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Subfolder: docs -->
+          <div class="subfolder">
+            <div class="sf-title">docs/ — sixteen reference documents</div>
+            <div class="sf-desc">When you need precision: pipeline detail, agent contracts, CLI reference, troubleshooting, decisions log. Start with <code>docs/index.md</code>.</div>
+            <table class="file-table">
+              <tbody>
+                <tr><td class="fname"><a href="rca-mas/docs/index.md">index.md</a></td><td class="desc">Suggested reading order across all docs.</td></tr>
+                <tr><td class="fname"><a href="rca-mas/docs/architecture.md">architecture.md</a></td><td class="desc">System boundaries, pipeline diagram, context-funnel principle.</td></tr>
+                <tr><td class="fname"><a href="rca-mas/docs/pipeline-flow.md">pipeline-flow.md</a></td><td class="desc">Every stage of the pipeline, step by step.</td></tr>
+                <tr><td class="fname"><a href="rca-mas/docs/agent-contracts.md">agent-contracts.md</a></td><td class="desc">Each agent's role, inputs, outputs, and tool list.</td></tr>
+                <tr><td class="fname"><a href="rca-mas/docs/briefing-and-collectors.md">briefing-and-collectors.md</a></td><td class="desc">Briefing phases and what each collector produces.</td></tr>
+                <tr><td class="fname"><a href="rca-mas/docs/cli-reference.md">cli-reference.md</a></td><td class="desc">Every CLI flag and environment variable.</td></tr>
+                <tr><td class="fname"><a href="rca-mas/docs/schemas.md">schemas.md</a></td><td class="desc">Every JSON schema field, with examples.</td></tr>
+                <tr><td class="fname"><a href="rca-mas/docs/run-artifacts.md">run-artifacts.md</a></td><td class="desc">Every file that ends up in a run directory.</td></tr>
+                <tr><td class="fname"><a href="rca-mas/docs/validation-worktree.md">validation-worktree.md</a></td><td class="desc">Worktree lifecycle, patch application, cleanup.</td></tr>
+                <tr><td class="fname"><a href="rca-mas/docs/security-model.md">security-model.md</a></td><td class="desc">Trust boundaries, denied operations, files the tool will never read.</td></tr>
+                <tr><td class="fname"><a href="rca-mas/docs/development-guide.md">development-guide.md</a></td><td class="desc">How to add collectors, prompts, schemas.</td></tr>
+                <tr><td class="fname"><a href="rca-mas/docs/testing-guide.md">testing-guide.md</a></td><td class="desc">How to run and write tests.</td></tr>
+                <tr><td class="fname"><a href="rca-mas/docs/testing-real-github-bugs.md">testing-real-github-bugs.md</a></td><td class="desc">Setup and scoring contract for the real-repo (pallets/click) tests.</td></tr>
+                <tr><td class="fname"><a href="rca-mas/docs/troubleshooting.md">troubleshooting.md</a></td><td class="desc">Common failures and exact fixes.</td></tr>
+                <tr><td class="fname"><a href="rca-mas/docs/decisions.md">decisions.md</a></td><td class="desc">Why architecture choices were made. What was cut and why.</td></tr>
+                <tr><td class="fname"><a href="rca-mas/docs/qa-to-dev-flow.md">qa-to-dev-flow.md</a></td><td class="desc">How the tool fits into a QA-to-dev workflow with a human in the loop.</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Subfolder: tests -->
+          <div class="subfolder">
+            <div class="sf-title">tests/ — synthetic suites + real-repo bug fixtures</div>
+            <div class="sf-desc">Five suites cover briefing, collectors, schemas, smoke-pipeline, and real-repo briefing. <code>tests/fixtures/</code> holds hand-authored JSON (not real agent outputs) used to exercise schema and report wiring without making Claude calls.</div>
+            <table class="file-table">
+              <tbody>
+                <tr><td class="fname"><a href="rca-mas/tests/test_briefing.sh">test_briefing.sh</a></td><td class="desc">End-to-end <code>briefing.sh</code> verification on a controlled temp repo.</td></tr>
+                <tr><td class="fname"><a href="rca-mas/tests/test_collectors.sh">test_collectors.sh</a></td><td class="desc">Each collector — exit code, headers, edge cases.</td></tr>
+                <tr><td class="fname"><a href="rca-mas/tests/test_json_schemas.sh">test_json_schemas.sh</a></td><td class="desc">Schema validity and the <code>lib/json.sh</code> helpers, using fixtures only — no repo.</td></tr>
+                <tr><td class="fname"><a href="rca-mas/tests/test_smoke_report_only.sh">test_smoke_report_only.sh</a></td><td class="desc">Full pipeline wiring with fixture JSON, no Claude calls.</td></tr>
+                <tr><td class="fname"><a href="rca-mas/tests/test_real_repo_briefing.sh">test_real_repo_briefing.sh</a></td><td class="desc">Briefing quality on real pallets/click bugs with known fixes.</td></tr>
+                <tr><td class="fname"><a href="rca-mas/tests/fixtures/">fixtures/</a></td><td class="desc">Sample bug, diagnosis, solution, validation, and cost-summary JSON. Tagged <code>run_id: "fixture-run"</code> so they're never confused with real runs.</td></tr>
+                <tr><td class="fname"><a href="rca-mas/tests/real_repos/click/">real_repos/click/</a></td><td class="desc">Five real Click bugs (<code>bug1.md</code>–<code>bug5.md</code>) with known fix SHAs, affected files, and a scoring contract. Used to benchmark diagnostic accuracy on actual upstream issues.</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Subfolder: examples + templates -->
+          <div class="subfolder">
+            <div class="sf-title">examples/ &amp; templates/</div>
+            <table class="file-table">
+              <tbody>
+                <tr><td class="fname"><a href="rca-mas/examples/bug.md">examples/bug.md</a></td><td class="desc">A complete sample bug report — the format you would hand the tool.</td></tr>
+                <tr><td class="fname"><a href="rca-mas/examples/sample-report.md">examples/sample-report.md</a></td><td class="desc">What the pipeline produces. Read this before your first run so you know what to expect.</td></tr>
+                <tr><td class="fname"><a href="rca-mas/templates/CLAUDE.md.snippet">templates/CLAUDE.md.snippet</a></td><td class="desc">Drop this into your target repo's <code>CLAUDE.md</code> to let Claude Code drive the pipeline from chat — e.g. <em>"use rca-mas to diagnose the bug I just pasted"</em>.</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- ─── PIPELINE FLOW (cross-cut illustration) ─── -->
+      <section class="section">
+        <div class="section-eyebrow">How the pieces connect</div>
+        <h2>The pipeline at a glance.</h2>
+        <p class="lead">
+          Each stage receives only the previous stage's output (a context funnel). The pipeline never commits,
+          pushes, deploys, or edits the working tree.
+        </p>
+        <div class="pipeline">
+          <div class="stage"><div class="label">Stage 1</div><div class="title">briefing.sh</div><div class="role">Bash repo scan, four collectors, zero LLM calls.</div></div>
+          <div class="arrow">→</div>
+          <div class="stage"><div class="label">Stage 2a</div><div class="title">Agent 1a</div><div class="role">Toolful investigation, full repo access.</div></div>
+          <div class="arrow">→</div>
+          <div class="stage"><div class="label">Stage 2b</div><div class="title">Agent 1b</div><div class="role">Schema-enforced synthesis. Sees only the checkpoint.</div></div>
+          <div class="arrow">→</div>
+          <div class="stage"><div class="label">Stage 3</div><div class="title">Agent 2</div><div class="role">Proposes a fix as a diff. Read-only.</div></div>
+          <div class="arrow">→</div>
+          <div class="stage"><div class="label">Stage 4</div><div class="title">Agent 2.5</div><div class="role">Worktree-only: applies patch, runs tests.</div></div>
+          <div class="arrow">→</div>
+          <div class="stage"><div class="label">Output</div><div class="title">report.md</div><div class="role">Human-readable summary with the diff.</div></div>
+        </div>
+      </section>
+
+      <!-- ─── TEST-REPOS ─── -->
+      <section class="folder-section" id="testrepos">
+        <div class="folder-head">
+          <div class="folder-icon">⌥</div>
+          <div>
+            <div class="folder-title">test-repos/</div>
+            <div class="folder-sub">Local clones of upstream repos used by the real-repo test suite. Gitignored — never committed.</div>
+          </div>
+        </div>
+        <div class="folder-body">
+          <table class="file-table">
+            <thead><tr><th style="width: 230px;">Path</th><th>What it contains</th></tr></thead>
+            <tbody>
+              <tr>
+                <td class="fname">test-repos/click/</td>
+                <td class="desc">A clone of <code>pallets/click</code>. Required by <code>bash run.sh test-real-repo</code>. Override the path with <code>RCA_REAL_REPO_ROOT=/custom/path</code>.</td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="callout pur">
+            <div class="icon">i</div>
+            <div class="body">
+              <h4>Set up before running real-repo tests</h4>
+              <p>
+                <code>git clone https://github.com/pallets/click test-repos/click</code> — that single command
+                is the only setup step. The real-repo suite verifies briefing quality on five actual upstream
+                bugs whose fixes are already known.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ─── REPORTS ─── -->
+      <section class="folder-section" id="reports">
+        <div class="folder-head">
+          <div class="folder-icon">⌃</div>
+          <div>
+            <div class="folder-title">reports/</div>
+            <div class="folder-sub">Manually saved reports, strategy notes, and test-data plans. Different from <code>.rca-mas/runs/</code> — those are auto-generated per run; these are curated.</div>
+          </div>
+        </div>
+        <div class="folder-body">
+          <div class="subfolder">
+            <div class="sf-title">reports/batch1/</div>
+            <table class="file-table">
+              <tbody>
+                <tr><td class="fname"><a href="reports/batch1/step1_2_3_report.md">step1_2_3_report.md</a></td><td class="desc">Summary of the first three implementation steps.</td></tr>
+                <tr><td class="fname"><a href="reports/batch1/step4_hardening_report.md">step4_hardening_report.md</a></td><td class="desc">Hardening report after step 4.</td></tr>
+                <tr><td class="fname"><a href="reports/batch1/step4_issues_report.md">step4_issues_report.md</a></td><td class="desc">Issues found during step 4 and their resolutions.</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="subfolder">
+            <div class="sf-title">reports/strategy/</div>
+            <table class="file-table">
+              <tbody>
+                <tr><td class="fname"><a href="reports/strategy/step4_5_realgh_strat.md">step4_5_realgh_strat.md</a></td><td class="desc">Strategy for moving to real GitHub bug testing.</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="subfolder">
+            <div class="sf-title">reports/test_data/</div>
+            <table class="file-table">
+              <tbody>
+                <tr><td class="fname"><a href="reports/test_data/test_data_v1.md">test_data_v1.md</a></td><td class="desc">Plan for the synthetic test data used during early development.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ─── RUNS ─── -->
+      <section class="folder-section" id="runs">
+        <div class="folder-head">
+          <div class="folder-icon">⌁</div>
+          <div>
+            <div class="folder-title">.rca-mas/runs/</div>
+            <div class="folder-sub">Generated outputs. Every invocation of the tool creates a new run directory here. The <code>latest</code> symlink always points to the most recent one.</div>
+          </div>
+        </div>
+        <div class="folder-body">
+          <div class="kv-grid">
+            <div class="kv-item"><div class="k">report.md</div><div class="v">The human-readable report — root cause, evidence, proposed fix, next actions.</div></div>
+            <div class="kv-item"><div class="k">briefing.md</div><div class="v">Output of the four bash collectors. No LLM involvement.</div></div>
+            <div class="kv-item"><div class="k">diagnosis.json</div><div class="v">Agent 1b's schema-enforced output.</div></div>
+            <div class="kv-item"><div class="k">solution.json</div><div class="v">Agent 2's proposed fix.</div></div>
+            <div class="kv-item"><div class="k">validation.json</div><div class="v">Agent 2.5's verification result (present only with <code>--validate</code>).</div></div>
+            <div class="kv-item"><div class="k">patches/fix.diff</div><div class="v">Extracted patch. Apply with <code>git apply</code>.</div></div>
+            <div class="kv-item"><div class="k">log.jsonl</div><div class="v">Structured event log. Replay a run, count tokens, debug failures.</div></div>
+            <div class="kv-item"><div class="k">*.raw.json</div><div class="v">Raw Claude responses, kept for forensics when output looks off.</div></div>
+          </div>
+          <p style="color: var(--ink-3); font-size: 14px; margin-top: 8px;">
+            Each run directory is named <code>{epoch}-{short-sha}</code>. See <a href="rca-mas/docs/run-artifacts.md">docs/run-artifacts.md</a> for the full breakdown.
+          </p>
+        </div>
+      </section>
+
+      <!-- ─── ARCHIVE + UX ─── -->
+      <section class="folder-section" id="other">
+        <div class="folder-head">
+          <div class="folder-icon">▣</div>
+          <div>
+            <div class="folder-title">archive/ &amp; UX/</div>
+            <div class="folder-sub">Two folders intentionally left undocumented here. Mentioned for completeness only.</div>
+          </div>
+        </div>
+        <div class="folder-body">
+          <table class="file-table">
+            <tbody>
+              <tr>
+                <td class="fname">archive/</td>
+                <td class="desc">Superseded docs, old exports, presentation files. <strong>Read-only</strong> — never modify or commit changes here. Kept solely as reference for how the project evolved.</td>
+              </tr>
+              <tr>
+                <td class="fname">UX/</td>
+                <td class="desc">Visual assets and explorations. Out of scope for this knowledge transfer.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ─── BUILT WITH CLAUDE CODE ─── -->
+      <section class="section" id="claudecode">
+        <div class="section-eyebrow">A note for whoever picks this up</div>
+        <h2>Built with <span class="em">Claude Code</span> — and Claude Code can keep building it.</h2>
+        <p class="lead">
+          Every piece of this repo — the orchestrator, the collectors, the prompts, the tests, even these three
+          HTML walkthroughs — was written with Claude Code as a collaborator. The same workflow is available to
+          whoever inherits this work.
+        </p>
+
+        <div class="callout pur">
+          <div class="icon">⌘</div>
+          <div class="body">
+            <h4>The tool reads its own instructions</h4>
+            <p>
+              <code>rca-mas/CLAUDE.md</code> and the root <code>CLAUDE.md</code> are written for Claude Code to consume.
+              They define the architecture lock, the safety rules, the path conventions, and a what-to-change-where map.
+              Open the repo in Claude Code and ask <em>"explain the pipeline"</em>, <em>"add a new collector for &lt;X&gt;"</em>,
+              or <em>"why does Agent 1b have a repair prompt?"</em> — Claude Code already has the map.
+            </p>
+          </div>
+        </div>
+
+        <div class="callout gold">
+          <div class="icon">→</div>
+          <div class="body">
+            <h4>Practical things Claude Code can do here</h4>
+            <p>
+              Diagnose a bug end-to-end via <code>rca-mas.sh</code>. Author or refine prompts in <code>rca-mas/prompts/</code>.
+              Add a collector by following <code>rca-mas/docs/development-guide.md</code>. Run the test suites
+              (<code>bash run.sh test-fast</code>, then <code>test</code>, then <code>test-real-repo</code>) and
+              triage failures. Update docs in step with code changes — that's the project rule.
+            </p>
+            <p>
+              For chat-driven use inside any target repo, append <code>rca-mas/templates/CLAUDE.md.snippet</code>
+              to that repo's <code>CLAUDE.md</code> and prompts like <em>"use rca-mas to find the issue in bug.md"</em> just work.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ─── SAFETY GUARANTEES ─── -->
+      <section class="section" id="guarantees">
+        <div class="section-eyebrow">Inviolate rules</div>
+        <h2>What the tool will <span class="em">never</span> do.</h2>
+        <p class="lead">
+          These guarantees are enforced by <code>rca-mas/.claude/settings.json</code> — not by convention.
+        </p>
+        <ul class="clean">
+          <li><strong>Never</strong> commit, push, tag, or open a pull request.</li>
+          <li><strong>Never</strong> edit files in your working tree. <code>--validate</code> works in an isolated git worktree, then deletes it.</li>
+          <li><strong>Never</strong> read <code>.env</code>, <code>.pem</code>, <code>.key</code>, <code>id_rsa</code>, or any credential file.</li>
+          <li><strong>Never</strong> run <code>curl</code>, <code>wget</code>, <code>ssh</code>, or <code>scp</code>.</li>
+          <li><strong>Never</strong> scan its own folder when analysing a different target repo (<code>rca-mas/**</code> and <code>.rca-mas/**</code> are excluded).</li>
+        </ul>
+        <p style="color: var(--ink-3); font-size: 14px; margin-top: 14px;">
+          Full trust model in <a href="rca-mas/docs/security-model.md">rca-mas/docs/security-model.md</a>.
+        </p>
+      </section>
+
+      <!-- ─── HANDOFF ─── -->
+      <section class="section" id="handoff">
+        <div class="section-eyebrow">For my successor</div>
+        <h2>One paragraph for whoever inherits this.</h2>
+        <p class="lead">
+          The architecture is intentionally <strong>locked</strong>. Five pipeline stages, four collectors, four schemas,
+          two CLAUDE.md files, sixteen reference docs. The lock is not because the design is perfect — it's because
+          a moving target was the single biggest risk during the build. New ideas live in
+          <a href="potential_changes.md">potential_changes.md</a> and on the
+          <a href="walkthroughs/rca_mas_improvements.html" target="_blank" rel="noopener">improvements walkthrough</a>.
+          When you're ready to extend, unlock deliberately: read <code>rca-mas/docs/decisions.md</code> first
+          to understand what was already considered and cut. Then change the architecture doc in the same commit
+          as the code. The rule that has saved this project the most pain is the one at the top of <code>rca-mas/CLAUDE.md</code>:
+          <em>when you change code, update the matching doc in the same step</em>.
+        </p>
+
+        <div class="callout ok">
+          <div class="icon">✓</div>
+          <div class="body">
+            <h4>The shortest possible onboarding path</h4>
+            <p>
+              <strong>Day 1.</strong> Read this page. Open all three walkthroughs.
+              Clone <code>pallets/click</code> into <code>test-repos/click/</code>. Run <code>bash run.sh test-fast</code>
+              inside <code>rca-mas/</code>. Read the resulting <code>report.md</code>.
+            </p>
+            <p>
+              <strong>Day 2.</strong> Read <code>rca-mas/docs/index.md</code> and follow the order it gives you.
+              By the end of the day you will have read every doc that matters.
+            </p>
+            <p>
+              <strong>Day 3.</strong> Pick one item from the improvements walkthrough that is small enough to ship
+              in a week. Discuss with Claude Code before touching code. Update the doc in the same commit.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ─── FOOTER ─── -->
+      <footer class="footer">
+        <div class="ftr-inner">
+          <div class="ftr-eyebrow">End of Knowledge Transfer</div>
+          <h3>You now have the whole map.</h3>
+          <p>
+            Three walkthroughs to absorb the project visually. A folder-by-folder breakdown to find anything by hand.
+            Two <code>CLAUDE.md</code> files so the codebase explains itself to whatever tool you open it in next.
+          </p>
+          <p>
+            Good luck — and treat the architecture lock as a feature, not a constraint.
+          </p>
+          <div class="sig">
+            <span class="dot"></span>
+            <span>RCA MAS · Knowledge Transfer · Generated for the next maintainer</span>
+          </div>
+        </div>
+      </footer>
+
+    </div>
+  </main>
+</div>
+
+<script>
+  // Smooth scrollspy on the sidebar nav.
+  const links = document.querySelectorAll('.nav-link[href^="#"]');
+  const targets = Array.from(links).map(l => {
+    const id = l.getAttribute('href').slice(1);
+    return { link: l, el: document.getElementById(id) };
+  }).filter(t => t.el);
+
+  function setActive() {
+    let active = targets[0];
+    const offset = 120;
+    for (const t of targets) {
+      const top = t.el.getBoundingClientRect().top;
+      if (top - offset <= 0) active = t;
+    }
+    links.forEach(l => l.classList.remove('active'));
+    if (active) active.link.classList.add('active');
+  }
+
+  document.addEventListener('scroll', setActive, { passive: true });
+  setActive();
+</script>
+
+</body>
+</html>

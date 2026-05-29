@@ -524,6 +524,18 @@ body{
 /* ═════════════════════════════════════════════════════
    KNOBS / CUSTOM CHANGES TAB
    ═════════════════════════════════════════════════════ */
+
+/* ── WHAT TO DO NEXT CARDS ── */
+.next-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:14px}
+.next-card{background:var(--paper);border:1px solid var(--hair);border-radius:10px;padding:13px 14px;display:flex;flex-direction:column;gap:6px;box-shadow:0 2px 10px -5px rgba(60,40,100,.1)}
+.next-card .nc-icon{font-size:20px;line-height:1;margin-bottom:2px}
+.next-card .nc-title{font-size:13px;font-weight:700;color:var(--ink);line-height:1.25;letter-spacing:-.005em}
+.next-card .nc-desc{font-size:11.5px;color:var(--ink-2);line-height:1.5;flex:1}
+.next-card .nc-prompt{font-family:var(--font);font-size:11px;font-style:italic;color:var(--pur-dark);background:var(--lav-2);border:1px solid var(--pur-soft);border-radius:5px;padding:6px 9px;cursor:pointer;-webkit-user-select:all;user-select:all;line-height:1.45;margin-top:auto}
+.next-card .nc-prompt .np-label{display:block;font-size:9px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--pur);margin-bottom:3px;font-style:normal}
+.next-section-h{font-size:11px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--pur);margin:16px 0 2px;display:flex;align-items:center;gap:10px}
+.next-section-h::before,.next-section-h::after{content:"";flex:1;height:1px;background:var(--hair)}
+
 .kb-wrap{padding:4px 18px 24px;overflow-y:auto;height:100%;max-width:1500px;margin:0 auto}
 .kb-head{text-align:center;padding:8px 0 18px}
 .kb-head .tag{font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--pur);font-weight:700;margin-bottom:6px;display:inline-flex;align-items:center;gap:8px}
@@ -547,6 +559,60 @@ body{
 .kb-card.tune{border-left:3px solid var(--gold-2)}
 .kb-card .ctrl{display:block;font-family:var(--font);font-size:12px;font-weight:500;color:#5b3a07;background:linear-gradient(95deg,#fef9e7,#fef3c7);border-left:3px solid var(--gold-2);padding:6px 12px;border-radius:5px;margin-top:6px;line-height:1.5}
 .kb-card .ctrl strong{color:#7c2d12;font-weight:800;letter-spacing:.04em;text-transform:uppercase;font-size:10px;margin-right:8px}
+/* ═════════════════════════════════════════════════════
+   SETUP & DEPLOY TAB
+   ═════════════════════════════════════════════════════ */
+.sd-wrap{padding:4px 16px 24px;overflow-y:auto;height:100%;max-width:1400px;margin:0 auto}
+.sd-head{text-align:center;padding:6px 0 16px}
+.sd-head h2{font-size:24px;font-weight:800;letter-spacing:-.015em;color:var(--ink);line-height:1.1}
+.sd-head h2 span{color:var(--pur)}
+.sd-head p{font-size:13px;color:var(--ink-2);margin:6px auto 0;max-width:72ch;line-height:1.55}
+
+.sd-phases{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:18px}
+.sd-phase{background:var(--paper);border:1px solid var(--hair);border-radius:12px;overflow:hidden;box-shadow:0 3px 14px -6px rgba(60,40,100,.1);display:flex;flex-direction:column}
+.sd-phase-head{padding:12px 16px;display:flex;align-items:center;gap:10px}
+.sd-phase-head.ph1{background:linear-gradient(95deg,#fef3c7,#fde68a);border-bottom:1px solid var(--gold)}
+.sd-phase-head.ph2{background:linear-gradient(95deg,var(--lav),var(--lav-2));border-bottom:1px solid var(--pur-soft)}
+.sd-phase-head.ph3{background:linear-gradient(95deg,#dcfce7,#bbf7d0);border-bottom:1px solid #86efac}
+.sd-phase-head .ph-num{width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;flex-shrink:0}
+.ph1 .ph-num{background:var(--gold);color:#78350f}
+.ph2 .ph-num{background:var(--pur-2);color:#fff}
+.ph3 .ph-num{background:var(--ok);color:#fff}
+.sd-phase-head .ph-info .ph-title{font-size:14px;font-weight:800;color:var(--ink);letter-spacing:-.005em;line-height:1.2}
+.sd-phase-head .ph-info .ph-sub{font-size:10.5px;color:var(--muted);margin-top:1px;line-height:1.3}
+.sd-phase-body{padding:10px 14px;flex:1;display:flex;flex-direction:column;gap:0}
+
+.sd-step{display:grid;grid-template-columns:22px 1fr auto;gap:10px;align-items:start;padding:8px 0;border-bottom:1px dashed var(--hair-soft)}
+.sd-step:last-child{border-bottom:none}
+.sd-step .ss-ic{width:20px;height:20px;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;flex-shrink:0;margin-top:1px}
+.sd-step .ss-ic.todo{background:var(--paper-2);border:1px solid var(--hair);color:var(--muted)}
+.sd-step .ss-ic.done{background:var(--ok);color:#fff}
+.sd-step .ss-ic.key{background:var(--gold);color:#78350f}
+.sd-step .ss-body .ss-title{font-size:12.5px;font-weight:700;color:var(--ink);line-height:1.25;margin-bottom:2px}
+.sd-step .ss-body .ss-desc{font-size:11.5px;color:var(--ink-2);line-height:1.45}
+.sd-step .ss-body .ss-desc code{font-family:var(--mono);font-size:10.5px;color:var(--pur);background:var(--lav);padding:1px 4px;border-radius:3px}
+.sd-step .ss-body .ss-cmd{font-family:var(--mono);font-size:11px;color:var(--ok-2);background:#dcfce7;border-radius:4px;padding:3px 8px;margin-top:5px;display:block;line-height:1.5}
+.sd-step .ss-body .ss-cmd.it{font-style:italic;font-family:var(--font);color:var(--pur-dark);background:var(--lav-2);border:1px solid var(--pur-soft)}
+.sd-step .ss-tag{font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;padding:2px 7px;border-radius:99px;white-space:nowrap;flex-shrink:0;margin-top:2px}
+.sd-step .ss-tag.req{background:#fee2e2;color:#7f1d1d;border:1px solid #fca5a5}
+.sd-step .ss-tag.opt{background:var(--lav);color:var(--pur);border:1px solid var(--pur-soft)}
+.sd-step .ss-tag.claude{background:linear-gradient(95deg,var(--pur-2),var(--pur));color:#fff}
+
+.sd-callout{background:linear-gradient(135deg,var(--pur-dark),var(--pur-mid));border-radius:10px;padding:14px 18px;color:#f0ebff;display:grid;grid-template-columns:auto 1fr;gap:14px;align-items:center;margin-top:14px}
+.sd-callout .sc-ic{font-size:22px;flex-shrink:0}
+.sd-callout .sc-body .sc-t{font-size:13px;font-weight:700;color:#fff;margin-bottom:4px}
+.sd-callout .sc-body .sc-p{font-size:12px;color:#d8caf5;line-height:1.5}
+.sd-callout .sc-body .sc-p code{font-family:var(--mono);font-size:11px;color:var(--gold);background:rgba(251,191,36,.12);padding:1px 5px;border-radius:3px}
+
+/* verify strip below phases */
+.sd-verify{background:var(--paper);border:1px solid var(--hair);border-radius:10px;padding:12px 16px;display:grid;grid-template-columns:auto 1fr;gap:14px;align-items:start}
+.sd-verify .sv-label{font-size:9.5px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--pur);padding:3px 10px;background:var(--lav);border-radius:99px;white-space:nowrap}
+.sd-verify .sv-checks{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.sd-verify .sv-check{background:var(--paper-2);border:1px solid var(--hair-soft);border-radius:7px;padding:8px 10px}
+.sd-verify .sv-check .vc-title{font-size:11.5px;font-weight:700;color:var(--ink);margin-bottom:3px}
+.sd-verify .sv-check .vc-cmd{font-family:var(--mono);font-size:10.5px;color:var(--ok-2);background:#dcfce7;padding:2px 7px;border-radius:3px;display:inline-block;margin-top:3px}
+.sd-verify .sv-check .vc-expect{font-size:11px;color:var(--ink-2);margin-top:3px;line-height:1.4}
+
 .kb-group-h{margin:22px 0 8px;font-size:11px;font-weight:700;letter-spacing:.18em;color:var(--pur);text-transform:uppercase;display:flex;align-items:center;gap:10px}
 .kb-group-h::before,.kb-group-h::after{content:"";flex:1;height:1px;background:var(--hair)}
 .kb-group-sub{font-size:11.5px;color:var(--muted);text-align:center;margin:-4px 0 6px;font-style:italic;line-height:1.4}
@@ -572,6 +638,7 @@ body{
 #valueprop.active{display:block;overflow:auto}
 #getstarted.active{display:block;overflow:auto}
 #knobs.active{display:block;overflow:auto}
+#setupdeploy.active{display:block;overflow:auto}
 
 /* progress dots only on Walkthrough */
 .progress{visibility:hidden;pointer-events:none}
@@ -764,6 +831,7 @@ body.mode-walkthrough .progress{visibility:visible;pointer-events:auto}
     <button type="button" role="tab" class="tab" data-target="valueprop"><span class="tdot"></span>Value Proposition</button>
     <button type="button" role="tab" class="tab" data-target="getstarted"><span class="tdot"></span>Get Started</button>
     <button type="button" role="tab" class="tab" data-target="knobs"><span class="tdot"></span>Knobs &amp; Custom Changes</button>
+    <button type="button" role="tab" class="tab" data-target="setupdeploy"><span class="tdot"></span>Setup &amp; Deploy</button>
   </div>
 
   <!-- ═══════════════════════════════════════════════════════
@@ -1217,7 +1285,7 @@ body.mode-walkthrough .progress{visibility:visible;pointer-events:auto}
             <div class="ctx">     consumed = []</div>
             <br>
             <div class="del">- options = sorted(options, key=lambda o: o.name)</div>
-            <div class="add">+ # preserve declaration order — sort was unintended</div>
+            <div class="add">+ # preserve declaration order. sort was unintended</div>
             <br>
             <div class="ctx">     for opt in options:</div>
             <div class="ctx">         val = opt.consume(args)</div>
@@ -1282,7 +1350,7 @@ body.mode-walkthrough .progress{visibility:visible;pointer-events:auto}
             <div class="row"><span class="check">7</span><span><code>git diff HEAD</code> → <code>patches/fix_and_test.diff</code></span><span class="count">combined diff saved</span></div>
             <div class="verdict">VALIDATION: TESTS_PASSED · regression_risk=low</div>
           </div>
-          <div class="note">Claude is invoked once, schema-enforced, with a tiny prompt: bug report + compact diagnosis + test framework + <code>ls</code> of the test directory. It returns <code>{test_path, test_diff, explanation}</code> — no tool use, no repo access. The targeted re-run on step 6 uses the right runner per framework: <code>pytest -x</code>, <code>npx jest</code>, <code>go test ./...</code>.</div>
+          <div class="note">Claude is invoked once, schema-enforced, with a tiny prompt: bug report + compact diagnosis + test framework + <code>ls</code> of the test directory. It returns <code>{test_path, test_diff, explanation}</code>. no tool use, no repo access. The targeted re-run on step 6 uses the right runner per framework: <code>pytest -x</code>, <code>npx jest</code>, <code>go test ./...</code>.</div>
         </div>
       </div>
 
@@ -1394,7 +1462,7 @@ body.mode-walkthrough .progress{visibility:visible;pointer-events:auto}
     <div class="arch-head">
       <span class="tag">Architecture · HLD</span>
       <h2>How a bug becomes a <span>verified fix.</span></h2>
-      <p>Boxes are steps. Arrows carry the handoff. The diamond is the only branch — if confidence is too low, the system reports honestly instead of guessing.</p>
+      <p>Boxes are steps. Arrows carry the handoff. The diamond is the only branch. if confidence is too low, the system reports honestly instead of guessing.</p>
     </div>
 
     <div class="hh-wrap">
@@ -1523,7 +1591,7 @@ body.mode-walkthrough .progress{visibility:visible;pointer-events:auto}
               <div class="bar b4"><span>Fix-writer</span><span class="sz">diagnosis · 2K</span></div>
             </div>
           </div>
-          <p>The fix-writer never sees the investigator's 30K-token exploration — only a clean, validated diagnosis. <strong>Each stage hands forward a curated handoff, not a transcript.</strong></p>
+          <p>The fix-writer never sees the investigator's 30K-token exploration. only a clean, validated diagnosis. <strong>Each stage hands forward a curated handoff, not a transcript.</strong></p>
         </div>
 
         <!-- 2. Prompt Engineering / Structured ledger -->
@@ -1542,7 +1610,7 @@ body.mode-walkthrough .progress{visibility:visible;pointer-events:auto}
               <div class="ll"><strong>Next</strong><span class="v">verify call-chain in core.py</span></div>
             </div>
           </div>
-          <p>Before any action, the agent fills a short form: <strong>guess, evidence, confidence, next step</strong>. No "let me think about this" drift — structured progress every turn.</p>
+          <p>Before any action, the agent fills a short form: <strong>guess, evidence, confidence, next step</strong>. No "let me think about this" drift. structured progress every turn.</p>
         </div>
 
         <!-- 3. JSON contract between agents -->
@@ -1572,7 +1640,7 @@ body.mode-walkthrough .progress{visibility:visible;pointer-events:auto}
             <span class="badge">Pre-Processing</span>
             <span class="num">04</span>
           </div>
-          <div class="impact">Saves <em>8 to 12 LLM turns per run</em> — cheaper, faster, more focused.</div>
+          <div class="impact">Saves <em>8 to 12 LLM turns per run</em>. cheaper, faster, more focused.</div>
           <div class="t">Plain bash does the cheap work before the AI starts<span class="sub-t">cuts cost and time substantially</span></div>
           <div class="diagram">
             <div class="dg-wrap">
@@ -1581,7 +1649,7 @@ body.mode-walkthrough .progress{visibility:visible;pointer-events:auto}
               <div class="outer"><span class="lbl">Bash · schema check, worktree, test execution</span><span class="pc">~5s · $0</span></div>
             </div>
           </div>
-          <p>Bash pre-digests the repo: <code>git blame</code>, import tracing, error grep — all before a model call. Schema check, worktree, tests on the back end too. <strong>The AI only does the part that actually needs intelligence.</strong></p>
+          <p>Bash pre-digests the repo: <code>git blame</code>, import tracing, error grep. all before a model call. Schema check, worktree, tests on the back end too. <strong>The AI only does the part that actually needs intelligence.</strong></p>
         </div>
 
         <!-- 5. Guarded validation -->
@@ -1631,7 +1699,7 @@ body.mode-walkthrough .progress{visibility:visible;pointer-events:auto}
             <span class="badge">Audit Trail</span>
             <span class="num">07</span>
           </div>
-          <div class="impact"><em>Every decision is reproducible</em> — compliance and code-review can read it directly.</div>
+          <div class="impact"><em>Every decision is reproducible</em>. compliance and code-review can read it directly.</div>
           <div class="t">Every run leaves a complete paper trail<span class="sub-t">a reviewer can reconstruct exactly what happened, why and at what cost</span></div>
           <div class="diagram">
             <div class="dg-trail">
@@ -1837,6 +1905,54 @@ body.mode-walkthrough .progress{visibility:visible;pointer-events:auto}
         </div>
       </div>
 
+      <!-- WHAT TO DO NEXT -->
+      <div class="next-section-h">What to do next</div>
+      <div class="next-grid">
+
+        <div class="next-card">
+          <div class="nc-icon">🐛</div>
+          <div class="nc-title">Diagnose your first bug</div>
+          <div class="nc-desc">Paste any bug ticket, stack trace or error message. Claude writes the bug report and runs the full pipeline for you.</div>
+          <div class="nc-prompt"><span class="np-label">Say this in Claude Code chat</span>"rca-mas: [paste the bug or error here]"</div>
+        </div>
+
+        <div class="next-card">
+          <div class="nc-icon">📋</div>
+          <div class="nc-title">Read the last report</div>
+          <div class="nc-desc">The report has 11 sections: root cause, confidence score, evidence, proposed fix, test results. Ask Claude to walk you through it.</div>
+          <div class="nc-prompt"><span class="np-label">Say this in Claude Code chat</span>"Show me the latest rca-mas report and explain what the confidence score means."</div>
+        </div>
+
+        <div class="next-card">
+          <div class="nc-icon">🗺</div>
+          <div class="nc-title">Understand the codebase</div>
+          <div class="nc-desc">Ask Claude to explain what this repo does, which files matter most and where to start if you need to make changes.</div>
+          <div class="nc-prompt"><span class="np-label">Say this in Claude Code chat</span>"Explain what this codebase does and which files are most important. Start from the README."</div>
+        </div>
+
+        <div class="next-card">
+          <div class="nc-icon">🧪</div>
+          <div class="nc-title">Run the tests</div>
+          <div class="nc-desc">The agent has its own test suite. Run it to confirm everything is wired up correctly. Takes about 6 minutes. No AI cost.</div>
+          <div class="nc-prompt"><span class="np-label">Say this in Claude Code chat</span>"Run the rca-mas test suite and tell me if anything fails."</div>
+        </div>
+
+        <div class="next-card">
+          <div class="nc-icon">⚙</div>
+          <div class="nc-title">Change the model or speed</div>
+          <div class="nc-desc">Switch to a faster model for quick checks or a smarter one for hard bugs. One line in the config file.</div>
+          <div class="nc-prompt"><span class="np-label">Say this in Claude Code chat</span>"Open rca-mas/config/defaults.env and explain what I can change to make the agent faster or smarter."</div>
+        </div>
+
+        <div class="next-card">
+          <div class="nc-icon">🤔</div>
+          <div class="nc-title">Improve a diagnosis that missed</div>
+          <div class="nc-desc">If the agent said NO_FIX or got the wrong file, ask Claude how to improve the bug report or the agent's investigation rules.</div>
+          <div class="nc-prompt"><span class="np-label">Say this in Claude Code chat</span>"The agent said NO_FIX on this bug. Here is the report: [paste]. What should I add to the bug report to help it find the cause?"</div>
+        </div>
+
+      </div>
+
     </div>
   </div>
   <!-- /TAB 5 -->
@@ -1887,7 +2003,7 @@ body.mode-walkthrough .progress{visibility:visible;pointer-events:auto}
             <span class="ic">1a</span>
             <div class="body">
               <span class="path">prompts/investigation_write.md</span>
-              <div class="desc"><strong>How the investigator writes its notes for the next agent.</strong> Defines the checkpoint JSON shape — including the verbatim fix-location code that lets Agent 2 write a diff without re-reading the repo.</div>
+              <div class="desc"><strong>How the investigator writes its notes for the next agent.</strong> Defines the checkpoint JSON shape. including the verbatim fix-location code that lets Agent 2 write a diff without re-reading the repo.</div>
               <div class="ctrl"><strong>You control</strong> which fields land in the handoff, what evidence must be cited, how much code travels with the verdict</div>
             </div>
           </div>
@@ -1919,7 +2035,7 @@ body.mode-walkthrough .progress{visibility:visible;pointer-events:auto}
             <span class="ic">↻</span>
             <div class="body">
               <span class="path">prompts/agent1b_repair.md · agent2_repair.md</span>
-              <div class="desc"><strong>The "try again" prompts.</strong> Used when the first JSON output fails schema validation — the agent gets one repair pass before the system writes a fail-closed placeholder.</div>
+              <div class="desc"><strong>The "try again" prompts.</strong> Used when the first JSON output fails schema validation. the agent gets one repair pass before the system writes a fail-closed placeholder.</div>
               <div class="ctrl"><strong>You control</strong> how the agent is asked to fix its own broken output before the pipeline gives up</div>
             </div>
           </div>
@@ -2060,6 +2176,255 @@ body.mode-walkthrough .progress{visibility:visible;pointer-events:auto}
     </div>
   </div>
   <!-- /TAB 6 -->
+
+    <!-- ═══════════════════════════════════════════════════════════
+       TAB 7 · SETUP & DEPLOY
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="tabpane" id="setupdeploy">
+    <div class="sd-wrap">
+
+      <div class="sd-head">
+        <h2>From zero to <span>running.</span></h2>
+        <p>Three columns. Find your situation. Follow the steps in order. The whole thing takes under 15 minutes.</p>
+      </div>
+
+      <div class="sd-phases">
+
+        <!-- COLUMN 1: FIRST TIME SETUP -->
+        <div class="sd-phase">
+          <div class="sd-phase-head ph1">
+            <div class="ph-num">1</div>
+            <div class="ph-info">
+              <div class="ph-title">First time on this machine</div>
+              <div class="ph-sub">Skip if you have done this before</div>
+            </div>
+          </div>
+          <div class="sd-phase-body">
+
+            <div class="sd-step">
+              <div class="ss-ic todo">1</div>
+              <div class="ss-body">
+                <div class="ss-title">Install VS Code</div>
+                <div class="ss-desc">Download from <code>code.visualstudio.com</code> and open it.</div>
+              </div>
+              <span class="ss-tag req">Required</span>
+            </div>
+
+            <div class="sd-step">
+              <div class="ss-ic todo">2</div>
+              <div class="ss-body">
+                <div class="ss-title">Install Claude Code extension</div>
+                <div class="ss-desc">In VS Code, open the Extensions panel on the left sidebar. Search <code>Claude Code</code>. Click Install. A chat panel appears.</div>
+              </div>
+              <span class="ss-tag req">Required</span>
+            </div>
+
+            <div class="sd-step">
+              <div class="ss-ic todo">3</div>
+              <div class="ss-body">
+                <div class="ss-title">Sign in to Claude</div>
+                <div class="ss-desc">Open a terminal in VS Code (View. Terminal). Run the command. A browser tab opens. Sign in with your Anthropic account.
+                  <span class="ss-cmd">claude auth login</span>
+                </div>
+              </div>
+              <span class="ss-tag req">Required</span>
+            </div>
+
+            <div class="sd-step">
+              <div class="ss-ic todo">4</div>
+              <div class="ss-body">
+                <div class="ss-title">Install the three tools the agent needs</div>
+                <div class="ss-desc">
+                  <strong>macOS:</strong> <code>brew install git jq ripgrep</code><br>
+                  <strong>Windows:</strong> <code>scoop install git jq ripgrep</code><br>
+                  <strong>Linux:</strong> <code>sudo apt install git jq ripgrep</code><br><br>
+                  Then verify:
+                  <span class="ss-cmd">git --version &amp;&amp; jq --version</span>
+                  Both must print a version number.
+                </div>
+              </div>
+              <span class="ss-tag req">Required</span>
+            </div>
+
+            <div class="sd-step">
+              <div class="ss-ic key">✓</div>
+              <div class="ss-body">
+                <div class="ss-title">Machine is ready</div>
+                <div class="ss-desc">You only do column 1 once per machine. Every project after this starts from column 2.</div>
+              </div>
+              <span class="ss-tag done">Done</span>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- COLUMN 2: WIRE INTO A REPO -->
+        <div class="sd-phase">
+          <div class="sd-phase-head ph2">
+            <div class="ph-num">2</div>
+            <div class="ph-info">
+              <div class="ph-title">Wire it into your repo</div>
+              <div class="ph-sub">Once per project, takes 5 minutes</div>
+            </div>
+          </div>
+          <div class="sd-phase-body">
+
+            <div class="sd-step">
+              <div class="ss-ic todo">1</div>
+              <div class="ss-body">
+                <div class="ss-title">Drag the rca-mas folder into your repo</div>
+                <div class="ss-desc">In VS Code, drag the entire <code>rca-mas/</code> folder into the root of the project you want to analyse. That is the whole install.</div>
+              </div>
+              <span class="ss-tag req">Required</span>
+            </div>
+
+            <div class="sd-step">
+              <div class="ss-ic todo">2</div>
+              <div class="ss-body">
+                <div class="ss-title">Copy the snippet into CLAUDE.md</div>
+                <div class="ss-desc">Open <code>rca-mas/templates/CLAUDE.md.snippet</code>. Select all, copy it. Paste at the bottom of your repo's <code>CLAUDE.md</code> file. Create that file at the repo root if it does not exist.</div>
+              </div>
+              <span class="ss-tag req">Required</span>
+            </div>
+
+            <div class="sd-step">
+              <div class="ss-ic todo">3</div>
+              <div class="ss-body">
+                <div class="ss-title">Tell git to ignore the agent's files</div>
+                <div class="ss-desc">Open your repo's <code>.gitignore</code> file (create one at the root if missing). Add two lines:<br><code>rca-mas/</code><br><code>.rca-mas/</code></div>
+              </div>
+              <span class="ss-tag req">Required</span>
+            </div>
+
+            <div class="sd-step">
+              <div class="ss-ic key">✓</div>
+              <div class="ss-body">
+                <div class="ss-title">Test it now</div>
+                <div class="ss-desc">Open Claude Code chat in VS Code and type:<br>
+                <span class="ss-cmd it">"rca-mas: the login button crashes when the email field is empty"</span>
+                Claude should run the agent and show a report in a few minutes. If it says it does not know rca-mas, check CLAUDE.md has the snippet.</div>
+              </div>
+              <span class="ss-tag done">Verify</span>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- COLUMN 3: DEPLOY TO CLIENT -->
+        <div class="sd-phase">
+          <div class="sd-phase-head ph3">
+            <div class="ph-num">3</div>
+            <div class="ph-info">
+              <div class="ph-title">Deploying to a client</div>
+              <div class="ph-sub">Setting up on someone else's machine</div>
+            </div>
+          </div>
+          <div class="sd-phase-body">
+
+            <div class="sd-step">
+              <div class="ss-ic todo">1</div>
+              <div class="ss-body">
+                <div class="ss-title">Do column 1 on their machine</div>
+                <div class="ss-desc">VS Code, Claude Code extension, sign in with their Anthropic account, install git and jq. Exactly the same four steps as column 1.</div>
+              </div>
+              <span class="ss-tag req">Required</span>
+            </div>
+
+            <div class="sd-step">
+              <div class="ss-ic todo">2</div>
+              <div class="ss-body">
+                <div class="ss-title">Send them the rca-mas folder</div>
+                <div class="ss-desc">Zip the <code>rca-mas/</code> folder and send it. Or share it from a git repo. They drag it into their project root in VS Code the same way as column 2 step 1.</div>
+              </div>
+              <span class="ss-tag req">Required</span>
+            </div>
+
+            <div class="sd-step">
+              <div class="ss-ic todo">3</div>
+              <div class="ss-body">
+                <div class="ss-title">Do column 2 steps 2 and 3 in their repo</div>
+                <div class="ss-desc">Copy the CLAUDE.md snippet. Add the two lines to their <code>.gitignore</code>.</div>
+              </div>
+              <span class="ss-tag req">Required</span>
+            </div>
+
+            <div class="sd-step">
+              <div class="ss-ic todo">4</div>
+              <div class="ss-body">
+                <div class="ss-title">Confirm it works on a real bug</div>
+                <div class="ss-desc">Paste a real bug from their backlog into Claude Code chat using <code>rca-mas:</code>. A report should appear in 4 to 10 minutes. Confidence 0.5 or above and a specific file named means it is working.</div>
+              </div>
+              <span class="ss-tag req">Required</span>
+            </div>
+
+            <div class="sd-step">
+              <div class="ss-ic key">✓</div>
+              <div class="ss-body">
+                <div class="ss-title">Hand them these two phrases</div>
+                <div class="ss-desc">No training needed. They type one of these in Claude Code chat:</div>
+                <div class="ss-desc"><span class="ss-cmd">"rca-mas: [paste the bug here]"</span></div>
+                <div class="ss-desc"><span class="ss-cmd">"show me the last rca-mas report"</span></div>
+              </div>
+              <span class="ss-tag done">Handoff</span>
+            </div>
+
+          </div>
+        </div>
+
+      </div>
+
+      <!-- AFTER SETUP -->
+      <div class="next-section-h">After setup, try these in Claude Code chat</div>
+      <div class="next-grid">
+
+        <div class="next-card">
+          <div class="nc-icon">🐛</div>
+          <div class="nc-title">Diagnose your first real bug</div>
+          <div class="nc-desc">Paste any error message, stack trace or bug ticket. Claude runs the whole pipeline and shows you the report.</div>
+          <div class="nc-prompt"><span class="np-label">Say this in Claude Code chat</span>"rca-mas: [paste the bug or error here]"</div>
+        </div>
+
+        <div class="next-card">
+          <div class="nc-icon">🗺</div>
+          <div class="nc-title">Understand the codebase first</div>
+          <div class="nc-desc">Before diagnosing bugs, ask Claude to explain the codebase so you know which files matter.</div>
+          <div class="nc-prompt"><span class="np-label">Say this in Claude Code chat</span>"Explain what this codebase does and which files are most important."</div>
+        </div>
+
+        <div class="next-card">
+          <div class="nc-icon">🧪</div>
+          <div class="nc-title">Run the agent's own tests</div>
+          <div class="nc-desc">Confirms everything is wired up. No AI calls, no cost. Should take about 6 minutes and all pass.</div>
+          <div class="nc-prompt"><span class="np-label">Say this in Claude Code chat</span>"Run bash run.sh test inside rca-mas/ and tell me if anything fails."</div>
+        </div>
+
+        <div class="next-card">
+          <div class="nc-icon">📋</div>
+          <div class="nc-title">Understand a report</div>
+          <div class="nc-desc">After the first run, ask Claude to explain what the confidence score means and whether the fix looks safe.</div>
+          <div class="nc-prompt"><span class="np-label">Say this in Claude Code chat</span>"Show me the latest rca-mas report. Explain the confidence score and whether the fix looks safe to apply."</div>
+        </div>
+
+        <div class="next-card">
+          <div class="nc-icon">⚙</div>
+          <div class="nc-title">Change the model or speed</div>
+          <div class="nc-desc">Switch to a faster or smarter model. One line in the config file. Ask Claude to explain options first.</div>
+          <div class="nc-prompt"><span class="np-label">Say this in Claude Code chat</span>"Open rca-mas/config/defaults.env and explain what I should change to make it faster or more accurate."</div>
+        </div>
+
+        <div class="next-card">
+          <div class="nc-icon">🤔</div>
+          <div class="nc-title">Fix a missed diagnosis</div>
+          <div class="nc-desc">If the agent said NO_FIX or named the wrong file, Claude can tell you what to add to the bug report.</div>
+          <div class="nc-prompt"><span class="np-label">Say this in Claude Code chat</span>"The agent said NO_FIX. Here is the report: [paste]. What should I add to the bug report to help it find the cause?"</div>
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+  <!-- /TAB 7 -->
+
 
 </div>
 

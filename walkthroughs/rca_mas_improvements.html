@@ -1,0 +1,2217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RCA MAS · 20 Proposed Improvements</title>
+<style>
+:root {
+  --pur: #6b21a8; --pur-2: #7c3aed; --pur-mid: #4c1d95; --pur-dark: #3b0764; --pur-soft: #a78bfa;
+  --lav: #ede4ff; --lav-2: #f4ecff;
+  --gold: #fbbf24; --gold-2: #f59e0b;
+  --ok: #22c55e; --ok-2: #15803d; --ok-soft: #d1fae5;
+  --red: #ef4444; --red-2: #b91c1c; --red-soft: #fee2e2;
+  --amber: #f59e0b; --amber-soft: #fef3c7;
+  --blue: #3b82f6; --blue-2: #1e40af; --blue-soft: #dbeafe;
+  --teal: #14b8a6;
+  --ink: #1a1530; --ink-2: #3a3252; --muted: #6b6680;
+  --hair: #e6e1f3; --paper: #ffffff; --paper-2: #f8f6ff; --bg: #fafaff;
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  --sidebar-w: 280px; --content-max: 1100px;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body { font-family: var(--font); font-size: 15px; line-height: 1.65; color: var(--ink); background: var(--bg); -webkit-font-smoothing: antialiased; }
+.shell { display: flex; min-height: 100vh; }
+
+/* SIDEBAR */
+.sidebar { width: var(--sidebar-w); flex-shrink: 0; position: sticky; top: 0; height: 100vh; overflow-y: auto; background: var(--pur-dark); padding: 28px 0 40px; border-right: 1px solid rgba(255,255,255,.08); }
+.sidebar-brand { padding: 0 22px 24px; border-bottom: 1px solid rgba(255,255,255,.1); margin-bottom: 18px; }
+.sidebar-brand .logo-row { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+.sidebar-brand .glyph { width:18px;height:18px;border-radius:5px;background:var(--gold);flex-shrink:0; }
+.sidebar-brand .name { font-size:14px;font-weight:700;color:#fff;letter-spacing:-.01em; }
+.sidebar-brand .sub { font-size:11px;color:#c4b5fd;line-height:1.4; }
+.nav-label { font-size: 9.5px; font-weight: 700; letter-spacing: .18em; text-transform: uppercase; color: #a78bfa; padding: 0 22px; margin-bottom: 6px; margin-top: 18px; }
+.nav-link { display: flex; align-items: flex-start; gap: 10px; padding: 7px 22px; text-decoration: none; color: #c4b5fd; font-size: 12.5px; font-weight: 500; line-height: 1.35; transition: background .15s, color .15s; border-left: 3px solid transparent; }
+.nav-link:hover, .nav-link.active { background: rgba(255,255,255,.07); color: #fff; border-left-color: var(--gold); }
+.nav-link .num { font-size: 10px; font-weight: 800; color: var(--gold); background: rgba(251,191,36,.15); border-radius: 4px; padding: 1px 6px; flex-shrink: 0; font-family: var(--mono); min-width: 26px; text-align:center; }
+
+/* CONTENT */
+.content { flex: 1; min-width: 0; padding: 48px 56px 100px; }
+.content-inner { max-width: var(--content-max); margin: 0 auto; }
+
+/* HERO */
+.hero { background: linear-gradient(135deg, var(--pur-dark), var(--pur-mid) 60%, var(--pur-2)); color: #fff; padding: 44px 48px 40px; border-radius: 16px; margin-bottom: 36px; position: relative; overflow: hidden; }
+.hero::after { content:""; position:absolute; right:-60px; top:-60px; width:240px; height:240px; border-radius:50%; background: radial-gradient(circle, rgba(251,191,36,.25), transparent 70%); }
+.hero-eyebrow { font-size: 11px; font-weight: 700; letter-spacing: .25em; text-transform: uppercase; color: var(--gold); margin-bottom: 14px; }
+.hero h1 { font-size: 36px; font-weight: 800; letter-spacing: -.02em; line-height: 1.15; margin-bottom: 14px; max-width: 720px; }
+.hero p { font-size: 16px; color: #ddd6fe; max-width: 720px; line-height: 1.6; }
+.hero .stats { display: flex; gap: 28px; margin-top: 28px; flex-wrap: wrap; }
+.hero .stat { display: flex; flex-direction: column; }
+.hero .stat .v { font-size: 26px; font-weight: 800; color: var(--gold); line-height: 1; }
+.hero .stat .l { font-size: 11px; color: #c4b5fd; margin-top: 6px; letter-spacing: .08em; text-transform: uppercase; }
+
+/* CATEGORY */
+.cat-section { margin: 48px 0 24px; }
+.cat-section h2 { font-size: 22px; font-weight: 800; color: var(--pur-dark); letter-spacing: -.015em; margin-bottom: 6px; display: flex; align-items: center; gap: 12px; }
+.cat-section h2 .cat-dot { width: 14px; height: 14px; border-radius: 4px; }
+.cat-section .cat-sub { font-size: 13px; color: var(--muted); margin-left: 26px; }
+
+/* CARD */
+.card { background: var(--paper); border: 1px solid var(--hair); border-radius: 14px; padding: 28px 32px; margin-bottom: 24px; box-shadow: 0 1px 2px rgba(60,30,120,.04); scroll-margin-top: 24px; }
+.card-head { display: flex; align-items: flex-start; gap: 16px; margin-bottom: 18px; }
+.card-num { flex-shrink: 0; width: 44px; height: 44px; background: linear-gradient(135deg, var(--pur-2), var(--pur)); color: #fff; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 800; font-family: var(--mono); box-shadow: 0 4px 10px rgba(124,58,237,.25); }
+.card-title-wrap { flex: 1; min-width: 0; }
+.card-title { font-size: 19px; font-weight: 800; color: var(--ink); letter-spacing: -.01em; line-height: 1.3; margin-bottom: 6px; }
+.card-meta { display: flex; gap: 8px; flex-wrap: wrap; }
+.badge { font-size: 10.5px; font-weight: 700; letter-spacing: .04em; padding: 3px 10px; border-radius: 100px; text-transform: uppercase; }
+.b-arch { background: #ede9fe; color: #5b21b6; }
+.b-test { background: #d1fae5; color: #065f46; }
+.b-feat { background: #fef3c7; color: #92400e; }
+.b-perf { background: #dbeafe; color: #1e40af; }
+.b-effort-l { background: #fee2e2; color: #991b1b; }
+.b-effort-m { background: #fef3c7; color: #92400e; }
+.b-effort-s { background: #d1fae5; color: #065f46; }
+.b-risk-low { background: #ecfdf5; color: #047857; border:1px solid #a7f3d0; }
+.b-risk-med { background: #fffbeb; color: #b45309; border:1px solid #fde68a; }
+
+.section { margin-top: 20px; }
+.section h4 { font-size: 11px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--pur); margin-bottom: 10px; }
+.section p { font-size: 14.5px; color: var(--ink-2); }
+
+/* ILLUSTRATION FRAME */
+.illus { background: linear-gradient(180deg, #fcfaff, #f4ecff); border: 1px solid var(--hair); border-radius: 12px; padding: 20px; margin-top: 12px; overflow: hidden; }
+.illus svg { width: 100%; height: auto; display: block; }
+.illus-cap { font-size: 11px; color: var(--muted); text-align: center; margin-top: 8px; font-style: italic; }
+
+/* FILES */
+.files { background: var(--lav-2); border: 1px solid #e0d4ff; border-radius: 8px; padding: 12px 14px; margin-top: 14px; }
+.files-label { font-size: 10px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--pur); margin-bottom: 8px; }
+.file-pill { display: inline-block; font-family: var(--mono); font-size: 11.5px; background: #fff; border: 1px solid #d4c5f9; color: var(--pur-mid); padding: 2px 8px; border-radius: 5px; margin: 2px 4px 2px 0; }
+.file-pill.new { border-style: dashed; background: #faf5ff; }
+.file-pill.new::before { content: "+ "; color: var(--ok); font-weight: 700; }
+
+/* TOC */
+.toc-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 24px 0 8px; }
+.toc-cell { border: 1px solid var(--hair); border-radius: 10px; padding: 12px 14px; background: var(--paper); text-decoration: none; color: var(--ink); transition: all .15s; display: block; }
+.toc-cell:hover { border-color: var(--pur-soft); box-shadow: 0 4px 10px rgba(124,58,237,.08); transform: translateY(-1px); }
+.toc-cell .tc-num { font-family: var(--mono); font-size: 10px; color: var(--pur); font-weight: 800; }
+.toc-cell .tc-title { font-size: 12.5px; font-weight: 600; margin-top: 4px; line-height: 1.3; }
+
+.legend { display: flex; gap: 18px; margin: 8px 0 0; flex-wrap: wrap; font-size: 12px; color: var(--muted); }
+.legend .key { display: flex; align-items: center; gap: 6px; }
+.legend .sw { width: 12px; height: 12px; border-radius: 3px; }
+
+@media (max-width: 1000px) { .sidebar { display: none; } .content { padding: 32px 24px 80px; } .toc-grid { grid-template-columns: repeat(2, 1fr); } }
+</style>
+</head>
+<body>
+
+<!-- SHARED SVG DEFS (loaded once, referenced by all illustrations) -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+<defs>
+  <linearGradient id="gPur" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0%" stop-color="#7c3aed"/><stop offset="100%" stop-color="#6b21a8"/>
+  </linearGradient>
+  <linearGradient id="gPurSoft" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0%" stop-color="#f4ecff"/><stop offset="100%" stop-color="#ede4ff"/>
+  </linearGradient>
+  <linearGradient id="gGold" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0%" stop-color="#fbbf24"/><stop offset="100%" stop-color="#f59e0b"/>
+  </linearGradient>
+  <linearGradient id="gOk" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0%" stop-color="#22c55e"/><stop offset="100%" stop-color="#15803d"/>
+  </linearGradient>
+  <linearGradient id="gRed" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0%" stop-color="#ef4444"/><stop offset="100%" stop-color="#b91c1c"/>
+  </linearGradient>
+  <linearGradient id="gBlue" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0%" stop-color="#3b82f6"/><stop offset="100%" stop-color="#1e40af"/>
+  </linearGradient>
+  <linearGradient id="gDark" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0%" stop-color="#3a3252"/><stop offset="100%" stop-color="#1a1530"/>
+  </linearGradient>
+  <filter id="soft" x="-20%" y="-20%" width="140%" height="140%">
+    <feGaussianBlur in="SourceAlpha" stdDeviation="3"/>
+    <feOffset dy="2"/>
+    <feComponentTransfer><feFuncA type="linear" slope="0.18"/></feComponentTransfer>
+    <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+  </filter>
+  <marker id="arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+    <path d="M0 0 L10 5 L0 10 z" fill="#7c3aed"/>
+  </marker>
+  <marker id="arrG" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+    <path d="M0 0 L10 5 L0 10 z" fill="#15803d"/>
+  </marker>
+  <marker id="arrA" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+    <path d="M0 0 L10 5 L0 10 z" fill="#94a3b8"/>
+  </marker>
+</defs>
+</svg>
+
+<div class="shell">
+
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="logo-row"><div class="glyph"></div><div class="name">RCA MAS</div></div>
+      <div class="sub">20 Proposed Improvements<br/>v2 Roadmap Draft</div>
+    </div>
+    <div class="nav-label">Architectural</div>
+    <a class="nav-link" href="#c1"><span class="num">01</span><span>Parallel Agent 1a Hypothesis Team</span></a>
+    <a class="nav-link" href="#c2"><span class="num">02</span><span>SQLite Run Database</span></a>
+    <a class="nav-link" href="#c3"><span class="num">03</span><span>Plugin-Based Collector Discovery</span></a>
+    <a class="nav-link" href="#c4"><span class="num">04</span><span>Event-Driven Orchestrator FSM</span></a>
+    <a class="nav-link" href="#c5"><span class="num">05</span><span>Hash-Keyed Briefing Cache</span></a>
+    <a class="nav-link" href="#c6"><span class="num">06</span><span>Streaming Context Handoff</span></a>
+    <div class="nav-label">Testing &amp; Quality</div>
+    <a class="nav-link" href="#c7"><span class="num">07</span><span>Continuous Eval Harness</span></a>
+    <a class="nav-link" href="#c8"><span class="num">08</span><span>Property-Based Schema Tests</span></a>
+    <a class="nav-link" href="#c9"><span class="num">09</span><span>Synthetic Bug Injection</span></a>
+    <a class="nav-link" href="#c10"><span class="num">10</span><span>Confidence Calibration</span></a>
+    <a class="nav-link" href="#c11"><span class="num">11</span><span>Multi-Language Fixtures</span></a>
+    <a class="nav-link" href="#c12"><span class="num">12</span><span>Prompt Mutation Testing</span></a>
+    <div class="nav-label">New Features</div>
+    <a class="nav-link" href="#c13"><span class="num">13</span><span>Best Practices / Test-Bank Agent</span></a>
+    <a class="nav-link" href="#c14"><span class="num">14</span><span>Claude Code Hooks Auto-Trigger</span></a>
+    <a class="nav-link" href="#c15"><span class="num">15</span><span>Interactive Review TUI</span></a>
+    <a class="nav-link" href="#c16"><span class="num">16</span><span>Batch Triage Mode</span></a>
+    <a class="nav-link" href="#c17"><span class="num">17</span><span>Diff-Aware Surgical Agent 2</span></a>
+    <div class="nav-label">Performance &amp; DX</div>
+    <a class="nav-link" href="#c18"><span class="num">18</span><span>Adaptive Model Selector</span></a>
+    <a class="nav-link" href="#c19"><span class="num">19</span><span>Run Diff &amp; Replay Tool</span></a>
+    <a class="nav-link" href="#c20"><span class="num">20</span><span>Prompt Caching for Briefings</span></a>
+  </aside>
+
+  <main class="content">
+    <div class="content-inner">
+
+      <div class="hero">
+        <div class="hero-eyebrow">RCA Multi-Agent System · Roadmap</div>
+        <h1>20 Architectural, Testing &amp; Feature Improvements</h1>
+        <p>A curated set of high-leverage changes for the next iteration of the bug-diagnosis pipeline. Each entry includes a visual before/after illustration and the exact files touched. The current architecture is <strong>LOCKED for v1</strong>; everything below is candidate work for v2+.</p>
+        <div class="stats">
+          <div class="stat"><div class="v">20</div><div class="l">Proposals</div></div>
+          <div class="stat"><div class="v">6</div><div class="l">Architectural</div></div>
+          <div class="stat"><div class="v">6</div><div class="l">Testing</div></div>
+          <div class="stat"><div class="v">5</div><div class="l">Features</div></div>
+          <div class="stat"><div class="v">3</div><div class="l">Perf / DX</div></div>
+        </div>
+      </div>
+
+      <div class="toc-grid">
+        <a class="toc-cell" href="#c1"><div class="tc-num">01</div><div class="tc-title">Parallel Agent 1a Hypothesis Team</div></a>
+        <a class="toc-cell" href="#c2"><div class="tc-num">02</div><div class="tc-title">SQLite Run Database</div></a>
+        <a class="toc-cell" href="#c3"><div class="tc-num">03</div><div class="tc-title">Plugin-Based Collector Discovery</div></a>
+        <a class="toc-cell" href="#c4"><div class="tc-num">04</div><div class="tc-title">Event-Driven Orchestrator FSM</div></a>
+        <a class="toc-cell" href="#c5"><div class="tc-num">05</div><div class="tc-title">Hash-Keyed Briefing Cache</div></a>
+        <a class="toc-cell" href="#c6"><div class="tc-num">06</div><div class="tc-title">Streaming Context Handoff</div></a>
+        <a class="toc-cell" href="#c7"><div class="tc-num">07</div><div class="tc-title">Continuous Eval Harness</div></a>
+        <a class="toc-cell" href="#c8"><div class="tc-num">08</div><div class="tc-title">Property-Based Schema Tests</div></a>
+        <a class="toc-cell" href="#c9"><div class="tc-num">09</div><div class="tc-title">Synthetic Bug Injection</div></a>
+        <a class="toc-cell" href="#c10"><div class="tc-num">10</div><div class="tc-title">Confidence Calibration</div></a>
+        <a class="toc-cell" href="#c11"><div class="tc-num">11</div><div class="tc-title">Multi-Language Fixtures</div></a>
+        <a class="toc-cell" href="#c12"><div class="tc-num">12</div><div class="tc-title">Prompt Mutation Testing</div></a>
+        <a class="toc-cell" href="#c13"><div class="tc-num">13</div><div class="tc-title">Best Practices / Test-Bank Agent</div></a>
+        <a class="toc-cell" href="#c14"><div class="tc-num">14</div><div class="tc-title">Claude Code Hooks Auto-Trigger</div></a>
+        <a class="toc-cell" href="#c15"><div class="tc-num">15</div><div class="tc-title">Interactive Review TUI</div></a>
+        <a class="toc-cell" href="#c16"><div class="tc-num">16</div><div class="tc-title">Batch Triage Mode</div></a>
+        <a class="toc-cell" href="#c17"><div class="tc-num">17</div><div class="tc-title">Diff-Aware Surgical Agent 2</div></a>
+        <a class="toc-cell" href="#c18"><div class="tc-num">18</div><div class="tc-title">Adaptive Model Selector</div></a>
+        <a class="toc-cell" href="#c19"><div class="tc-num">19</div><div class="tc-title">Run Diff &amp; Replay Tool</div></a>
+        <a class="toc-cell" href="#c20"><div class="tc-num">20</div><div class="tc-title">Prompt Caching for Briefings</div></a>
+      </div>
+
+      <!-- ==================== ARCHITECTURAL ==================== -->
+      <div class="cat-section">
+        <h2><div class="cat-dot" style="background:#8b5cf6"></div>Architectural Changes</h2>
+        <div class="cat-sub">Structural shifts to how the pipeline is composed, persisted, and orchestrated.</div>
+      </div>
+
+      <!-- #1 -->
+      <div class="card" id="c1">
+        <div class="card-head">
+          <div class="card-num">01</div>
+          <div class="card-title-wrap">
+            <div class="card-title">Parallel Agent 1a — Hypothesis Team with Voting</div>
+            <div class="card-meta"><span class="badge b-arch">Architectural</span><span class="badge b-effort-l">Large effort</span><span class="badge b-risk-med">Risk: Med</span></div>
+          </div>
+        </div>
+        <div class="section"><h4>What changes</h4><p>Run <strong>N independent Agent 1a investigations in parallel</strong> (default N=3) with different system-prompt seeds — <em>git history lens</em>, <em>dependency lens</em>, <em>error-trace lens</em>. A new <code>vote.sh</code> stage merges their checkpoints by clustering on <code>root_cause.file</code> + <code>line_range</code> and selects by quorum + max confidence. Listed in <span class="file-pill">potential_changes.md</span> under "Agent Team".</p></div>
+        <div class="section"><h4>Illustration</h4>
+        <div class="illus">
+        <svg viewBox="0 0 880 320" xmlns="http://www.w3.org/2000/svg">
+          <!-- Today label -->
+          <text x="20" y="22" font-size="10" font-weight="800" fill="#6b21a8" letter-spacing="2">TODAY · SERIAL</text>
+          <text x="500" y="22" font-size="10" font-weight="800" fill="#15803d" letter-spacing="2">PROPOSED · PARALLEL + VOTE</text>
+          <!-- divider -->
+          <line x1="440" y1="0" x2="440" y2="320" stroke="#e6e1f3" stroke-dasharray="3,4"/>
+
+          <!-- LEFT: serial flow -->
+          <rect x="20" y="50" width="140" height="44" rx="10" fill="#fff" stroke="#a78bfa" stroke-width="1.5" filter="url(#soft)"/>
+          <text x="90" y="78" text-anchor="middle" font-size="12" font-weight="700" fill="#4c1d95">briefing.md</text>
+          <line x1="90" y1="94" x2="90" y2="124" stroke="#7c3aed" stroke-width="1.8" marker-end="url(#arr)"/>
+
+          <rect x="20" y="128" width="140" height="60" rx="10" fill="url(#gPur)" filter="url(#soft)"/>
+          <text x="90" y="152" text-anchor="middle" font-size="13" font-weight="800" fill="#fff">Agent 1a</text>
+          <text x="90" y="170" text-anchor="middle" font-size="10" fill="#ddd6fe">single hypothesis</text>
+          <line x1="90" y1="188" x2="90" y2="218" stroke="#7c3aed" stroke-width="1.8" marker-end="url(#arr)"/>
+
+          <rect x="20" y="222" width="140" height="44" rx="10" fill="#fff" stroke="#a78bfa" stroke-width="1.5" filter="url(#soft)"/>
+          <text x="90" y="244" text-anchor="middle" font-size="12" font-weight="700" fill="#4c1d95">checkpoint.json</text>
+          <text x="90" y="258" text-anchor="middle" font-size="9" fill="#6b6680">1 perspective</text>
+
+          <!-- RIGHT: parallel flow -->
+          <rect x="640" y="50" width="140" height="44" rx="10" fill="#fff" stroke="#a78bfa" stroke-width="1.5" filter="url(#soft)"/>
+          <text x="710" y="78" text-anchor="middle" font-size="12" font-weight="700" fill="#4c1d95">briefing.md</text>
+          <!-- fan-out lines -->
+          <path d="M710 94 C710 110 545 110 545 128" stroke="#7c3aed" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+          <path d="M710 94 L710 124" stroke="#7c3aed" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+          <path d="M710 94 C710 110 875 110 875 128" stroke="#7c3aed" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+          <!-- 3 agent cards -->
+          <g filter="url(#soft)">
+            <rect x="475" y="128" width="140" height="64" rx="10" fill="url(#gPur)"/>
+            <circle cx="495" cy="148" r="9" fill="#fbbf24"/><text x="495" y="151" text-anchor="middle" font-size="9" font-weight="800" fill="#3b0764">G</text>
+            <text x="515" y="146" font-size="11" font-weight="800" fill="#fff">Agent 1a-git</text>
+            <text x="515" y="160" font-size="9" fill="#ddd6fe">history lens</text>
+            <text x="495" y="183" text-anchor="middle" font-size="10" fill="#ddd6fe">conf 0.72</text>
+            <text x="555" y="183" text-anchor="middle" font-size="10" fill="#fbbf24" font-weight="700">core.py:842</text>
+          </g>
+          <g filter="url(#soft)">
+            <rect x="640" y="128" width="140" height="64" rx="10" fill="url(#gPur)"/>
+            <circle cx="660" cy="148" r="9" fill="#fbbf24"/><text x="660" y="151" text-anchor="middle" font-size="9" font-weight="800" fill="#3b0764">D</text>
+            <text x="680" y="146" font-size="11" font-weight="800" fill="#fff">Agent 1a-dep</text>
+            <text x="680" y="160" font-size="9" fill="#ddd6fe">dependency lens</text>
+            <text x="660" y="183" text-anchor="middle" font-size="10" fill="#ddd6fe">conf 0.81</text>
+            <text x="720" y="183" text-anchor="middle" font-size="10" fill="#fbbf24" font-weight="700">core.py:842</text>
+          </g>
+          <g filter="url(#soft)">
+            <rect x="805" y="128" width="140" height="64" rx="10" fill="url(#gPur)"/>
+            <circle cx="825" cy="148" r="9" fill="#fbbf24"/><text x="825" y="151" text-anchor="middle" font-size="9" font-weight="800" fill="#3b0764">E</text>
+            <text x="845" y="146" font-size="11" font-weight="800" fill="#fff">Agent 1a-err</text>
+            <text x="845" y="160" font-size="9" fill="#ddd6fe">error-trace lens</text>
+            <text x="825" y="183" text-anchor="middle" font-size="10" fill="#ddd6fe">conf 0.34</text>
+            <text x="885" y="183" text-anchor="middle" font-size="10" fill="#fbbf24" font-weight="700">parser.py:91</text>
+          </g>
+          <!-- merge lines into diamond -->
+          <path d="M545 192 L685 222" stroke="#15803d" stroke-width="1.5" fill="none" marker-end="url(#arrG)"/>
+          <path d="M710 192 L710 222" stroke="#15803d" stroke-width="1.5" fill="none" marker-end="url(#arrG)"/>
+          <path d="M875 192 L735 222" stroke="#15803d" stroke-width="1.5" fill="none" marker-end="url(#arrG)"/>
+          <!-- vote diamond -->
+          <g filter="url(#soft)">
+            <polygon points="710,222 790,260 710,298 630,260" fill="url(#gGold)"/>
+            <text x="710" y="258" text-anchor="middle" font-size="11" font-weight="800" fill="#3b0764">vote.sh</text>
+            <text x="710" y="272" text-anchor="middle" font-size="9" fill="#3b0764">quorum 2 of 3</text>
+          </g>
+          <!-- winner box -->
+          <line x1="790" y1="260" x2="820" y2="260" stroke="#15803d" stroke-width="1.5" marker-end="url(#arrG)"/>
+          <rect x="820" y="240" width="130" height="40" rx="8" fill="#d1fae5" stroke="#15803d" stroke-width="1.5"/>
+          <text x="885" y="258" text-anchor="middle" font-size="11" font-weight="800" fill="#065f46">checkpoint.json</text>
+          <text x="885" y="271" text-anchor="middle" font-size="9" fill="#15803d">conf 0.81 · winner</text>
+        </svg>
+        <div class="illus-cap">Three lensed investigations vote on the highest-quorum hypothesis before passing one consolidated checkpoint downstream.</div>
+        </div></div>
+        <div class="files"><div class="files-label">Files touched</div>
+          <span class="file-pill">scripts/orchestrator.sh</span><span class="file-pill">prompts/investigation.md</span><span class="file-pill new">prompts/investigation_seed_*.md</span><span class="file-pill new">scripts/vote.sh</span><span class="file-pill">config/defaults.env</span><span class="file-pill">potential_changes.md</span>
+        </div>
+      </div>
+
+      <!-- #2 SQLITE -->
+      <div class="card" id="c2">
+        <div class="card-head">
+          <div class="card-num">02</div>
+          <div class="card-title-wrap">
+            <div class="card-title">SQLite Run Database for Cross-Run Analytics</div>
+            <div class="card-meta"><span class="badge b-arch">Architectural</span><span class="badge b-effort-m">Medium effort</span><span class="badge b-risk-low">Risk: Low</span></div>
+          </div>
+        </div>
+        <div class="section"><h4>What changes</h4><p>Add an append-only <code>runs.db</code> beside the JSONL audit trail. After every run, <code>scripts/ingest_run.sh</code> reads <code>manifest.json</code>, <code>diagnosis.json</code>, <code>solution.json</code>, <code>cost_summary.json</code> and inserts one row per run plus child rows per stage. Enables <em>"avg cost per repo tier"</em>, <em>"runs with confidence &lt; 0.5 last week"</em>, <em>"collector timeout rates"</em>. <code>sqlite3</code> ships with git-bash and macOS — no new runtime dependency.</p></div>
+        <div class="section"><h4>Illustration</h4>
+        <div class="illus">
+        <svg viewBox="0 0 880 300" xmlns="http://www.w3.org/2000/svg">
+          <!-- Run cards on left -->
+          <g filter="url(#soft)">
+            <rect x="20" y="40" width="150" height="36" rx="6" fill="#fff" stroke="#a78bfa"/>
+            <text x="35" y="62" font-size="11" font-weight="700" fill="#4c1d95">▶ run 20260504-1015</text>
+            <rect x="20" y="84" width="150" height="36" rx="6" fill="#fff" stroke="#a78bfa"/>
+            <text x="35" y="106" font-size="11" font-weight="700" fill="#4c1d95">▶ run 20260504-1042</text>
+            <rect x="20" y="128" width="150" height="36" rx="6" fill="#fff" stroke="#a78bfa"/>
+            <text x="35" y="150" font-size="11" font-weight="700" fill="#4c1d95">▶ run 20260504-1131</text>
+            <rect x="20" y="172" width="150" height="36" rx="6" fill="#fff" stroke="#a78bfa"/>
+            <text x="35" y="194" font-size="11" font-weight="700" fill="#4c1d95">▶ run 20260504-1247</text>
+            <text x="35" y="232" font-size="11" fill="#6b6680">… N runs</text>
+          </g>
+          <!-- arrows to ingest -->
+          <path d="M180 58 C220 58 220 130 260 130" stroke="#7c3aed" stroke-width="1.2" fill="none" marker-end="url(#arr)"/>
+          <path d="M180 102 C220 102 220 130 260 130" stroke="#7c3aed" stroke-width="1.2" fill="none" marker-end="url(#arr)"/>
+          <path d="M180 146 L260 130" stroke="#7c3aed" stroke-width="1.2" fill="none" marker-end="url(#arr)"/>
+          <path d="M180 190 C220 190 220 130 260 130" stroke="#7c3aed" stroke-width="1.2" fill="none" marker-end="url(#arr)"/>
+          <!-- ingest box -->
+          <g filter="url(#soft)">
+            <rect x="260" y="108" width="130" height="44" rx="10" fill="url(#gGold)"/>
+            <text x="325" y="128" text-anchor="middle" font-size="11" font-weight="800" fill="#3b0764">ingest_run.sh</text>
+            <text x="325" y="144" text-anchor="middle" font-size="9" fill="#3b0764">post-run hook</text>
+          </g>
+          <line x1="390" y1="130" x2="425" y2="130" stroke="#7c3aed" stroke-width="1.5" marker-end="url(#arr)"/>
+          <!-- DB cylinder -->
+          <g filter="url(#soft)">
+            <ellipse cx="490" cy="60" rx="65" ry="14" fill="url(#gPur)"/>
+            <rect x="425" y="60" width="130" height="140" fill="url(#gPur)"/>
+            <ellipse cx="490" cy="200" rx="65" ry="14" fill="#3b0764"/>
+            <ellipse cx="490" cy="60" rx="65" ry="14" fill="none" stroke="#fff" stroke-opacity="0.3"/>
+            <text x="490" y="135" text-anchor="middle" font-size="14" font-weight="800" fill="#fff">runs.db</text>
+            <text x="490" y="152" text-anchor="middle" font-size="9" fill="#ddd6fe">append-only · SQLite</text>
+          </g>
+          <!-- table sample -->
+          <line x1="555" y1="130" x2="595" y2="130" stroke="#15803d" stroke-width="1.5" marker-end="url(#arrG)"/>
+          <g filter="url(#soft)">
+            <rect x="595" y="40" width="265" height="220" rx="10" fill="#fff" stroke="#15803d" stroke-width="1.2"/>
+            <rect x="595" y="40" width="265" height="26" rx="10" fill="#15803d"/>
+            <rect x="595" y="52" width="265" height="14" fill="#15803d"/>
+            <text x="610" y="57" font-size="10" font-weight="800" fill="#fff" font-family="ui-monospace, monospace">SELECT tier, AVG(cost) FROM runs;</text>
+            <!-- table header -->
+            <rect x="595" y="66" width="265" height="22" fill="#f0fdf4"/>
+            <text x="615" y="81" font-size="10" font-weight="700" fill="#065f46" font-family="ui-monospace, monospace">tier</text>
+            <text x="675" y="81" font-size="10" font-weight="700" fill="#065f46" font-family="ui-monospace, monospace">runs</text>
+            <text x="735" y="81" font-size="10" font-weight="700" fill="#065f46" font-family="ui-monospace, monospace">avg $</text>
+            <text x="800" y="81" font-size="10" font-weight="700" fill="#065f46" font-family="ui-monospace, monospace">conf</text>
+            <!-- rows -->
+            <g font-family="ui-monospace, monospace" font-size="11">
+              <text x="615" y="106" fill="#1a1530">XS</text><text x="675" y="106" fill="#1a1530">214</text><text x="735" y="106" fill="#1a1530">2.10</text><text x="800" y="106" fill="#15803d">0.81</text>
+              <text x="615" y="128" fill="#1a1530">S</text><text x="675" y="128" fill="#1a1530">512</text><text x="735" y="128" fill="#1a1530">4.30</text><text x="800" y="128" fill="#15803d">0.77</text>
+              <text x="615" y="150" fill="#1a1530">M</text><text x="675" y="150" fill="#1a1530">301</text><text x="735" y="150" fill="#1a1530">6.85</text><text x="800" y="150" fill="#b45309">0.62</text>
+              <text x="615" y="172" fill="#1a1530">L</text><text x="675" y="172" fill="#1a1530">88</text><text x="735" y="172" fill="#1a1530">11.40</text><text x="800" y="172" fill="#b45309">0.58</text>
+            </g>
+            <line x1="610" y1="190" x2="845" y2="190" stroke="#e6e1f3"/>
+            <text x="615" y="210" font-size="10" fill="#6b6680" font-family="ui-monospace, monospace">→ M-tier hits cost</text>
+            <text x="615" y="225" font-size="10" fill="#6b6680" font-family="ui-monospace, monospace">  ceiling. action:</text>
+            <text x="615" y="240" font-size="10" fill="#15803d" font-weight="700" font-family="ui-monospace, monospace">  raise budget.</text>
+          </g>
+        </svg>
+        <div class="illus-cap">Every completed run lands as structured rows in a single append-only file — queryable, exportable, zero new dependencies.</div>
+        </div></div>
+        <div class="files"><div class="files-label">Files touched</div>
+          <span class="file-pill">scripts/orchestrator.sh</span><span class="file-pill new">scripts/ingest_run.sh</span><span class="file-pill new">lib/db.sh</span><span class="file-pill new">tests/test_db_ingest.sh</span><span class="file-pill">docs/run-artifacts.md</span>
+        </div>
+      </div>
+
+      <!-- #3 PLUGIN COLLECTORS -->
+      <div class="card" id="c3">
+        <div class="card-head">
+          <div class="card-num">03</div>
+          <div class="card-title-wrap">
+            <div class="card-title">Plugin-Based Collector Discovery</div>
+            <div class="card-meta"><span class="badge b-arch">Architectural</span><span class="badge b-effort-s">Small effort</span><span class="badge b-risk-low">Risk: Low</span></div>
+          </div>
+        </div>
+        <div class="section"><h4>What changes</h4><p>Today <code>briefing.sh</code> hard-codes calls to four collectors. Replace with a discovery loop that iterates <code>collectors/*.sh</code> and asks each for its meta (<code>order</code>, <code>section</code>, <code>required_tools</code>). Drop a <code>logs.sh</code> or <code>k8s.sh</code> into the folder and it joins the briefing — no orchestrator edit.</p></div>
+        <div class="section"><h4>Illustration</h4>
+        <div class="illus">
+        <svg viewBox="0 0 880 320" xmlns="http://www.w3.org/2000/svg">
+          <text x="20" y="22" font-size="10" font-weight="800" fill="#b91c1c" letter-spacing="2">TODAY · HARD-CODED</text>
+          <text x="500" y="22" font-size="10" font-weight="800" fill="#15803d" letter-spacing="2">PROPOSED · AUTO-DISCOVERY</text>
+          <line x1="440" y1="0" x2="440" y2="320" stroke="#e6e1f3" stroke-dasharray="3,4"/>
+
+          <!-- LEFT: briefing.sh with hard-coded calls -->
+          <g filter="url(#soft)">
+            <rect x="20" y="50" width="280" height="240" rx="10" fill="#fff" stroke="#ef4444" stroke-width="1.5"/>
+            <rect x="20" y="50" width="280" height="28" rx="10" fill="#fef2f2"/>
+            <rect x="20" y="65" width="280" height="13" fill="#fef2f2"/>
+            <circle cx="35" cy="64" r="4" fill="#ef4444"/><circle cx="48" cy="64" r="4" fill="#f59e0b"/><circle cx="61" cy="64" r="4" fill="#22c55e"/>
+            <text x="150" y="68" text-anchor="middle" font-size="11" font-weight="700" fill="#7f1d1d" font-family="ui-monospace, monospace">scripts/briefing.sh</text>
+            <g font-family="ui-monospace, monospace" font-size="11" fill="#3a3252">
+              <text x="35" y="105"># 4 hard-coded call sites</text>
+              <text x="35" y="130">bash collectors/git.sh        ...</text>
+              <text x="35" y="148">bash collectors/deps.sh       ...</text>
+              <text x="35" y="166">bash collectors/errors.sh     ...</text>
+              <text x="35" y="184">bash collectors/testrunner.sh ...</text>
+              <text x="35" y="220" fill="#b91c1c"># adding a 5th means</text>
+              <text x="35" y="238" fill="#b91c1c"># editing this file every</text>
+              <text x="35" y="256" fill="#b91c1c"># single time</text>
+            </g>
+          </g>
+
+          <!-- RIGHT: discovery diagram -->
+          <!-- folder -->
+          <g filter="url(#soft)">
+            <path d="M475 50 L545 50 L555 62 L850 62 L850 230 L475 230 Z" fill="url(#gPurSoft)" stroke="#a78bfa"/>
+            <text x="495" y="80" font-size="11" font-weight="700" fill="#4c1d95" font-family="ui-monospace, monospace">collectors/</text>
+          </g>
+          <!-- collector plug cards -->
+          <g font-family="ui-monospace, monospace" font-size="11">
+            <rect x="490" y="92" width="160" height="28" rx="6" fill="#fff" stroke="#8b5cf6"/>
+            <rect x="490" y="92" width="6" height="28" fill="#fbbf24"/>
+            <text x="505" y="111" font-weight="700" fill="#4c1d95">git.sh</text>
+            <text x="640" y="111" text-anchor="end" font-size="9" fill="#6b6680">order:10</text>
+
+            <rect x="490" y="124" width="160" height="28" rx="6" fill="#fff" stroke="#8b5cf6"/>
+            <rect x="490" y="124" width="6" height="28" fill="#fbbf24"/>
+            <text x="505" y="143" font-weight="700" fill="#4c1d95">deps.sh</text>
+            <text x="640" y="143" text-anchor="end" font-size="9" fill="#6b6680">order:20</text>
+
+            <rect x="490" y="156" width="160" height="28" rx="6" fill="#fff" stroke="#8b5cf6"/>
+            <rect x="490" y="156" width="6" height="28" fill="#fbbf24"/>
+            <text x="505" y="175" font-weight="700" fill="#4c1d95">errors.sh</text>
+            <text x="640" y="175" text-anchor="end" font-size="9" fill="#6b6680">order:30</text>
+
+            <rect x="490" y="188" width="160" height="28" rx="6" fill="#fff" stroke="#8b5cf6"/>
+            <rect x="490" y="188" width="6" height="28" fill="#fbbf24"/>
+            <text x="505" y="207" font-weight="700" fill="#4c1d95">testrunner.sh</text>
+            <text x="640" y="207" text-anchor="end" font-size="9" fill="#6b6680">order:40</text>
+
+            <!-- NEW plug-in -->
+            <rect x="670" y="156" width="160" height="60" rx="6" fill="#ecfdf5" stroke="#15803d" stroke-width="1.5" stroke-dasharray="4,3"/>
+            <rect x="670" y="156" width="6" height="60" fill="#22c55e"/>
+            <text x="685" y="178" font-weight="700" fill="#065f46">logs.sh</text>
+            <text x="685" y="194" font-size="9" fill="#15803d">order:50  NEW</text>
+            <text x="685" y="208" font-size="9" fill="#15803d">drop-in, auto-loads</text>
+          </g>
+          <!-- arrow into briefing -->
+          <path d="M660 220 C660 260 720 260 720 280" stroke="#15803d" stroke-width="1.5" fill="none" marker-end="url(#arrG)"/>
+          <g filter="url(#soft)">
+            <rect x="640" y="270" width="170" height="34" rx="8" fill="url(#gOk)"/>
+            <text x="725" y="292" text-anchor="middle" font-size="11" font-weight="800" fill="#fff">briefing.sh — for f in *.sh</text>
+          </g>
+        </svg>
+        <div class="illus-cap">Auto-discovery replaces explicit call-sites: collectors become drop-in plugins ordered by their own metadata.</div>
+        </div></div>
+        <div class="files"><div class="files-label">Files touched</div>
+          <span class="file-pill">scripts/briefing.sh</span><span class="file-pill">collectors/git.sh</span><span class="file-pill">collectors/deps.sh</span><span class="file-pill">collectors/errors.sh</span><span class="file-pill">collectors/testrunner.sh</span><span class="file-pill">docs/briefing-and-collectors.md</span><span class="file-pill">docs/development-guide.md</span>
+        </div>
+      </div>
+
+      <!-- #4 FSM -->
+      <div class="card" id="c4">
+        <div class="card-head">
+          <div class="card-num">04</div>
+          <div class="card-title-wrap">
+            <div class="card-title">Event-Driven Orchestrator State Machine</div>
+            <div class="card-meta"><span class="badge b-arch">Architectural</span><span class="badge b-effort-l">Large effort</span><span class="badge b-risk-med">Risk: Med</span></div>
+          </div>
+        </div>
+        <div class="section"><h4>What changes</h4><p>Today <code>orchestrator.sh</code> is a long linear script. Refactor into an FSM where every stage produces typed events (<code>STAGE_DONE</code>, <code>QUALITY_WEAK</code>, <code>SCHEMA_INVALID</code>) on <code>events.jsonl</code>. A small dispatcher decides the next state — enabling <strong>resumable runs</strong>, cleaner branching, and a live feed for the future TUI.</p></div>
+        <div class="section"><h4>Illustration</h4>
+        <div class="illus">
+        <svg viewBox="0 0 880 340" xmlns="http://www.w3.org/2000/svg">
+          <!-- States -->
+          <g font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Roboto" font-size="11" font-weight="700">
+            <!-- briefing -->
+            <g filter="url(#soft)">
+              <rect x="30" y="140" width="110" height="48" rx="10" fill="url(#gPur)"/>
+              <text x="85" y="162" text-anchor="middle" fill="#fff">BRIEFING</text>
+              <text x="85" y="178" text-anchor="middle" fill="#ddd6fe" font-size="9" font-weight="500">collectors</text>
+            </g>
+            <!-- agent 1a -->
+            <g filter="url(#soft)">
+              <rect x="200" y="140" width="110" height="48" rx="10" fill="url(#gPur)"/>
+              <text x="255" y="162" text-anchor="middle" fill="#fff">AGENT_1A</text>
+              <text x="255" y="178" text-anchor="middle" fill="#ddd6fe" font-size="9" font-weight="500">investigate</text>
+            </g>
+            <!-- recovery (branch up) -->
+            <g filter="url(#soft)">
+              <rect x="200" y="40" width="110" height="48" rx="10" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.5"/>
+              <text x="255" y="62" text-anchor="middle" fill="#92400e">RECOVERY</text>
+              <text x="255" y="78" text-anchor="middle" fill="#b45309" font-size="9" font-weight="500">evidence pass</text>
+            </g>
+            <!-- checkpoint -->
+            <g filter="url(#soft)">
+              <rect x="370" y="140" width="110" height="48" rx="10" fill="url(#gPur)"/>
+              <text x="425" y="162" text-anchor="middle" fill="#fff">CHECKPOINT</text>
+              <text x="425" y="178" text-anchor="middle" fill="#ddd6fe" font-size="9" font-weight="500">1-turn synth</text>
+            </g>
+            <!-- agent 1b -->
+            <g filter="url(#soft)">
+              <rect x="540" y="140" width="110" height="48" rx="10" fill="url(#gPur)"/>
+              <text x="595" y="162" text-anchor="middle" fill="#fff">AGENT_1B</text>
+              <text x="595" y="178" text-anchor="middle" fill="#ddd6fe" font-size="9" font-weight="500">schema</text>
+            </g>
+            <!-- repair (branch down) -->
+            <g filter="url(#soft)">
+              <rect x="540" y="240" width="110" height="48" rx="10" fill="#fee2e2" stroke="#dc2626" stroke-width="1.5"/>
+              <text x="595" y="262" text-anchor="middle" fill="#991b1b">REPAIR</text>
+              <text x="595" y="278" text-anchor="middle" fill="#b91c1c" font-size="9" font-weight="500">one-shot</text>
+            </g>
+            <!-- agent 2 -->
+            <g filter="url(#soft)">
+              <rect x="710" y="140" width="110" height="48" rx="10" fill="url(#gOk)"/>
+              <text x="765" y="162" text-anchor="middle" fill="#fff">AGENT_2…</text>
+              <text x="765" y="178" text-anchor="middle" fill="#d1fae5" font-size="9" font-weight="500">solution</text>
+            </g>
+          </g>
+          <!-- transitions -->
+          <line x1="140" y1="164" x2="195" y2="164" stroke="#7c3aed" stroke-width="1.5" marker-end="url(#arr)"/>
+          <text x="167" y="158" text-anchor="middle" font-size="8" font-weight="700" fill="#7c3aed">DONE</text>
+
+          <line x1="310" y1="164" x2="365" y2="164" stroke="#7c3aed" stroke-width="1.5" marker-end="url(#arr)"/>
+          <text x="337" y="158" text-anchor="middle" font-size="8" font-weight="700" fill="#7c3aed">DONE</text>
+
+          <line x1="480" y1="164" x2="535" y2="164" stroke="#7c3aed" stroke-width="1.5" marker-end="url(#arr)"/>
+          <text x="507" y="158" text-anchor="middle" font-size="8" font-weight="700" fill="#7c3aed">DONE</text>
+
+          <line x1="650" y1="164" x2="705" y2="164" stroke="#15803d" stroke-width="1.5" marker-end="url(#arrG)"/>
+          <text x="677" y="158" text-anchor="middle" font-size="8" font-weight="700" fill="#15803d">DONE</text>
+
+          <!-- branch up to recovery -->
+          <path d="M255 140 L255 92" stroke="#f59e0b" stroke-width="1.5" fill="none" marker-end="url(#arr)" stroke-dasharray="4,3"/>
+          <text x="295" y="118" font-size="8" font-weight="700" fill="#b45309">QUALITY_WEAK</text>
+          <path d="M310 64 C355 64 355 140 365 140" stroke="#f59e0b" stroke-width="1.5" fill="none" marker-end="url(#arr)" stroke-dasharray="4,3"/>
+
+          <!-- branch down to repair -->
+          <path d="M595 188 L595 236" stroke="#dc2626" stroke-width="1.5" fill="none" marker-end="url(#arr)" stroke-dasharray="4,3"/>
+          <text x="610" y="220" font-size="8" font-weight="700" fill="#b91c1c">SCHEMA_INVALID</text>
+          <path d="M650 264 C700 264 700 188 710 188" stroke="#dc2626" stroke-width="1.5" fill="none" marker-end="url(#arr)" stroke-dasharray="4,3"/>
+
+          <!-- events.jsonl bus -->
+          <g filter="url(#soft)">
+            <rect x="30" y="300" width="790" height="28" rx="14" fill="url(#gDark)"/>
+            <text x="48" y="319" font-size="11" font-weight="800" fill="#fbbf24" font-family="ui-monospace, monospace">events.jsonl</text>
+            <text x="160" y="319" font-size="10" fill="#ddd6fe" font-family="ui-monospace, monospace">{stage:"agent_1a",event:"STAGE_DONE",ts:...}  ←  dispatcher reads, picks next state</text>
+          </g>
+          <!-- resume hint -->
+          <text x="425" y="20" text-anchor="middle" font-size="11" font-weight="700" fill="#15803d">$ rca-mas.sh --resume RUN_ID  (re-enters from last event)</text>
+        </svg>
+        <div class="illus-cap">Stages emit typed events; a dispatcher reads the bus and selects the next state — branches and resumption become first-class.</div>
+        </div></div>
+        <div class="files"><div class="files-label">Files touched</div>
+          <span class="file-pill">scripts/orchestrator.sh</span><span class="file-pill new">scripts/dispatcher.sh</span><span class="file-pill new">lib/events.sh</span><span class="file-pill">rca-mas.sh</span><span class="file-pill">docs/pipeline-flow.md</span>
+        </div>
+      </div>
+
+      <!-- #5 CACHE -->
+      <div class="card" id="c5">
+        <div class="card-head">
+          <div class="card-num">05</div>
+          <div class="card-title-wrap">
+            <div class="card-title">Hash-Keyed Briefing Cache</div>
+            <div class="card-meta"><span class="badge b-arch">Architectural</span><span class="badge b-perf">Performance</span><span class="badge b-effort-s">Small effort</span><span class="badge b-risk-low">Risk: Low</span></div>
+          </div>
+        </div>
+        <div class="section"><h4>What changes</h4><p>Briefing is deterministic from <code>(HEAD SHA, mentioned_files, error_strings)</code>. Cache <code>briefing.md</code> + <code>errors.txt</code> in <code>.rca-mas/cache/briefing/{hash}/</code>. A repeat run skips the four collector subprocesses entirely — invaluable for the eval harness (#7) which replays the same bugs hundreds of times.</p></div>
+        <div class="section"><h4>Illustration</h4>
+        <div class="illus">
+        <svg viewBox="0 0 880 280" xmlns="http://www.w3.org/2000/svg">
+          <!-- hash key box -->
+          <g filter="url(#soft)">
+            <rect x="20" y="30" width="280" height="120" rx="10" fill="#fff" stroke="#a78bfa"/>
+            <rect x="20" y="30" width="280" height="26" rx="10" fill="#ede4ff"/>
+            <rect x="20" y="44" width="280" height="12" fill="#ede4ff"/>
+            <text x="160" y="48" text-anchor="middle" font-size="10" font-weight="800" fill="#4c1d95" letter-spacing="2">CACHE KEY</text>
+            <g font-family="ui-monospace, monospace" font-size="11">
+              <text x="35" y="78" fill="#6b6680">sha256(</text>
+              <text x="50" y="96" fill="#4c1d95">HEAD_SHA</text>
+              <text x="50" y="112" fill="#4c1d95">+ mentioned_files</text>
+              <text x="50" y="128" fill="#4c1d95">+ error_strings</text>
+              <text x="35" y="144" fill="#6b6680">)</text>
+            </g>
+          </g>
+          <!-- arrow to lookup -->
+          <line x1="300" y1="90" x2="345" y2="90" stroke="#7c3aed" stroke-width="1.5" marker-end="url(#arr)"/>
+          <!-- decision diamond -->
+          <g filter="url(#soft)">
+            <polygon points="425,40 495,90 425,140 355,90" fill="url(#gGold)"/>
+            <text x="425" y="86" text-anchor="middle" font-size="11" font-weight="800" fill="#3b0764">cache</text>
+            <text x="425" y="100" text-anchor="middle" font-size="11" font-weight="800" fill="#3b0764">hit?</text>
+          </g>
+          <!-- HIT branch -->
+          <line x1="495" y1="80" x2="555" y2="55" stroke="#15803d" stroke-width="1.5" marker-end="url(#arrG)"/>
+          <text x="510" y="50" font-size="9" font-weight="800" fill="#15803d">YES</text>
+          <g filter="url(#soft)">
+            <rect x="555" y="30" width="195" height="60" rx="10" fill="url(#gOk)"/>
+            <text x="652" y="52" text-anchor="middle" font-size="12" font-weight="800" fill="#fff">cp cache → RUN_DIR</text>
+            <text x="652" y="72" text-anchor="middle" font-size="10" fill="#d1fae5">CACHE HIT · 0.4s</text>
+          </g>
+          <!-- MISS branch -->
+          <line x1="495" y1="100" x2="555" y2="125" stroke="#b91c1c" stroke-width="1.5" marker-end="url(#arr)"/>
+          <text x="510" y="135" font-size="9" font-weight="800" fill="#b91c1c">NO</text>
+          <g filter="url(#soft)">
+            <rect x="555" y="110" width="195" height="60" rx="10" fill="#fef2f2" stroke="#dc2626" stroke-width="1.5"/>
+            <text x="652" y="132" text-anchor="middle" font-size="12" font-weight="800" fill="#7f1d1d">run 4 collectors</text>
+            <text x="652" y="152" text-anchor="middle" font-size="10" fill="#b91c1c">+ write cache · 11.4s</text>
+          </g>
+
+          <!-- speedometer comparison -->
+          <g transform="translate(40, 175)">
+            <text x="0" y="0" font-size="10" font-weight="800" fill="#4c1d95" letter-spacing="2">FIRST RUN vs RE-RUN ON BUG 3</text>
+            <!-- bars -->
+            <rect x="0" y="14" width="800" height="22" rx="4" fill="#f4ecff"/>
+            <rect x="0" y="14" width="660" height="22" rx="4" fill="url(#gRed)"/>
+            <text x="14" y="29" font-size="11" font-weight="700" fill="#fff">first run · briefing 11.4s</text>
+            <text x="800" y="29" text-anchor="end" font-size="11" font-weight="800" fill="#fff">11.4s</text>
+
+            <rect x="0" y="44" width="800" height="22" rx="4" fill="#f4ecff"/>
+            <rect x="0" y="44" width="24" height="22" rx="4" fill="url(#gOk)"/>
+            <text x="34" y="59" font-size="11" font-weight="700" fill="#065f46">cached re-run · 0.4s</text>
+            <text x="800" y="59" text-anchor="end" font-size="11" font-weight="800" fill="#065f46">0.4s  (−96%)</text>
+          </g>
+        </svg>
+        <div class="illus-cap">A deterministic cache key short-circuits the collector phase on repeat runs — minutes of CI time become tenths of a second.</div>
+        </div></div>
+        <div class="files"><div class="files-label">Files touched</div>
+          <span class="file-pill">scripts/briefing.sh</span><span class="file-pill new">lib/cache.sh</span><span class="file-pill">tests/test_briefing.sh</span><span class="file-pill">config/defaults.env</span><span class="file-pill">docs/briefing-and-collectors.md</span>
+        </div>
+      </div>
+
+      <!-- #6 STREAMING HANDOFF -->
+      <div class="card" id="c6">
+        <div class="card-head">
+          <div class="card-num">06</div>
+          <div class="card-title-wrap">
+            <div class="card-title">Streaming Context Handoff Between Agents</div>
+            <div class="card-meta"><span class="badge b-arch">Architectural</span><span class="badge b-effort-m">Medium effort</span><span class="badge b-risk-med">Risk: Med</span></div>
+          </div>
+        </div>
+        <div class="section"><h4>What changes</h4><p>Today Agent 1b waits for Agent 1a to fully complete. Since Agent 1a already emits JSONL, the orchestrator can detect a <code>FINAL FINDINGS</code> block in-flight and start Agent 1b's pre-fetcher early. Net effect: 10–25% lower end-to-end latency on bugs where Agent 1a concludes in the first half of its budget.</p></div>
+        <div class="section"><h4>Illustration</h4>
+        <div class="illus">
+        <svg viewBox="0 0 880 300" xmlns="http://www.w3.org/2000/svg">
+          <!-- timeline axis -->
+          <line x1="180" y1="40" x2="860" y2="40" stroke="#cbd5e1" stroke-width="1"/>
+          <g font-size="9" fill="#6b6680" font-family="ui-monospace, monospace">
+            <text x="180" y="32">0s</text>
+            <text x="350" y="32">60s</text>
+            <text x="520" y="32">120s</text>
+            <text x="690" y="32">240s</text>
+            <text x="855" y="32" text-anchor="end">315s</text>
+          </g>
+          <!-- legend -->
+          <text x="20" y="84" font-size="10" font-weight="800" fill="#b91c1c" letter-spacing="2">TODAY</text>
+          <text x="20" y="200" font-size="10" font-weight="800" fill="#15803d" letter-spacing="2">STREAMING</text>
+          <!-- TODAY: 3 bars -->
+          <g filter="url(#soft)">
+            <rect x="180" y="60" width="500" height="34" rx="6" fill="url(#gPur)"/>
+            <text x="430" y="82" text-anchor="middle" font-size="11" font-weight="800" fill="#fff">Agent 1a  (240s)</text>
+            <rect x="680" y="60" width="60" height="34" rx="6" fill="url(#gPurSoft)" stroke="#a78bfa"/>
+            <text x="710" y="82" text-anchor="middle" font-size="10" font-weight="700" fill="#4c1d95">ckpt 30s</text>
+            <rect x="740" y="60" width="100" height="34" rx="6" fill="url(#gPur)"/>
+            <text x="790" y="82" text-anchor="middle" font-size="11" font-weight="800" fill="#fff">Agent 1b  45s</text>
+          </g>
+          <text x="855" y="116" text-anchor="end" font-size="11" font-weight="800" fill="#b91c1c">TOTAL ≈ 315s · everything sequential</text>
+
+          <!-- STREAMING: overlapping bars -->
+          <g filter="url(#soft)">
+            <rect x="180" y="220" width="500" height="34" rx="6" fill="url(#gPur)"/>
+            <text x="430" y="242" text-anchor="middle" font-size="11" font-weight="800" fill="#fff">Agent 1a  (240s)</text>
+            <!-- stream tail tap -->
+            <rect x="400" y="180" width="280" height="20" rx="4" fill="#fef3c7" stroke="#f59e0b" stroke-dasharray="4,3"/>
+            <text x="540" y="194" text-anchor="middle" font-size="10" font-weight="700" fill="#92400e">ckpt-watch · live tail</text>
+            <!-- agent 1b overlapping -->
+            <rect x="600" y="260" width="100" height="34" rx="6" fill="url(#gOk)"/>
+            <text x="650" y="282" text-anchor="middle" font-size="11" font-weight="800" fill="#fff">Agent 1b  45s</text>
+          </g>
+          <!-- arrow showing handoff -->
+          <path d="M600 200 L600 260" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="3,2" fill="none" marker-end="url(#arr)"/>
+          <text x="700" y="280" font-size="10" font-weight="800" fill="#15803d">TOTAL ≈ 250s  (−20%)</text>
+
+          <!-- vertical guide lines -->
+          <line x1="680" y1="50" x2="680" y2="290" stroke="#cbd5e1" stroke-dasharray="2,3"/>
+        </svg>
+        <div class="illus-cap">A live tail of Agent 1a's stream lets Agent 1b begin synthesis before 1a fully exits — the wait stage collapses.</div>
+        </div></div>
+        <div class="files"><div class="files-label">Files touched</div>
+          <span class="file-pill">scripts/orchestrator.sh</span><span class="file-pill">scripts/extract_agent1a_stream.sh</span><span class="file-pill new">scripts/checkpoint_watch.sh</span><span class="file-pill">scripts/claude_json.sh</span><span class="file-pill">docs/pipeline-flow.md</span>
+        </div>
+      </div>
+
+      <!-- ==================== TESTING ==================== -->
+      <div class="cat-section">
+        <h2><div class="cat-dot" style="background:#22c55e"></div>Testing &amp; Quality</h2>
+        <div class="cat-sub">Move from "does the pipeline run?" to "does it stay accurate over time?"</div>
+      </div>
+
+      <!-- #7 EVAL HARNESS -->
+      <div class="card" id="c7">
+        <div class="card-head">
+          <div class="card-num">07</div>
+          <div class="card-title-wrap">
+            <div class="card-title">Continuous Evaluation Harness</div>
+            <div class="card-meta"><span class="badge b-test">Testing</span><span class="badge b-effort-m">Medium effort</span><span class="badge b-risk-low">Risk: Low</span></div>
+          </div>
+        </div>
+        <div class="section"><h4>What changes</h4><p>A new <code>tests/eval/</code> harness runs the 5 click bugs (and future fixtures) on every PR, computes <strong>diagnosis-vs-truth</strong> metrics (file match, line range overlap, confidence calibration, fix equivalence to upstream PR), and posts a markdown comment. Today the real-repo test only checks "did the pipeline finish?" — this catches silent quality regressions.</p></div>
+        <div class="section"><h4>Illustration</h4>
+        <div class="illus">
+        <svg viewBox="0 0 880 340" xmlns="http://www.w3.org/2000/svg">
+          <!-- Title bar -->
+          <g filter="url(#soft)">
+            <rect x="20" y="20" width="840" height="36" rx="8" fill="url(#gDark)"/>
+            <circle cx="38" cy="38" r="5" fill="#22c55e"/>
+            <text x="56" y="42" font-size="12" font-weight="700" fill="#fff" font-family="ui-monospace, monospace">eval_report.md</text>
+            <text x="855" y="42" text-anchor="end" font-size="11" font-weight="700" fill="#fbbf24">PR #214 · 2 regressions detected</text>
+          </g>
+          <!-- table head -->
+          <g font-size="11" font-weight="800" fill="#4c1d95" font-family="ui-monospace, monospace">
+            <rect x="20" y="68" width="840" height="28" rx="6" fill="#ede4ff"/>
+            <text x="40" y="86">BUG</text>
+            <text x="100" y="86">FILE</text>
+            <text x="170" y="86">LINES</text>
+            <text x="245" y="86">CONF</text>
+            <text x="320" y="86">ΔPREV</text>
+            <text x="410" y="86">MATCH</text>
+            <text x="500" y="86">FIX ≈ UPSTREAM PR</text>
+            <text x="720" y="86">STATUS</text>
+          </g>
+          <!-- rows -->
+          <g font-size="11" font-family="ui-monospace, monospace">
+            <!-- bug 1 -->
+            <rect x="20" y="102" width="840" height="28" fill="#fff"/>
+            <text x="40" y="120" font-weight="700" fill="#1a1530">#1</text>
+            <text x="100" y="120" fill="#22c55e" font-weight="700">✓</text>
+            <text x="170" y="120" fill="#22c55e" font-weight="700">✓</text>
+            <text x="245" y="120" fill="#1a1530">0.81</text>
+            <text x="320" y="120" fill="#15803d">+.02</text>
+            <text x="410" y="120" fill="#15803d" font-weight="700">100%</text>
+            <text x="500" y="120" fill="#15803d" font-weight="700">YES · #3079</text>
+            <rect x="715" y="108" width="60" height="18" rx="9" fill="#d1fae5"/>
+            <text x="745" y="121" text-anchor="middle" font-weight="800" fill="#065f46">PASS</text>
+            <!-- bug 2 -->
+            <rect x="20" y="132" width="840" height="28" fill="#fafaff"/>
+            <text x="40" y="150" font-weight="700" fill="#1a1530">#2</text>
+            <text x="100" y="150" fill="#22c55e" font-weight="700">✓</text>
+            <text x="170" y="150" fill="#22c55e" font-weight="700">✓</text>
+            <text x="245" y="150" fill="#1a1530">0.74</text>
+            <text x="320" y="150" fill="#6b6680">±.00</text>
+            <text x="410" y="150" fill="#15803d" font-weight="700">100%</text>
+            <text x="500" y="150" fill="#15803d" font-weight="700">YES · #3068</text>
+            <rect x="715" y="138" width="60" height="18" rx="9" fill="#d1fae5"/>
+            <text x="745" y="151" text-anchor="middle" font-weight="800" fill="#065f46">PASS</text>
+            <!-- bug 3 - REGRESSION -->
+            <rect x="20" y="162" width="840" height="28" fill="#fef2f2"/>
+            <text x="40" y="180" font-weight="700" fill="#1a1530">#3</text>
+            <text x="100" y="180" fill="#22c55e" font-weight="700">✓</text>
+            <text x="170" y="180" fill="#dc2626" font-weight="700">✗</text>
+            <text x="245" y="180" fill="#1a1530">0.55</text>
+            <text x="320" y="180" fill="#b91c1c" font-weight="700">−.27</text>
+            <text x="410" y="180" fill="#b45309" font-weight="700">⚠ partial</text>
+            <text x="500" y="180" fill="#b45309" font-weight="700">PARTIAL · #3021</text>
+            <rect x="710" y="168" width="80" height="18" rx="9" fill="#fee2e2"/>
+            <text x="750" y="181" text-anchor="middle" font-weight="800" fill="#b91c1c">REGRESSION</text>
+            <!-- bug 4 -->
+            <rect x="20" y="192" width="840" height="28" fill="#fafaff"/>
+            <text x="40" y="210" font-weight="700" fill="#1a1530">#4</text>
+            <text x="100" y="210" fill="#22c55e" font-weight="700">✓</text>
+            <text x="170" y="210" fill="#22c55e" font-weight="700">✓</text>
+            <text x="245" y="210" fill="#1a1530">0.86</text>
+            <text x="320" y="210" fill="#6b6680">±.00</text>
+            <text x="410" y="210" fill="#15803d" font-weight="700">100%</text>
+            <text x="500" y="210" fill="#15803d" font-weight="700">YES · #2987</text>
+            <rect x="715" y="198" width="60" height="18" rx="9" fill="#d1fae5"/>
+            <text x="745" y="211" text-anchor="middle" font-weight="800" fill="#065f46">PASS</text>
+            <!-- bug 5 - REGRESSION -->
+            <rect x="20" y="222" width="840" height="28" fill="#fef2f2"/>
+            <text x="40" y="240" font-weight="700" fill="#1a1530">#5</text>
+            <text x="100" y="240" fill="#dc2626" font-weight="700">✗</text>
+            <text x="170" y="240" fill="#dc2626" font-weight="700">✗</text>
+            <text x="245" y="240" fill="#1a1530">0.30</text>
+            <text x="320" y="240" fill="#b91c1c" font-weight="700">−.40</text>
+            <text x="410" y="240" fill="#b91c1c" font-weight="700">✗ no match</text>
+            <text x="500" y="240" fill="#b91c1c" font-weight="700">NO</text>
+            <rect x="710" y="228" width="80" height="18" rx="9" fill="#fee2e2"/>
+            <text x="750" y="241" text-anchor="middle" font-weight="800" fill="#b91c1c">REGRESSION</text>
+          </g>
+          <!-- aggregate -->
+          <g filter="url(#soft)">
+            <rect x="20" y="270" width="840" height="56" rx="10" fill="url(#gDark)"/>
+            <text x="40" y="292" font-size="11" font-weight="800" fill="#fbbf24" letter-spacing="2">AGGREGATE</text>
+            <text x="40" y="312" font-size="14" font-weight="800" fill="#fff">Accuracy: 60%  </text>
+            <text x="170" y="312" font-size="14" font-weight="700" fill="#fbbf24">(was 100% on main)</text>
+            <rect x="660" y="284" width="180" height="30" rx="6" fill="#dc2626"/>
+            <text x="750" y="304" text-anchor="middle" font-size="13" font-weight="800" fill="#fff">BLOCK PR</text>
+          </g>
+        </svg>
+        <div class="illus-cap">Every PR runs the full fixture set and posts a regression-aware scorecard against the prior baseline.</div>
+        </div></div>
+        <div class="files"><div class="files-label">Files touched</div>
+          <span class="file-pill new">tests/eval/run_eval.sh</span><span class="file-pill new">tests/eval/metrics.sh</span><span class="file-pill new">tests/eval/baseline.json</span><span class="file-pill new">.github/workflows/eval.yml</span><span class="file-pill">tests/real_repos/click/expected/</span><span class="file-pill">docs/testing-guide.md</span>
+        </div>
+      </div>
+
+      <!-- #8 FUZZER -->
+      <div class="card" id="c8">
+        <div class="card-head">
+          <div class="card-num">08</div>
+          <div class="card-title-wrap">
+            <div class="card-title">Property-Based Tests for Schema Validation</div>
+            <div class="card-meta"><span class="badge b-test">Testing</span><span class="badge b-effort-s">Small effort</span><span class="badge b-risk-low">Risk: Low</span></div>
+          </div>
+        </div>
+        <div class="section"><h4>What changes</h4><p>Today <code>test_json_schemas.sh</code> only checks happy-path fixtures. Add a fuzzer that mutates valid fixtures (drop required field, swap type, exceed length, inject Unicode) and asserts every mutation either passes or fails as expected. Catches schema-vs-prompt drift before it ships.</p></div>
+        <div class="section"><h4>Illustration</h4>
+        <div class="illus">
+        <svg viewBox="0 0 880 320" xmlns="http://www.w3.org/2000/svg">
+          <!-- seed -->
+          <g filter="url(#soft)">
+            <rect x="20" y="130" width="160" height="60" rx="10" fill="url(#gPur)"/>
+            <text x="100" y="154" text-anchor="middle" font-size="12" font-weight="800" fill="#fff">sample_</text>
+            <text x="100" y="170" text-anchor="middle" font-size="12" font-weight="800" fill="#fff">diagnosis.json</text>
+            <text x="100" y="184" text-anchor="middle" font-size="9" fill="#ddd6fe">seed (valid)</text>
+          </g>
+          <!-- mutator -->
+          <line x1="180" y1="160" x2="220" y2="160" stroke="#7c3aed" stroke-width="1.5" marker-end="url(#arr)"/>
+          <g filter="url(#soft)">
+            <rect x="220" y="120" width="160" height="80" rx="10" fill="url(#gGold)"/>
+            <text x="300" y="142" text-anchor="middle" font-size="12" font-weight="800" fill="#3b0764">mutate.sh</text>
+            <g font-size="9" fill="#3b0764" font-family="ui-monospace, monospace">
+              <text x="240" y="162">• drop required</text>
+              <text x="240" y="176">• wrong type</text>
+              <text x="240" y="190">• boundary cases</text>
+            </g>
+          </g>
+          <!-- fan to 500 docs -->
+          <line x1="380" y1="160" x2="425" y2="160" stroke="#7c3aed" stroke-width="1.5" marker-end="url(#arr)"/>
+          <!-- 500 docs stack -->
+          <g filter="url(#soft)">
+            <rect x="445" y="110" width="100" height="100" rx="6" fill="#ede4ff" stroke="#a78bfa"/>
+            <rect x="438" y="115" width="100" height="100" rx="6" fill="#f4ecff" stroke="#a78bfa"/>
+            <rect x="431" y="120" width="100" height="100" rx="6" fill="#fff" stroke="#a78bfa"/>
+            <text x="481" y="160" text-anchor="middle" font-size="20" font-weight="800" fill="#4c1d95">500</text>
+            <text x="481" y="180" text-anchor="middle" font-size="10" fill="#6b6680">mutated</text>
+            <text x="481" y="194" text-anchor="middle" font-size="10" fill="#6b6680">documents</text>
+          </g>
+          <!-- arrow to schema check -->
+          <line x1="555" y1="160" x2="595" y2="160" stroke="#7c3aed" stroke-width="1.5" marker-end="url(#arr)"/>
+          <!-- schema validator -->
+          <g filter="url(#soft)">
+            <rect x="595" y="80" width="265" height="200" rx="10" fill="#fff" stroke="#4c1d95" stroke-width="1.5"/>
+            <rect x="595" y="80" width="265" height="28" rx="10" fill="url(#gPur)"/>
+            <rect x="595" y="92" width="265" height="16" fill="url(#gPur)"/>
+            <text x="727" y="100" text-anchor="middle" font-size="11" font-weight="800" fill="#fff" font-family="ui-monospace, monospace">diagnosis.schema.json</text>
+            <!-- bars -->
+            <g font-size="11" font-family="ui-monospace, monospace">
+              <text x="615" y="138" fill="#1a1530">expect VALID</text>
+              <rect x="730" y="124" width="100" height="20" rx="3" fill="#f1f5f9"/>
+              <rect x="730" y="124" width="22" height="20" rx="3" fill="url(#gOk)"/>
+              <text x="836" y="138" text-anchor="end" font-weight="800" fill="#065f46">12</text>
+
+              <text x="615" y="168" fill="#1a1530">expect INVALID</text>
+              <rect x="730" y="154" width="100" height="20" rx="3" fill="#f1f5f9"/>
+              <rect x="730" y="154" width="98" height="20" rx="3" fill="url(#gRed)"/>
+              <text x="836" y="168" text-anchor="end" font-weight="800" fill="#b91c1c">488</text>
+
+              <text x="615" y="200" fill="#b91c1c" font-weight="700">actual DISAGREE</text>
+              <rect x="730" y="186" width="100" height="20" rx="3" fill="#fee2e2"/>
+              <rect x="730" y="186" width="6" height="20" rx="3" fill="#b91c1c"/>
+              <text x="836" y="200" text-anchor="end" font-weight="800" fill="#b91c1c">3</text>
+            </g>
+            <line x1="615" y1="220" x2="845" y2="220" stroke="#e6e1f3"/>
+            <text x="615" y="240" font-size="11" font-weight="800" fill="#b91c1c" font-family="ui-monospace, monospace">schema bug — fail PR</text>
+            <text x="615" y="258" font-size="10" fill="#6b6680" font-family="ui-monospace, monospace">3 mutations validated</text>
+            <text x="615" y="272" font-size="10" fill="#6b6680" font-family="ui-monospace, monospace">when they should not have</text>
+          </g>
+        </svg>
+        <div class="illus-cap">Mutation-based fuzzing pressure-tests every schema constraint; expected pass/fail counts are the contract.</div>
+        </div></div>
+        <div class="files"><div class="files-label">Files touched</div>
+          <span class="file-pill new">tests/fuzz/mutate.sh</span><span class="file-pill new">tests/fuzz/cases.jsonl</span><span class="file-pill">tests/test_json_schemas.sh</span><span class="file-pill">schemas/diagnosis.schema.json</span><span class="file-pill">schemas/solution.schema.json</span>
+        </div>
+      </div>
+
+      <!-- #9 BUG INJECTION -->
+      <div class="card" id="c9">
+        <div class="card-head">
+          <div class="card-num">09</div>
+          <div class="card-title-wrap">
+            <div class="card-title">Synthetic Bug Injection Framework</div>
+            <div class="card-meta"><span class="badge b-test">Testing</span><span class="badge b-effort-l">Large effort</span><span class="badge b-risk-low">Risk: Low</span></div>
+          </div>
+        </div>
+        <div class="section"><h4>What changes</h4><p>The real-repo suite is bottlenecked on 5 hand-written click bugs. Add <code>tests/synth/inject.sh</code> that takes a clean repo + a recipe (<em>"flip a boolean default at file:line"</em>) and produces a temp branch + a generated <code>bug.md</code> from the resulting test failure. Lets the eval harness scale to 50+ bugs without manual curation.</p></div>
+        <div class="section"><h4>Illustration</h4>
+        <div class="illus">
+        <svg viewBox="0 0 880 320" xmlns="http://www.w3.org/2000/svg">
+          <!-- recipe cards -->
+          <g font-family="ui-monospace, monospace" font-size="10">
+            <text x="20" y="22" font-size="10" font-weight="800" fill="#4c1d95" letter-spacing="2">RECIPES · tests/synth/recipes/</text>
+            <g filter="url(#soft)">
+              <rect x="20" y="36" width="200" height="42" rx="8" fill="#fff" stroke="#a78bfa"/>
+              <rect x="20" y="36" width="6" height="42" fill="#fbbf24"/>
+              <text x="36" y="54" font-weight="700" fill="#4c1d95">flip_bool.yml</text>
+              <text x="36" y="70" font-size="9" fill="#6b6680">set X=True at file:line</text>
+            </g>
+            <g filter="url(#soft)">
+              <rect x="20" y="84" width="200" height="42" rx="8" fill="#fff" stroke="#a78bfa"/>
+              <rect x="20" y="84" width="6" height="42" fill="#fbbf24"/>
+              <text x="36" y="102" font-weight="700" fill="#4c1d95">off_by_one.yml</text>
+              <text x="36" y="118" font-size="9" fill="#6b6680">change &lt; to &lt;= at line</text>
+            </g>
+            <g filter="url(#soft)">
+              <rect x="20" y="132" width="200" height="42" rx="8" fill="#fff" stroke="#a78bfa"/>
+              <rect x="20" y="132" width="6" height="42" fill="#fbbf24"/>
+              <text x="36" y="150" font-weight="700" fill="#4c1d95">swap_args.yml</text>
+              <text x="36" y="166" font-size="9" fill="#6b6680">swap positional args</text>
+            </g>
+            <g filter="url(#soft)">
+              <rect x="20" y="180" width="200" height="42" rx="8" fill="#fff" stroke="#a78bfa"/>
+              <rect x="20" y="180" width="6" height="42" fill="#fbbf24"/>
+              <text x="36" y="198" font-weight="700" fill="#4c1d95">null_deref.yml</text>
+              <text x="36" y="214" font-size="9" fill="#6b6680">delete null check</text>
+            </g>
+          </g>
+          <!-- arrow to injector -->
+          <line x1="225" y1="130" x2="270" y2="130" stroke="#7c3aed" stroke-width="1.5" marker-end="url(#arr)"/>
+          <!-- clean repo input -->
+          <g filter="url(#soft)">
+            <rect x="270" y="56" width="160" height="50" rx="8" fill="#fff" stroke="#15803d"/>
+            <text x="350" y="78" text-anchor="middle" font-size="12" font-weight="800" fill="#065f46">clean repo</text>
+            <text x="350" y="94" text-anchor="middle" font-size="9" fill="#6b6680">pallets/click @ main</text>
+          </g>
+          <line x1="350" y1="106" x2="350" y2="115" stroke="#7c3aed" stroke-width="1.5" marker-end="url(#arr)"/>
+          <!-- inject.sh -->
+          <g filter="url(#soft)">
+            <rect x="270" y="115" width="160" height="56" rx="10" fill="url(#gGold)"/>
+            <text x="350" y="138" text-anchor="middle" font-size="13" font-weight="800" fill="#3b0764">inject.sh</text>
+            <text x="350" y="154" text-anchor="middle" font-size="10" fill="#3b0764">recipe + repo → bug</text>
+          </g>
+          <line x1="430" y1="143" x2="475" y2="143" stroke="#7c3aed" stroke-width="1.5" marker-end="url(#arr)"/>
+          <!-- output bundle -->
+          <g filter="url(#soft)">
+            <rect x="475" y="50" width="385" height="220" rx="10" fill="url(#gPurSoft)" stroke="#8b5cf6"/>
+            <text x="490" y="74" font-size="11" font-weight="800" fill="#4c1d95" letter-spacing="2">GENERATED BUG BUNDLE</text>
+            <!-- branch -->
+            <rect x="490" y="86" width="350" height="36" rx="6" fill="#fff" stroke="#a78bfa"/>
+            <circle cx="510" cy="104" r="6" fill="#22c55e"/><circle cx="528" cy="104" r="6" fill="#a78bfa"/>
+            <text x="546" y="108" font-size="11" font-weight="700" fill="#4c1d95" font-family="ui-monospace, monospace">branch synth/flip_bool_142</text>
+            <!-- patched file -->
+            <rect x="490" y="128" width="350" height="36" rx="6" fill="#fff" stroke="#a78bfa"/>
+            <text x="500" y="151" font-size="11" font-weight="700" fill="#b91c1c" font-family="ui-monospace, monospace">- DEFAULT = False</text>
+            <text x="500" y="151" font-size="11" font-weight="700" fill="#15803d" font-family="ui-monospace, monospace" dx="170">+ DEFAULT = True</text>
+            <!-- pytest output -->
+            <rect x="490" y="170" width="350" height="44" rx="6" fill="#1a1530"/>
+            <text x="500" y="187" font-size="10" font-weight="700" fill="#fbbf24" font-family="ui-monospace, monospace">$ pytest</text>
+            <text x="500" y="201" font-size="10" fill="#fca5a5" font-family="ui-monospace, monospace">FAILED test_core.py::test_default</text>
+            <!-- bug.md -->
+            <rect x="490" y="220" width="350" height="36" rx="6" fill="#fef3c7" stroke="#f59e0b"/>
+            <text x="500" y="244" font-size="11" font-weight="700" fill="#92400e" font-family="ui-monospace, monospace">📝 bug.md (auto-generated)</text>
+          </g>
+          <!-- arrow to eval harness -->
+          <line x1="667" y1="278" x2="667" y2="298" stroke="#15803d" stroke-width="1.5" marker-end="url(#arrG)"/>
+          <text x="667" y="312" text-anchor="middle" font-size="11" font-weight="800" fill="#15803d">→ feeds eval harness (#7) at scale</text>
+        </svg>
+        <div class="illus-cap">A recipe library produces unlimited reproducible bug bundles, each with ground truth baked in for scoring.</div>
+        </div></div>
+        <div class="files"><div class="files-label">Files touched</div>
+          <span class="file-pill new">tests/synth/inject.sh</span><span class="file-pill new">tests/synth/recipes/*.yml</span><span class="file-pill new">tests/synth/generate_bug_md.sh</span><span class="file-pill">tests/real_repos/</span><span class="file-pill">docs/testing-guide.md</span>
+        </div>
+      </div>
+
+      <!-- #10 CALIBRATION -->
+      <div class="card" id="c10">
+        <div class="card-head">
+          <div class="card-num">10</div>
+          <div class="card-title-wrap">
+            <div class="card-title">Confidence Calibration Tracking</div>
+            <div class="card-meta"><span class="badge b-test">Testing</span><span class="badge b-effort-s">Small effort</span><span class="badge b-risk-low">Risk: Low</span></div>
+          </div>
+        </div>
+        <div class="section"><h4>What changes</h4><p>The pipeline emits confidence on every <code>diagnosis.json</code>, but nothing tracks whether <em>0.8 confidence corresponds to 80% accuracy</em>. Add a calibration plot to the eval report: bucket runs by predicted confidence, compute empirical accuracy per bucket. Surfaces over- and under-confidence so <code>RCA_CONFIDENCE_NOFX</code> can be tuned from data, not gut feel.</p></div>
+        <div class="section"><h4>Illustration</h4>
+        <div class="illus">
+        <svg viewBox="0 0 880 360" xmlns="http://www.w3.org/2000/svg">
+          <!-- chart area -->
+          <g transform="translate(80, 30)">
+            <!-- axes -->
+            <line x1="0" y1="280" x2="500" y2="280" stroke="#1a1530" stroke-width="1.5"/>
+            <line x1="0" y1="0" x2="0" y2="280" stroke="#1a1530" stroke-width="1.5"/>
+            <!-- grid -->
+            <g stroke="#e6e1f3" stroke-width="1">
+              <line x1="0" y1="224" x2="500" y2="224"/>
+              <line x1="0" y1="168" x2="500" y2="168"/>
+              <line x1="0" y1="112" x2="500" y2="112"/>
+              <line x1="0" y1="56" x2="500" y2="56"/>
+              <line x1="100" y1="0" x2="100" y2="280"/>
+              <line x1="200" y1="0" x2="200" y2="280"/>
+              <line x1="300" y1="0" x2="300" y2="280"/>
+              <line x1="400" y1="0" x2="400" y2="280"/>
+            </g>
+            <!-- ideal line (diagonal) -->
+            <line x1="0" y1="280" x2="500" y2="0" stroke="#22c55e" stroke-width="2" stroke-dasharray="5,4"/>
+            <text x="465" y="20" font-size="10" font-weight="700" fill="#15803d">ideal</text>
+            <!-- actual data points -->
+            <g fill="url(#gPur)">
+              <circle cx="50" cy="270" r="6"/>
+              <circle cx="100" cy="252" r="7"/>
+              <circle cx="150" cy="235" r="8"/>
+              <circle cx="200" cy="214" r="10"/>
+              <circle cx="250" cy="190" r="12"/>
+              <circle cx="300" cy="170" r="11"/>
+              <circle cx="350" cy="146" r="13"/>
+              <circle cx="400" cy="106" r="9"/>
+              <circle cx="450" cy="60" r="8"/>
+            </g>
+            <!-- highlight over-confidence area -->
+            <circle cx="400" cy="106" r="22" fill="none" stroke="#dc2626" stroke-width="1.5" stroke-dasharray="3,2"/>
+            <line x1="400" y1="84" x2="455" y2="40" stroke="#dc2626" stroke-width="1"/>
+            <g>
+              <rect x="365" y="14" width="180" height="36" rx="6" fill="#fef2f2" stroke="#dc2626"/>
+              <text x="455" y="29" text-anchor="middle" font-size="10" font-weight="800" fill="#7f1d1d">bucket .8–.9</text>
+              <text x="455" y="44" text-anchor="middle" font-size="10" fill="#b91c1c">predicts .85 · actual .62</text>
+            </g>
+            <!-- y-axis labels -->
+            <g font-size="10" fill="#6b6680" text-anchor="end" font-family="ui-monospace, monospace">
+              <text x="-8" y="284">.0</text>
+              <text x="-8" y="228">.2</text>
+              <text x="-8" y="172">.4</text>
+              <text x="-8" y="116">.6</text>
+              <text x="-8" y="60">.8</text>
+              <text x="-8" y="4">1.0</text>
+            </g>
+            <text x="-50" y="140" font-size="11" font-weight="800" fill="#4c1d95" transform="rotate(-90, -50, 140)" text-anchor="middle">actual accuracy</text>
+            <!-- x-axis labels -->
+            <g font-size="10" fill="#6b6680" text-anchor="middle" font-family="ui-monospace, monospace">
+              <text x="0" y="296">.0</text>
+              <text x="100" y="296">.2</text>
+              <text x="200" y="296">.4</text>
+              <text x="300" y="296">.6</text>
+              <text x="400" y="296">.8</text>
+              <text x="500" y="296">1.0</text>
+            </g>
+            <text x="250" y="324" font-size="11" font-weight="800" fill="#4c1d95" text-anchor="middle">predicted confidence</text>
+          </g>
+          <!-- action panel -->
+          <g filter="url(#soft)">
+            <rect x="620" y="60" width="240" height="220" rx="10" fill="url(#gDark)"/>
+            <text x="640" y="86" font-size="11" font-weight="800" fill="#fbbf24" letter-spacing="2">DATA-DRIVEN ACTION</text>
+            <line x1="640" y1="98" x2="840" y2="98" stroke="#fbbf24" stroke-opacity="0.3"/>
+            <g font-size="11" fill="#fff" font-family="ui-monospace, monospace">
+              <text x="640" y="124">Bucket .8–.9</text>
+              <text x="640" y="142" fill="#fca5a5">  → over-confident</text>
+              <text x="640" y="170">RCA_CONFIDENCE_NOFX</text>
+              <text x="640" y="188" fill="#fbbf24" font-weight="700">  0.5  →  0.6</text>
+              <text x="640" y="218" fill="#86efac">Result: agent now</text>
+              <text x="640" y="232" fill="#86efac">returns NO_FIX on</text>
+              <text x="640" y="246" fill="#86efac">unreliable bands.</text>
+            </g>
+          </g>
+          <text x="440" y="356" text-anchor="middle" font-size="11" font-style="italic" fill="#6b6680">Reliability diagram — distance from the diagonal is the model's calibration error.</text>
+        </svg>
+        <div class="illus-cap">A reliability diagram makes confidence honest: tune thresholds by where the dots fall, not by intuition.</div>
+        </div></div>
+        <div class="files"><div class="files-label">Files touched</div>
+          <span class="file-pill new">tests/eval/calibration.sh</span><span class="file-pill new">tests/eval/buckets.json</span><span class="file-pill">config/defaults.env</span><span class="file-pill">docs/agent-contracts.md</span>
+        </div>
+      </div>
+
+      <!-- #11 MULTI-LANG -->
+      <div class="card" id="c11">
+        <div class="card-head">
+          <div class="card-num">11</div>
+          <div class="card-title-wrap">
+            <div class="card-title">Multi-Language Real-Repo Fixtures (Go, Rust, TS)</div>
+            <div class="card-meta"><span class="badge b-test">Testing</span><span class="badge b-effort-m">Medium effort</span><span class="badge b-risk-low">Risk: Low</span></div>
+          </div>
+        </div>
+        <div class="section"><h4>What changes</h4><p>The only real-repo fixture today is <span class="file-pill">pallets/click</span> (Python). Add 5-bug fixture sets for one Go repo, one TS/Node repo, one Rust repo. Stresses every collector against a different ecosystem and catches collector regressions that the Python-only suite misses.</p></div>
+        <div class="section"><h4>Illustration</h4>
+        <div class="illus">
+        <svg viewBox="0 0 880 320" xmlns="http://www.w3.org/2000/svg">
+          <!-- Title row -->
+          <text x="20" y="22" font-size="11" font-weight="800" fill="#4c1d95" letter-spacing="2">COVERAGE MATRIX · collector × language</text>
+          <!-- TODAY column header -->
+          <g font-family="-apple-system" font-size="10" font-weight="800" fill="#6b6680" text-anchor="middle">
+            <text x="160" y="48">TODAY</text>
+          </g>
+          <text x="640" y="48" text-anchor="middle" font-size="10" font-weight="800" fill="#15803d" letter-spacing="2">PROPOSED</text>
+          <!-- Matrix headers -->
+          <g font-family="ui-monospace, monospace" font-size="10" font-weight="700">
+            <text x="78" y="76" text-anchor="middle" fill="#4c1d95">PY</text>
+            <text x="120" y="76" text-anchor="middle" fill="#4c1d95">JS</text>
+            <text x="162" y="76" text-anchor="middle" fill="#4c1d95">GO</text>
+            <text x="204" y="76" text-anchor="middle" fill="#4c1d95">RS</text>
+            <text x="246" y="76" text-anchor="middle" fill="#4c1d95">JAVA</text>
+            <!-- right -->
+            <text x="498" y="76" text-anchor="middle" fill="#4c1d95">PY</text>
+            <text x="540" y="76" text-anchor="middle" fill="#4c1d95">JS</text>
+            <text x="582" y="76" text-anchor="middle" fill="#4c1d95">GO</text>
+            <text x="624" y="76" text-anchor="middle" fill="#4c1d95">RS</text>
+            <text x="666" y="76" text-anchor="middle" fill="#4c1d95">JAVA</text>
+          </g>
+          <!-- Collector rows TODAY -->
+          <g font-size="10" font-family="ui-monospace, monospace">
+            <text x="20" y="106" fill="#1a1530">git.sh</text>
+            <text x="20" y="138" fill="#1a1530">deps.sh</text>
+            <text x="20" y="170" fill="#1a1530">errors.sh</text>
+            <text x="20" y="202" fill="#1a1530">testrunner.sh</text>
+            <!-- right side -->
+            <text x="420" y="106" fill="#1a1530">git.sh</text>
+            <text x="420" y="138" fill="#1a1530">deps.sh</text>
+            <text x="420" y="170" fill="#1a1530">errors.sh</text>
+            <text x="420" y="202" fill="#1a1530">testrunner.sh</text>
+          </g>
+          <!-- LEFT matrix cells -->
+          <g>
+            <!-- 5 cols x 4 rows -->
+            <!-- generate by hand -->
+            <!-- git.sh row: ✓ ✗ ✗ ✗ ✗ -->
+            <rect x="62" y="90" width="32" height="24" rx="4" fill="#d1fae5"/><text x="78" y="107" text-anchor="middle" font-size="13" font-weight="800" fill="#15803d">✓</text>
+            <rect x="104" y="90" width="32" height="24" rx="4" fill="#fee2e2"/><text x="120" y="107" text-anchor="middle" font-size="13" font-weight="800" fill="#b91c1c">✗</text>
+            <rect x="146" y="90" width="32" height="24" rx="4" fill="#fee2e2"/><text x="162" y="107" text-anchor="middle" font-size="13" font-weight="800" fill="#b91c1c">✗</text>
+            <rect x="188" y="90" width="32" height="24" rx="4" fill="#fee2e2"/><text x="204" y="107" text-anchor="middle" font-size="13" font-weight="800" fill="#b91c1c">✗</text>
+            <rect x="230" y="90" width="32" height="24" rx="4" fill="#fee2e2"/><text x="246" y="107" text-anchor="middle" font-size="13" font-weight="800" fill="#b91c1c">✗</text>
+
+            <rect x="62" y="122" width="32" height="24" rx="4" fill="#d1fae5"/><text x="78" y="139" text-anchor="middle" font-size="13" font-weight="800" fill="#15803d">✓</text>
+            <rect x="104" y="122" width="32" height="24" rx="4" fill="#fee2e2"/><text x="120" y="139" text-anchor="middle" font-size="13" font-weight="800" fill="#b91c1c">✗</text>
+            <rect x="146" y="122" width="32" height="24" rx="4" fill="#fee2e2"/><text x="162" y="139" text-anchor="middle" font-size="13" font-weight="800" fill="#b91c1c">✗</text>
+            <rect x="188" y="122" width="32" height="24" rx="4" fill="#fee2e2"/><text x="204" y="139" text-anchor="middle" font-size="13" font-weight="800" fill="#b91c1c">✗</text>
+            <rect x="230" y="122" width="32" height="24" rx="4" fill="#fee2e2"/><text x="246" y="139" text-anchor="middle" font-size="13" font-weight="800" fill="#b91c1c">✗</text>
+
+            <rect x="62" y="154" width="32" height="24" rx="4" fill="#d1fae5"/><text x="78" y="171" text-anchor="middle" font-size="13" font-weight="800" fill="#15803d">✓</text>
+            <rect x="104" y="154" width="32" height="24" rx="4" fill="#fee2e2"/><text x="120" y="171" text-anchor="middle" font-size="13" font-weight="800" fill="#b91c1c">✗</text>
+            <rect x="146" y="154" width="32" height="24" rx="4" fill="#fee2e2"/><text x="162" y="171" text-anchor="middle" font-size="13" font-weight="800" fill="#b91c1c">✗</text>
+            <rect x="188" y="154" width="32" height="24" rx="4" fill="#fee2e2"/><text x="204" y="171" text-anchor="middle" font-size="13" font-weight="800" fill="#b91c1c">✗</text>
+            <rect x="230" y="154" width="32" height="24" rx="4" fill="#fee2e2"/><text x="246" y="171" text-anchor="middle" font-size="13" font-weight="800" fill="#b91c1c">✗</text>
+
+            <rect x="62" y="186" width="32" height="24" rx="4" fill="#d1fae5"/><text x="78" y="203" text-anchor="middle" font-size="13" font-weight="800" fill="#15803d">✓</text>
+            <rect x="104" y="186" width="32" height="24" rx="4" fill="#fee2e2"/><text x="120" y="203" text-anchor="middle" font-size="13" font-weight="800" fill="#b91c1c">✗</text>
+            <rect x="146" y="186" width="32" height="24" rx="4" fill="#fee2e2"/><text x="162" y="203" text-anchor="middle" font-size="13" font-weight="800" fill="#b91c1c">✗</text>
+            <rect x="188" y="186" width="32" height="24" rx="4" fill="#fee2e2"/><text x="204" y="203" text-anchor="middle" font-size="13" font-weight="800" fill="#b91c1c">✗</text>
+            <rect x="230" y="186" width="32" height="24" rx="4" fill="#fee2e2"/><text x="246" y="203" text-anchor="middle" font-size="13" font-weight="800" fill="#b91c1c">✗</text>
+          </g>
+          <!-- big arrow -->
+          <g>
+            <path d="M295 144 L380 144 L380 130 L405 150 L380 170 L380 156 L295 156 Z" fill="#fbbf24" stroke="#f59e0b"/>
+          </g>
+          <!-- RIGHT matrix cells -->
+          <g>
+            <!-- git.sh: ✓ ✓ ✓ ✓ △ -->
+            <rect x="482" y="90" width="32" height="24" rx="4" fill="#d1fae5"/><text x="498" y="107" text-anchor="middle" font-size="13" font-weight="800" fill="#15803d">✓</text>
+            <rect x="524" y="90" width="32" height="24" rx="4" fill="#d1fae5"/><text x="540" y="107" text-anchor="middle" font-size="13" font-weight="800" fill="#15803d">✓</text>
+            <rect x="566" y="90" width="32" height="24" rx="4" fill="#d1fae5"/><text x="582" y="107" text-anchor="middle" font-size="13" font-weight="800" fill="#15803d">✓</text>
+            <rect x="608" y="90" width="32" height="24" rx="4" fill="#d1fae5"/><text x="624" y="107" text-anchor="middle" font-size="13" font-weight="800" fill="#15803d">✓</text>
+            <rect x="650" y="90" width="32" height="24" rx="4" fill="#fef3c7"/><text x="666" y="107" text-anchor="middle" font-size="13" font-weight="800" fill="#b45309">△</text>
+
+            <rect x="482" y="122" width="32" height="24" rx="4" fill="#d1fae5"/><text x="498" y="139" text-anchor="middle" font-size="13" font-weight="800" fill="#15803d">✓</text>
+            <rect x="524" y="122" width="32" height="24" rx="4" fill="#d1fae5"/><text x="540" y="139" text-anchor="middle" font-size="13" font-weight="800" fill="#15803d">✓</text>
+            <rect x="566" y="122" width="32" height="24" rx="4" fill="#d1fae5"/><text x="582" y="139" text-anchor="middle" font-size="13" font-weight="800" fill="#15803d">✓</text>
+            <rect x="608" y="122" width="32" height="24" rx="4" fill="#fef3c7"/><text x="624" y="139" text-anchor="middle" font-size="13" font-weight="800" fill="#b45309">△</text>
+            <rect x="650" y="122" width="32" height="24" rx="4" fill="#fee2e2"/><text x="666" y="139" text-anchor="middle" font-size="13" font-weight="800" fill="#b91c1c">✗</text>
+
+            <rect x="482" y="154" width="32" height="24" rx="4" fill="#d1fae5"/><text x="498" y="171" text-anchor="middle" font-size="13" font-weight="800" fill="#15803d">✓</text>
+            <rect x="524" y="154" width="32" height="24" rx="4" fill="#d1fae5"/><text x="540" y="171" text-anchor="middle" font-size="13" font-weight="800" fill="#15803d">✓</text>
+            <rect x="566" y="154" width="32" height="24" rx="4" fill="#d1fae5"/><text x="582" y="171" text-anchor="middle" font-size="13" font-weight="800" fill="#15803d">✓</text>
+            <rect x="608" y="154" width="32" height="24" rx="4" fill="#d1fae5"/><text x="624" y="171" text-anchor="middle" font-size="13" font-weight="800" fill="#15803d">✓</text>
+            <rect x="650" y="154" width="32" height="24" rx="4" fill="#d1fae5"/><text x="666" y="171" text-anchor="middle" font-size="13" font-weight="800" fill="#15803d">✓</text>
+
+            <rect x="482" y="186" width="32" height="24" rx="4" fill="#d1fae5"/><text x="498" y="203" text-anchor="middle" font-size="13" font-weight="800" fill="#15803d">✓</text>
+            <rect x="524" y="186" width="32" height="24" rx="4" fill="#d1fae5"/><text x="540" y="203" text-anchor="middle" font-size="13" font-weight="800" fill="#15803d">✓</text>
+            <rect x="566" y="186" width="32" height="24" rx="4" fill="#d1fae5"/><text x="582" y="203" text-anchor="middle" font-size="13" font-weight="800" fill="#15803d">✓</text>
+            <rect x="608" y="186" width="32" height="24" rx="4" fill="#d1fae5"/><text x="624" y="203" text-anchor="middle" font-size="13" font-weight="800" fill="#15803d">✓</text>
+            <rect x="650" y="186" width="32" height="24" rx="4" fill="#fef3c7"/><text x="666" y="203" text-anchor="middle" font-size="13" font-weight="800" fill="#b45309">△</text>
+          </g>
+          <!-- repo fixture cards -->
+          <text x="20" y="248" font-size="11" font-weight="800" fill="#4c1d95" letter-spacing="2">NEW FIXTURES · tests/real_repos/</text>
+          <g font-family="ui-monospace, monospace" font-size="10">
+            <g filter="url(#soft)">
+              <rect x="20" y="260" width="180" height="40" rx="8" fill="#fff" stroke="#a78bfa"/>
+              <rect x="20" y="260" width="6" height="40" fill="#3b82f6"/>
+              <text x="36" y="278" font-weight="800" fill="#1e40af">go-chi/chi</text>
+              <text x="36" y="293" font-size="9" fill="#6b6680">5 bugs · Go</text>
+            </g>
+            <g filter="url(#soft)">
+              <rect x="212" y="260" width="180" height="40" rx="8" fill="#fff" stroke="#a78bfa"/>
+              <rect x="212" y="260" width="6" height="40" fill="#fbbf24"/>
+              <text x="228" y="278" font-weight="800" fill="#92400e">colinhacks/zod</text>
+              <text x="228" y="293" font-size="9" fill="#6b6680">5 bugs · TypeScript</text>
+            </g>
+            <g filter="url(#soft)">
+              <rect x="404" y="260" width="180" height="40" rx="8" fill="#fff" stroke="#a78bfa"/>
+              <rect x="404" y="260" width="6" height="40" fill="#dc2626"/>
+              <text x="420" y="278" font-weight="800" fill="#7f1d1d">BurntSushi/ripgrep</text>
+              <text x="420" y="293" font-size="9" fill="#6b6680">5 bugs · Rust</text>
+            </g>
+            <g filter="url(#soft)">
+              <rect x="596" y="260" width="264" height="40" rx="8" fill="#f0fdf4" stroke="#15803d"/>
+              <text x="608" y="278" font-weight="800" fill="#065f46">+ NEW · collectors/deps.sh rust branch</text>
+              <text x="608" y="293" font-size="9" fill="#15803d">parse Cargo.toml + use statements</text>
+            </g>
+          </g>
+        </svg>
+        <div class="illus-cap">Cell colour shows coverage state per collector × language; new fixture sets close the gaps and expose collector blind spots.</div>
+        </div></div>
+        <div class="files"><div class="files-label">Files touched</div>
+          <span class="file-pill new">tests/real_repos/chi/</span><span class="file-pill new">tests/real_repos/zod/</span><span class="file-pill new">tests/real_repos/ripgrep/</span><span class="file-pill">collectors/deps.sh</span><span class="file-pill">collectors/testrunner.sh</span><span class="file-pill">tests/test_real_repo_briefing.sh</span>
+        </div>
+      </div>
+
+      <!-- #12 PROMPT MUTATION -->
+      <div class="card" id="c12">
+        <div class="card-head">
+          <div class="card-num">12</div>
+          <div class="card-title-wrap">
+            <div class="card-title">Mutation Testing of Prompts</div>
+            <div class="card-meta"><span class="badge b-test">Testing</span><span class="badge b-effort-m">Medium effort</span><span class="badge b-risk-low">Risk: Low</span></div>
+          </div>
+        </div>
+        <div class="section"><h4>What changes</h4><p>Tests check the <em>scripts</em>, never the <em>prompts</em>. A tool that deletes one paragraph at a time from <code>prompts/investigation.md</code>, <code>diagnosis.md</code>, <code>solution.md</code> and re-runs the eval. If accuracy doesn't drop the paragraph is dead weight — prune. If it crashes the paragraph is load-bearing — annotate. Same idea as code mutation testing, applied to prompts.</p></div>
+        <div class="section"><h4>Illustration</h4>
+        <div class="illus">
+        <svg viewBox="0 0 880 340" xmlns="http://www.w3.org/2000/svg">
+          <text x="20" y="22" font-size="11" font-weight="800" fill="#4c1d95" letter-spacing="2">prompts/investigation.md  ·  12 paragraphs tested in isolation</text>
+          <!-- paragraph blocks row -->
+          <g>
+            <!-- 12 paragraph rects -->
+            <!-- ¶1 kept -->
+            <rect x="20" y="44" width="62" height="36" rx="4" fill="#fff" stroke="#a78bfa"/>
+            <text x="51" y="62" text-anchor="middle" font-size="11" font-weight="700" fill="#4c1d95">¶1</text>
+            <text x="51" y="74" text-anchor="middle" font-size="8" fill="#22c55e" font-weight="700">KEEP</text>
+            <!-- ¶2 prune -->
+            <rect x="86" y="44" width="62" height="36" rx="4" fill="#fee2e2" stroke="#dc2626" stroke-dasharray="3,2"/>
+            <text x="117" y="62" text-anchor="middle" font-size="11" font-weight="700" fill="#7f1d1d" text-decoration="line-through">¶2</text>
+            <text x="117" y="74" text-anchor="middle" font-size="8" fill="#b91c1c" font-weight="700">PRUNE</text>
+            <!-- ¶3 keep -->
+            <rect x="152" y="44" width="62" height="36" rx="4" fill="#fff" stroke="#a78bfa"/>
+            <text x="183" y="62" text-anchor="middle" font-size="11" font-weight="700" fill="#4c1d95">¶3</text>
+            <text x="183" y="74" text-anchor="middle" font-size="8" fill="#22c55e" font-weight="700">KEEP</text>
+            <!-- ¶4 load -->
+            <rect x="218" y="44" width="62" height="36" rx="4" fill="#fef3c7" stroke="#f59e0b"/>
+            <text x="249" y="62" text-anchor="middle" font-size="11" font-weight="700" fill="#92400e">¶4</text>
+            <text x="249" y="74" text-anchor="middle" font-size="8" fill="#b45309" font-weight="700">CRITICAL</text>
+            <!-- ¶5 prune -->
+            <rect x="284" y="44" width="62" height="36" rx="4" fill="#fee2e2" stroke="#dc2626" stroke-dasharray="3,2"/>
+            <text x="315" y="62" text-anchor="middle" font-size="11" font-weight="700" fill="#7f1d1d" text-decoration="line-through">¶5</text>
+            <text x="315" y="74" text-anchor="middle" font-size="8" fill="#b91c1c" font-weight="700">PRUNE</text>
+            <!-- ¶6 keep -->
+            <rect x="350" y="44" width="62" height="36" rx="4" fill="#fff" stroke="#a78bfa"/>
+            <text x="381" y="62" text-anchor="middle" font-size="11" font-weight="700" fill="#4c1d95">¶6</text>
+            <text x="381" y="74" text-anchor="middle" font-size="8" fill="#22c55e" font-weight="700">KEEP</text>
+            <!-- ¶7 load -->
+            <rect x="416" y="44" width="62" height="36" rx="4" fill="#fef3c7" stroke="#f59e0b"/>
+            <text x="447" y="62" text-anchor="middle" font-size="11" font-weight="700" fill="#92400e">¶7</text>
+            <text x="447" y="74" text-anchor="middle" font-size="8" fill="#b45309" font-weight="700">CRITICAL</text>
+            <!-- ¶8 keep -->
+            <rect x="482" y="44" width="62" height="36" rx="4" fill="#fff" stroke="#a78bfa"/>
+            <text x="513" y="62" text-anchor="middle" font-size="11" font-weight="700" fill="#4c1d95">¶8</text>
+            <text x="513" y="74" text-anchor="middle" font-size="8" fill="#22c55e" font-weight="700">KEEP</text>
+            <!-- ¶9 prune -->
+            <rect x="548" y="44" width="62" height="36" rx="4" fill="#fee2e2" stroke="#dc2626" stroke-dasharray="3,2"/>
+            <text x="579" y="62" text-anchor="middle" font-size="11" font-weight="700" fill="#7f1d1d" text-decoration="line-through">¶9</text>
+            <text x="579" y="74" text-anchor="middle" font-size="8" fill="#b91c1c" font-weight="700">PRUNE</text>
+            <!-- ¶10 prune -->
+            <rect x="614" y="44" width="62" height="36" rx="4" fill="#fee2e2" stroke="#dc2626" stroke-dasharray="3,2"/>
+            <text x="645" y="62" text-anchor="middle" font-size="11" font-weight="700" fill="#7f1d1d" text-decoration="line-through">¶10</text>
+            <text x="645" y="74" text-anchor="middle" font-size="8" fill="#b91c1c" font-weight="700">PRUNE</text>
+            <!-- ¶11 keep -->
+            <rect x="680" y="44" width="62" height="36" rx="4" fill="#fff" stroke="#a78bfa"/>
+            <text x="711" y="62" text-anchor="middle" font-size="11" font-weight="700" fill="#4c1d95">¶11</text>
+            <text x="711" y="74" text-anchor="middle" font-size="8" fill="#22c55e" font-weight="700">KEEP</text>
+            <!-- ¶12 keep -->
+            <rect x="746" y="44" width="62" height="36" rx="4" fill="#fff" stroke="#a78bfa"/>
+            <text x="777" y="62" text-anchor="middle" font-size="11" font-weight="700" fill="#4c1d95">¶12</text>
+            <text x="777" y="74" text-anchor="middle" font-size="8" fill="#22c55e" font-weight="700">KEEP</text>
+          </g>
+
+          <!-- accuracy meters per paragraph -->
+          <text x="20" y="110" font-size="10" font-weight="800" fill="#4c1d95" letter-spacing="2">EVAL ACCURACY AFTER DELETING THAT PARAGRAPH</text>
+          <g>
+            <!-- baseline line -->
+            <line x1="20" y1="180" x2="810" y2="180" stroke="#22c55e" stroke-width="1.5" stroke-dasharray="4,3"/>
+            <text x="820" y="184" font-size="10" font-weight="800" fill="#15803d">100%</text>
+            <!-- bars per paragraph showing accuracy after delete -->
+            <!-- ¶1 99 -->
+            <rect x="32" y="84" width="38" height="100" fill="#a78bfa" opacity="0.4" rx="3"/>
+            <rect x="32" y="85" width="38" height="99" fill="url(#gPur)" rx="3"/>
+            <text x="51" y="200" text-anchor="middle" font-size="9" fill="#4c1d95" font-weight="700">99</text>
+            <!-- ¶2 100 (prune) -->
+            <rect x="98" y="84" width="38" height="100" fill="#fca5a5" opacity="0.3" rx="3"/>
+            <rect x="98" y="84" width="38" height="100" fill="#fca5a5" rx="3"/>
+            <text x="117" y="200" text-anchor="middle" font-size="9" fill="#b91c1c" font-weight="700">100</text>
+            <!-- ¶3 98 -->
+            <rect x="164" y="84" width="38" height="100" fill="#a78bfa" opacity="0.4" rx="3"/>
+            <rect x="164" y="86" width="38" height="98" fill="url(#gPur)" rx="3"/>
+            <text x="183" y="200" text-anchor="middle" font-size="9" fill="#4c1d95" font-weight="700">98</text>
+            <!-- ¶4 42 critical -->
+            <rect x="230" y="84" width="38" height="100" fill="#fed7aa" opacity="0.4" rx="3"/>
+            <rect x="230" y="142" width="38" height="42" fill="url(#gGold)" rx="3"/>
+            <text x="249" y="200" text-anchor="middle" font-size="9" fill="#b45309" font-weight="700">42</text>
+            <!-- ¶5 100 prune -->
+            <rect x="296" y="84" width="38" height="100" fill="#fca5a5" rx="3"/>
+            <text x="315" y="200" text-anchor="middle" font-size="9" fill="#b91c1c" font-weight="700">100</text>
+            <!-- ¶6 97 -->
+            <rect x="362" y="84" width="38" height="100" fill="#a78bfa" opacity="0.4" rx="3"/>
+            <rect x="362" y="87" width="38" height="97" fill="url(#gPur)" rx="3"/>
+            <text x="381" y="200" text-anchor="middle" font-size="9" fill="#4c1d95" font-weight="700">97</text>
+            <!-- ¶7 38 critical -->
+            <rect x="428" y="84" width="38" height="100" fill="#fed7aa" opacity="0.4" rx="3"/>
+            <rect x="428" y="146" width="38" height="38" fill="url(#gGold)" rx="3"/>
+            <text x="447" y="200" text-anchor="middle" font-size="9" fill="#b45309" font-weight="700">38</text>
+            <!-- ¶8 95 -->
+            <rect x="494" y="84" width="38" height="100" fill="#a78bfa" opacity="0.4" rx="3"/>
+            <rect x="494" y="89" width="38" height="95" fill="url(#gPur)" rx="3"/>
+            <text x="513" y="200" text-anchor="middle" font-size="9" fill="#4c1d95" font-weight="700">95</text>
+            <!-- ¶9 100 prune -->
+            <rect x="560" y="84" width="38" height="100" fill="#fca5a5" rx="3"/>
+            <text x="579" y="200" text-anchor="middle" font-size="9" fill="#b91c1c" font-weight="700">100</text>
+            <!-- ¶10 100 prune -->
+            <rect x="626" y="84" width="38" height="100" fill="#fca5a5" rx="3"/>
+            <text x="645" y="200" text-anchor="middle" font-size="9" fill="#b91c1c" font-weight="700">100</text>
+            <!-- ¶11 96 -->
+            <rect x="692" y="84" width="38" height="100" fill="#a78bfa" opacity="0.4" rx="3"/>
+            <rect x="692" y="88" width="38" height="96" fill="url(#gPur)" rx="3"/>
+            <text x="711" y="200" text-anchor="middle" font-size="9" fill="#4c1d95" font-weight="700">96</text>
+            <!-- ¶12 98 -->
+            <rect x="758" y="84" width="38" height="100" fill="#a78bfa" opacity="0.4" rx="3"/>
+            <rect x="758" y="86" width="38" height="98" fill="url(#gPur)" rx="3"/>
+            <text x="777" y="200" text-anchor="middle" font-size="9" fill="#4c1d95" font-weight="700">98</text>
+          </g>
+
+          <!-- summary -->
+          <g filter="url(#soft)">
+            <rect x="20" y="226" width="840" height="80" rx="10" fill="url(#gDark)"/>
+            <text x="40" y="252" font-size="11" font-weight="800" fill="#fbbf24" letter-spacing="2">RESULT · LEAN PROMPT</text>
+            <line x1="40" y1="262" x2="290" y2="262" stroke="#fbbf24" stroke-opacity="0.3"/>
+            <g font-size="13" font-weight="800" fill="#fff" font-family="ui-monospace, monospace">
+              <text x="40" y="284">8 paragraphs (was 12)</text>
+              <text x="40" y="300" fill="#86efac">33% shorter · same accuracy · 24% cheaper</text>
+            </g>
+            <g transform="translate(560, 244)">
+              <text x="0" y="0" font-size="10" font-weight="800" fill="#fbbf24" letter-spacing="2">LOAD-BEARING ANNOTATED</text>
+              <text x="0" y="22" font-size="11" fill="#fff" font-family="ui-monospace, monospace">¶4, ¶7 → kept, marked</text>
+              <text x="0" y="40" font-size="11" fill="#fff" font-family="ui-monospace, monospace"># do-not-touch in source</text>
+            </g>
+          </g>
+        </svg>
+        <div class="illus-cap">Deleting each paragraph one-at-a-time tells the team which prose pays its way and which is filler.</div>
+        </div></div>
+        <div class="files"><div class="files-label">Files touched</div>
+          <span class="file-pill new">tests/eval/prompt_mutate.sh</span><span class="file-pill">prompts/investigation.md</span><span class="file-pill">prompts/diagnosis.md</span><span class="file-pill">prompts/solution.md</span><span class="file-pill new">tests/eval/prompt_baseline.json</span>
+        </div>
+      </div>
+
+      <!-- ==================== FEATURES ==================== -->
+      <div class="cat-section">
+        <h2><div class="cat-dot" style="background:#f59e0b"></div>New Features</h2>
+        <div class="cat-sub">Capabilities that change what the tool can do, not just how it does it.</div>
+      </div>
+
+      <!-- #13 BEST PRACTICES -->
+      <div class="card" id="c13">
+        <div class="card-head">
+          <div class="card-num">13</div>
+          <div class="card-title-wrap">
+            <div class="card-title">Best Practices Agent &amp; Test-Bank Knowledge Accumulation</div>
+            <div class="card-meta"><span class="badge b-feat">Feature</span><span class="badge b-effort-m">Medium effort</span><span class="badge b-risk-low">Risk: Low</span></div>
+          </div>
+        </div>
+        <div class="section"><h4>What changes</h4><p>From <span class="file-pill">potential_changes.md</span>: a <strong>post-run Agent 3</strong> reads the final diagnosis + solution and converts root cause + fix into a reusable regression-test stub, written to <code>TARGET_REPO_ROOT/.rca-mas/test-bank/</code>. Future runs on the same repo are seeded with past findings so the system <strong>accumulates knowledge</strong> instead of cold-starting.</p></div>
+        <div class="section"><h4>Illustration</h4>
+        <div class="illus">
+        <svg viewBox="0 0 880 320" xmlns="http://www.w3.org/2000/svg">
+          <!-- timeline -->
+          <line x1="20" y1="160" x2="860" y2="160" stroke="#cbd5e1" stroke-width="1.5"/>
+          <!-- Run 1 -->
+          <g>
+            <circle cx="100" cy="160" r="10" fill="url(#gPur)"/>
+            <text x="100" y="184" text-anchor="middle" font-size="10" font-weight="800" fill="#4c1d95">Run 1</text>
+            <text x="100" y="196" text-anchor="middle" font-size="9" fill="#6b6680">day 1</text>
+            <g filter="url(#soft)">
+              <rect x="40" y="60" width="120" height="64" rx="8" fill="#fff" stroke="#a78bfa"/>
+              <text x="100" y="80" text-anchor="middle" font-size="10" font-weight="700" fill="#4c1d95">bug.md</text>
+              <line x1="50" y1="86" x2="150" y2="86" stroke="#e6e1f3"/>
+              <text x="100" y="102" text-anchor="middle" font-size="9" fill="#6b6680">→ pipeline</text>
+              <text x="100" y="118" text-anchor="middle" font-size="9" font-weight="700" fill="#15803d">report.md</text>
+            </g>
+            <line x1="100" y1="124" x2="100" y2="150" stroke="#7c3aed" stroke-width="1.5" marker-end="url(#arr)"/>
+          </g>
+          <!-- Agent 3 between Run 1 and Run 2 -->
+          <g>
+            <line x1="100" y1="170" x2="100" y2="200" stroke="#fbbf24" stroke-width="1.5" stroke-dasharray="3,2" marker-end="url(#arr)"/>
+            <g filter="url(#soft)">
+              <rect x="40" y="200" width="120" height="40" rx="8" fill="url(#gGold)"/>
+              <text x="100" y="218" text-anchor="middle" font-size="10" font-weight="800" fill="#3b0764">Agent 3</text>
+              <text x="100" y="232" text-anchor="middle" font-size="9" fill="#3b0764">distill → vault</text>
+            </g>
+          </g>
+          <!-- arrow to vault -->
+          <path d="M160 220 C260 220 260 280 360 280" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="4,3" fill="none" marker-end="url(#arr)"/>
+
+          <!-- Run 2 -->
+          <g>
+            <circle cx="300" cy="160" r="10" fill="url(#gPur)"/>
+            <text x="300" y="184" text-anchor="middle" font-size="10" font-weight="800" fill="#4c1d95">Run 2</text>
+            <text x="300" y="196" text-anchor="middle" font-size="9" fill="#6b6680">day 8</text>
+            <g filter="url(#soft)">
+              <rect x="240" y="60" width="120" height="64" rx="8" fill="#fff" stroke="#a78bfa"/>
+              <text x="300" y="80" text-anchor="middle" font-size="10" font-weight="700" fill="#4c1d95">bug.md</text>
+              <line x1="250" y1="86" x2="350" y2="86" stroke="#e6e1f3"/>
+              <text x="300" y="102" text-anchor="middle" font-size="9" fill="#6b6680">→ pipeline</text>
+              <text x="300" y="118" text-anchor="middle" font-size="9" font-weight="700" fill="#15803d">report.md</text>
+            </g>
+            <line x1="300" y1="124" x2="300" y2="150" stroke="#7c3aed" stroke-width="1.5" marker-end="url(#arr)"/>
+            <line x1="300" y1="170" x2="300" y2="200" stroke="#fbbf24" stroke-width="1.5" stroke-dasharray="3,2" marker-end="url(#arr)"/>
+            <g filter="url(#soft)">
+              <rect x="240" y="200" width="120" height="40" rx="8" fill="url(#gGold)"/>
+              <text x="300" y="218" text-anchor="middle" font-size="10" font-weight="800" fill="#3b0764">Agent 3</text>
+              <text x="300" y="232" text-anchor="middle" font-size="9" fill="#3b0764">add to vault</text>
+            </g>
+          </g>
+          <path d="M360 220 C400 220 400 280 415 280" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="4,3" fill="none" marker-end="url(#arr)"/>
+
+          <!-- Run 3 (smart) -->
+          <g>
+            <circle cx="600" cy="160" r="12" fill="url(#gOk)"/>
+            <text x="600" y="184" text-anchor="middle" font-size="10" font-weight="800" fill="#15803d">Run 7</text>
+            <text x="600" y="196" text-anchor="middle" font-size="9" fill="#6b6680">day 45 · smart</text>
+            <g filter="url(#soft)">
+              <rect x="525" y="46" width="160" height="78" rx="8" fill="#ecfdf5" stroke="#15803d"/>
+              <text x="605" y="64" text-anchor="middle" font-size="10" font-weight="700" fill="#065f46">bug.md</text>
+              <line x1="540" y1="70" x2="670" y2="70" stroke="#a7f3d0"/>
+              <text x="605" y="84" text-anchor="middle" font-size="9" fill="#15803d" font-weight="700">+ seeded briefing</text>
+              <text x="540" y="100" font-size="9" fill="#065f46" font-family="ui-monospace, monospace">"4 prior bugs in</text>
+              <text x="540" y="114" font-size="9" fill="#065f46" font-family="ui-monospace, monospace">this file: pattern X"</text>
+            </g>
+            <line x1="600" y1="124" x2="600" y2="148" stroke="#15803d" stroke-width="1.5" marker-end="url(#arrG)"/>
+            <text x="600" y="220" text-anchor="middle" font-size="10" font-weight="800" fill="#15803d">faster · higher conf</text>
+          </g>
+
+          <!-- The vault -->
+          <g filter="url(#soft)">
+            <rect x="360" y="252" width="500" height="60" rx="10" fill="url(#gDark)"/>
+            <text x="380" y="276" font-size="11" font-weight="800" fill="#fbbf24" letter-spacing="2">.rca-mas/test-bank/</text>
+            <g font-family="ui-monospace, monospace" font-size="10" fill="#ddd6fe">
+              <text x="380" y="296">T_001.md  ·  T_002.md  ·  T_003.md  ·  T_004.md  ·  T_005.md  ·  T_006.md</text>
+              <text x="380" y="308" fill="#86efac">index.md + 6 distilled regression scenarios fed back into Agent 1a</text>
+            </g>
+          </g>
+        </svg>
+        <div class="illus-cap">Each completed run distills into the test-bank; subsequent runs in the same repo start informed, not cold.</div>
+        </div></div>
+        <div class="files"><div class="files-label">Files touched</div>
+          <span class="file-pill new">prompts/best_practices.md</span><span class="file-pill new">scripts/agent3_testbank.sh</span><span class="file-pill new">schemas/testbank_entry.schema.json</span><span class="file-pill">scripts/briefing.sh</span><span class="file-pill">scripts/orchestrator.sh</span><span class="file-pill">potential_changes.md</span>
+        </div>
+      </div>
+
+      <!-- #14 HOOKS -->
+      <div class="card" id="c14">
+        <div class="card-head">
+          <div class="card-num">14</div>
+          <div class="card-title-wrap">
+            <div class="card-title">Claude Code Hooks Auto-Trigger</div>
+            <div class="card-meta"><span class="badge b-feat">Feature</span><span class="badge b-effort-s">Small effort</span><span class="badge b-risk-low">Risk: Low</span></div>
+          </div>
+        </div>
+        <div class="section"><h4>What changes</h4><p>From <span class="file-pill">potential_changes.md</span>: ship a starter <code>.claude/settings.json</code> hooks bundle that auto-runs <code>rca-mas.sh</code> on signals — new GitHub issue with label <code>bug</code>, CI test failure, branch creation from a bug-labelled issue. Removes the "developer remembers to invoke the tool" friction.</p></div>
+        <div class="section"><h4>Illustration</h4>
+        <div class="illus">
+        <svg viewBox="0 0 880 280" xmlns="http://www.w3.org/2000/svg">
+          <!-- Event sources -->
+          <g filter="url(#soft)">
+            <rect x="20" y="30" width="180" height="56" rx="10" fill="#fff" stroke="#1a1530"/>
+            <circle cx="44" cy="58" r="14" fill="#1a1530"/>
+            <text x="44" y="63" text-anchor="middle" font-size="14" font-weight="800" fill="#fff">GH</text>
+            <text x="68" y="52" font-size="11" font-weight="700" fill="#1a1530">GitHub issue opened</text>
+            <text x="68" y="68" font-size="10" fill="#6b6680" font-family="ui-monospace, monospace">label = bug</text>
+          </g>
+          <g filter="url(#soft)">
+            <rect x="20" y="98" width="180" height="56" rx="10" fill="#fff" stroke="#1a1530"/>
+            <circle cx="44" cy="126" r="14" fill="#dc2626"/>
+            <text x="44" y="131" text-anchor="middle" font-size="14" font-weight="800" fill="#fff">CI</text>
+            <text x="68" y="120" font-size="11" font-weight="700" fill="#1a1530">CI workflow failed</text>
+            <text x="68" y="136" font-size="10" fill="#6b6680" font-family="ui-monospace, monospace">watched workflow</text>
+          </g>
+          <g filter="url(#soft)">
+            <rect x="20" y="166" width="180" height="56" rx="10" fill="#fff" stroke="#1a1530"/>
+            <circle cx="44" cy="194" r="14" fill="#3b82f6"/>
+            <text x="44" y="199" text-anchor="middle" font-size="11" font-weight="800" fill="#fff">git</text>
+            <text x="68" y="188" font-size="11" font-weight="700" fill="#1a1530">branch created</text>
+            <text x="68" y="204" font-size="10" fill="#6b6680" font-family="ui-monospace, monospace">bug/*</text>
+          </g>
+
+          <!-- arrows -->
+          <path d="M200 58 C240 58 240 130 280 130" stroke="#7c3aed" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+          <path d="M200 126 L280 126" stroke="#7c3aed" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+          <path d="M200 194 C240 194 240 130 280 130" stroke="#7c3aed" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+
+          <!-- Hook dispatcher -->
+          <g filter="url(#soft)">
+            <rect x="280" y="80" width="180" height="100" rx="10" fill="url(#gPur)"/>
+            <text x="370" y="106" text-anchor="middle" font-size="12" font-weight="800" fill="#fff">.claude/hooks/</text>
+            <line x1="300" y1="116" x2="440" y2="116" stroke="#fbbf24" stroke-opacity="0.4"/>
+            <g font-family="ui-monospace, monospace" font-size="10" fill="#ddd6fe">
+              <text x="300" y="134">on_issue.sh</text>
+              <text x="300" y="150">on_ci_failure.sh</text>
+              <text x="300" y="166">on_branch_create.sh</text>
+            </g>
+          </g>
+          <line x1="460" y1="130" x2="500" y2="130" stroke="#7c3aed" stroke-width="1.5" marker-end="url(#arr)"/>
+
+          <!-- pipeline -->
+          <g filter="url(#soft)">
+            <rect x="500" y="98" width="170" height="64" rx="10" fill="url(#gGold)"/>
+            <text x="585" y="124" text-anchor="middle" font-size="12" font-weight="800" fill="#3b0764">rca-mas.sh</text>
+            <text x="585" y="142" text-anchor="middle" font-size="10" fill="#3b0764">briefing → 1a → 1b → 2</text>
+          </g>
+          <line x1="670" y1="130" x2="710" y2="130" stroke="#15803d" stroke-width="1.5" marker-end="url(#arrG)"/>
+
+          <!-- output -->
+          <g filter="url(#soft)">
+            <rect x="710" y="80" width="150" height="100" rx="10" fill="url(#gOk)"/>
+            <text x="785" y="108" text-anchor="middle" font-size="12" font-weight="800" fill="#fff">report.md</text>
+            <text x="785" y="128" text-anchor="middle" font-size="10" fill="#d1fae5">auto-attached</text>
+            <text x="785" y="144" text-anchor="middle" font-size="10" fill="#d1fae5">as PR comment</text>
+            <text x="785" y="164" text-anchor="middle" font-size="10" fill="#d1fae5">or Slack message</text>
+          </g>
+
+          <!-- bottom text -->
+          <g filter="url(#soft)">
+            <rect x="20" y="244" width="840" height="28" rx="14" fill="#fef3c7" stroke="#f59e0b"/>
+            <text x="440" y="263" text-anchor="middle" font-size="12" font-weight="700" fill="#92400e">Zero manual invocation — the agent runs ambient on the signals the team already produces.</text>
+          </g>
+        </svg>
+        <div class="illus-cap">Three event sources feed a hook dispatcher that drives the pipeline; the developer never types the command.</div>
+        </div></div>
+        <div class="files"><div class="files-label">Files touched</div>
+          <span class="file-pill new">.claude/hooks/on_issue.sh</span><span class="file-pill new">.claude/hooks/on_ci_failure.sh</span><span class="file-pill new">.claude/hooks/on_branch_create.sh</span><span class="file-pill new">templates/hooks_bundle.json</span><span class="file-pill">README.md</span><span class="file-pill">potential_changes.md</span>
+        </div>
+      </div>
+
+      <!-- #15 TUI -->
+      <div class="card" id="c15">
+        <div class="card-head">
+          <div class="card-num">15</div>
+          <div class="card-title-wrap">
+            <div class="card-title">Interactive Review TUI</div>
+            <div class="card-meta"><span class="badge b-feat">Feature</span><span class="badge b-effort-l">Large effort</span><span class="badge b-risk-med">Risk: Med</span></div>
+          </div>
+        </div>
+        <div class="section"><h4>What changes</h4><p><code>rca-mas review</code> opens a terminal UI (<code>fzf</code>+<code>bat</code>) that loads the latest run, pages through evidence, lets the developer accept/reject the proposed diff hunk-by-hunk, and saves either <code>accepted.diff</code> or <code>rejected.md</code> rejection feedback. Works over SSH. No browser, no web server.</p></div>
+        <div class="section"><h4>Illustration</h4>
+        <div class="illus">
+        <svg viewBox="0 0 880 360" xmlns="http://www.w3.org/2000/svg">
+          <!-- Terminal window frame -->
+          <g filter="url(#soft)">
+            <rect x="20" y="20" width="840" height="320" rx="10" fill="#1a1530"/>
+            <!-- title bar -->
+            <rect x="20" y="20" width="840" height="32" rx="10" fill="#0f0a1e"/>
+            <rect x="20" y="32" width="840" height="20" fill="#0f0a1e"/>
+            <circle cx="38" cy="36" r="5" fill="#ef4444"/>
+            <circle cx="54" cy="36" r="5" fill="#fbbf24"/>
+            <circle cx="70" cy="36" r="5" fill="#22c55e"/>
+            <text x="440" y="40" text-anchor="middle" font-size="11" font-weight="700" fill="#a78bfa" font-family="ui-monospace, monospace">rca-mas review — 20260504-101523</text>
+
+            <!-- header strip -->
+            <g font-family="ui-monospace, monospace" font-size="11">
+              <text x="40" y="78" fill="#a78bfa" font-weight="700">STATUS</text>
+              <rect x="100" y="66" width="120" height="18" rx="9" fill="#15803d"/>
+              <text x="160" y="79" text-anchor="middle" fill="#fff" font-weight="800">FIX_PROPOSED</text>
+              <text x="250" y="78" fill="#a78bfa" font-weight="700">CONF</text>
+              <text x="298" y="78" fill="#fbbf24" font-weight="800">0.82</text>
+              <text x="370" y="78" fill="#a78bfa" font-weight="700">RISK</text>
+              <text x="418" y="78" fill="#22c55e" font-weight="800">low</text>
+              <text x="490" y="78" fill="#a78bfa" font-weight="700">FILE</text>
+              <text x="538" y="78" fill="#fff">src/click/core.py</text>
+              <text x="720" y="78" fill="#a78bfa" font-weight="700">LINES</text>
+              <text x="780" y="78" fill="#fff">842–847</text>
+            </g>
+
+            <!-- divider -->
+            <line x1="40" y1="92" x2="840" y2="92" stroke="#4c1d95"/>
+
+            <!-- left pane: diagnosis -->
+            <text x="56" y="112" font-size="10" font-weight="800" fill="#fbbf24" font-family="ui-monospace, monospace" letter-spacing="2">DIAGNOSIS</text>
+            <line x1="40" y1="118" x2="430" y2="118" stroke="#4c1d95" stroke-opacity="0.4"/>
+            <g font-family="ui-monospace, monospace" font-size="11" fill="#ddd6fe">
+              <text x="56" y="138">root_cause:</text>
+              <text x="68" y="154" fill="#86efac">"option default of None</text>
+              <text x="68" y="170" fill="#86efac"> bypassed required check</text>
+              <text x="68" y="186" fill="#86efac"> introduced in #2872"</text>
+              <text x="56" y="208" fill="#a78bfa">evidence:</text>
+              <text x="68" y="224">1. test_options.py:301</text>
+              <text x="68" y="240">2. core.py:842 (git blame)</text>
+              <text x="68" y="256">3. params.py:118 fallthrough</text>
+            </g>
+            <!-- vertical divider -->
+            <line x1="440" y1="92" x2="440" y2="292" stroke="#4c1d95"/>
+
+            <!-- right pane: diff -->
+            <text x="456" y="112" font-size="10" font-weight="800" fill="#fbbf24" font-family="ui-monospace, monospace" letter-spacing="2">patches/fix.diff</text>
+            <line x1="440" y1="118" x2="840" y2="118" stroke="#4c1d95" stroke-opacity="0.4"/>
+            <g font-family="ui-monospace, monospace" font-size="11">
+              <text x="456" y="138" fill="#6b6680">@@ -840,7 +840,7 @@</text>
+              <text x="456" y="158" fill="#fca5a5">- if option.required and \</text>
+              <text x="456" y="174" fill="#fca5a5">-     option.default is None:</text>
+              <text x="456" y="194" fill="#86efac">+ if option.required and \</text>
+              <text x="456" y="210" fill="#86efac">+     option.default is _UNSET:</text>
+              <text x="456" y="234" fill="#ddd6fe">     raise UsageError(...)</text>
+            </g>
+
+            <!-- bottom action bar -->
+            <line x1="40" y1="292" x2="840" y2="292" stroke="#4c1d95"/>
+            <g font-family="ui-monospace, monospace" font-size="11" font-weight="700">
+              <rect x="56" y="304" width="80" height="22" rx="4" fill="#15803d"/>
+              <text x="96" y="319" text-anchor="middle" fill="#fff">[a] accept</text>
+
+              <rect x="148" y="304" width="80" height="22" rx="4" fill="#dc2626"/>
+              <text x="188" y="319" text-anchor="middle" fill="#fff">[r] reject</text>
+
+              <rect x="240" y="304" width="60" height="22" rx="4" fill="#4c1d95"/>
+              <text x="270" y="319" text-anchor="middle" fill="#fff">[n] next</text>
+
+              <rect x="312" y="304" width="60" height="22" rx="4" fill="#3a3252"/>
+              <text x="342" y="319" text-anchor="middle" fill="#fff">[q] quit</text>
+
+              <text x="700" y="320" text-anchor="end" fill="#a78bfa">hunk 1 / 1</text>
+              <text x="830" y="320" text-anchor="end" fill="#86efac">→ accepted.diff</text>
+            </g>
+          </g>
+        </svg>
+        <div class="illus-cap">A genuine terminal UI for hunk-by-hunk review — works over SSH, captures both acceptance and rejection feedback.</div>
+        </div></div>
+        <div class="files"><div class="files-label">Files touched</div>
+          <span class="file-pill new">scripts/review_tui.sh</span><span class="file-pill new">lib/tui.sh</span><span class="file-pill">rca-mas.sh</span><span class="file-pill new">docs/review-tui.md</span><span class="file-pill">docs/qa-to-dev-flow.md</span>
+        </div>
+      </div>
+
+      <!-- #16 BATCH TRIAGE -->
+      <div class="card" id="c16">
+        <div class="card-head">
+          <div class="card-num">16</div>
+          <div class="card-title-wrap">
+            <div class="card-title">Batch Triage Mode</div>
+            <div class="card-meta"><span class="badge b-feat">Feature</span><span class="badge b-effort-m">Medium effort</span><span class="badge b-risk-low">Risk: Low</span></div>
+          </div>
+        </div>
+        <div class="section"><h4>What changes</h4><p>New flag: <code>rca-mas.sh --triage bugs/</code> processes every <code>*.md</code> in a folder (or every open GitHub issue with label <code>bug</code>) in parallel and produces a <strong>single triage report</strong> ranking them by <em>(confidence × impact-score) / fix-effort</em>. A tech lead starts Monday with a prioritised queue, not 40 unread bugs.</p></div>
+        <div class="section"><h4>Illustration</h4>
+        <div class="illus">
+        <svg viewBox="0 0 880 360" xmlns="http://www.w3.org/2000/svg">
+          <!-- Input stack -->
+          <g font-family="ui-monospace, monospace">
+            <g filter="url(#soft)">
+              <rect x="20" y="56" width="160" height="28" rx="6" fill="#fff" stroke="#a78bfa"/>
+              <text x="35" y="74" font-size="11" font-weight="700" fill="#4c1d95">bugs/bug_101.md</text>
+              <rect x="20" y="92" width="160" height="28" rx="6" fill="#fff" stroke="#a78bfa"/>
+              <text x="35" y="110" font-size="11" font-weight="700" fill="#4c1d95">bugs/bug_102.md</text>
+              <rect x="20" y="128" width="160" height="28" rx="6" fill="#fff" stroke="#a78bfa"/>
+              <text x="35" y="146" font-size="11" font-weight="700" fill="#4c1d95">bugs/bug_103.md</text>
+              <rect x="20" y="164" width="160" height="28" rx="6" fill="#fff" stroke="#a78bfa"/>
+              <text x="35" y="182" font-size="11" font-weight="700" fill="#4c1d95">bugs/bug_104.md</text>
+              <text x="35" y="216" font-size="11" fill="#6b6680">… 40 bugs</text>
+            </g>
+          </g>
+          <!-- arrows fan into workers -->
+          <path d="M180 70 C220 70 220 110 260 110" stroke="#7c3aed" stroke-width="1.2" fill="none" marker-end="url(#arr)"/>
+          <path d="M180 106 C220 106 220 160 260 160" stroke="#7c3aed" stroke-width="1.2" fill="none" marker-end="url(#arr)"/>
+          <path d="M180 142 C220 142 220 210 260 210" stroke="#7c3aed" stroke-width="1.2" fill="none" marker-end="url(#arr)"/>
+          <path d="M180 178 C220 178 220 260 260 260" stroke="#7c3aed" stroke-width="1.2" fill="none" marker-end="url(#arr)"/>
+          <!-- workers -->
+          <g filter="url(#soft)">
+            <rect x="260" y="92" width="120" height="36" rx="8" fill="url(#gPur)"/>
+            <text x="320" y="115" text-anchor="middle" font-size="11" font-weight="800" fill="#fff">worker #1</text>
+            <rect x="260" y="142" width="120" height="36" rx="8" fill="url(#gPur)"/>
+            <text x="320" y="165" text-anchor="middle" font-size="11" font-weight="800" fill="#fff">worker #2</text>
+            <rect x="260" y="192" width="120" height="36" rx="8" fill="url(#gPur)"/>
+            <text x="320" y="215" text-anchor="middle" font-size="11" font-weight="800" fill="#fff">worker #3</text>
+            <rect x="260" y="242" width="120" height="36" rx="8" fill="url(#gPur)"/>
+            <text x="320" y="265" text-anchor="middle" font-size="11" font-weight="800" fill="#fff">worker #4</text>
+          </g>
+          <text x="320" y="48" text-anchor="middle" font-size="11" font-weight="800" fill="#4c1d95" font-family="ui-monospace, monospace">--max-parallel 4</text>
+          <!-- merge to ranker -->
+          <path d="M380 110 C420 110 420 180 440 180" stroke="#7c3aed" stroke-width="1.2" fill="none" marker-end="url(#arr)"/>
+          <path d="M380 160 L440 180" stroke="#7c3aed" stroke-width="1.2" fill="none" marker-end="url(#arr)"/>
+          <path d="M380 210 L440 180" stroke="#7c3aed" stroke-width="1.2" fill="none" marker-end="url(#arr)"/>
+          <path d="M380 260 C420 260 420 180 440 180" stroke="#7c3aed" stroke-width="1.2" fill="none" marker-end="url(#arr)"/>
+          <!-- ranker -->
+          <g filter="url(#soft)">
+            <rect x="440" y="155" width="140" height="56" rx="10" fill="url(#gGold)"/>
+            <text x="510" y="180" text-anchor="middle" font-size="13" font-weight="800" fill="#3b0764">triage_report.sh</text>
+            <text x="510" y="198" text-anchor="middle" font-size="10" fill="#3b0764">rank by score</text>
+          </g>
+          <line x1="580" y1="183" x2="620" y2="183" stroke="#15803d" stroke-width="1.5" marker-end="url(#arrG)"/>
+
+          <!-- Final report -->
+          <g filter="url(#soft)">
+            <rect x="620" y="40" width="240" height="288" rx="10" fill="#fff" stroke="#15803d" stroke-width="1.5"/>
+            <rect x="620" y="40" width="240" height="32" rx="10" fill="#15803d"/>
+            <rect x="620" y="55" width="240" height="17" fill="#15803d"/>
+            <text x="740" y="62" text-anchor="middle" font-size="11" font-weight="800" fill="#fff" font-family="ui-monospace, monospace">triage_report.md</text>
+            <!-- table header -->
+            <rect x="620" y="72" width="240" height="22" fill="#f0fdf4"/>
+            <g font-size="10" font-weight="800" fill="#065f46" font-family="ui-monospace, monospace">
+              <text x="632" y="87">#</text>
+              <text x="652" y="87">BUG</text>
+              <text x="700" y="87">CONF</text>
+              <text x="740" y="87">IMP</text>
+              <text x="780" y="87">EFF</text>
+              <text x="820" y="87">SCORE</text>
+            </g>
+            <!-- rows -->
+            <g font-family="ui-monospace, monospace" font-size="11">
+              <!-- #1 -->
+              <rect x="620" y="96" width="240" height="36" fill="#ecfdf5"/>
+              <rect x="620" y="96" width="6" height="36" fill="#15803d"/>
+              <text x="636" y="118" font-weight="800" fill="#15803d">1</text>
+              <text x="652" y="118" fill="#1a1530">#211</text>
+              <text x="700" y="118" fill="#15803d" font-weight="700">0.91</text>
+              <text x="740" y="118" fill="#dc2626" font-weight="700">HIGH</text>
+              <text x="780" y="118" fill="#15803d" font-weight="700">S</text>
+              <text x="820" y="118" font-weight="800" fill="#065f46">8.6</text>
+              <text x="652" y="128" font-size="8" fill="#6b6680">core.py:842</text>
+              <!-- #2 -->
+              <rect x="620" y="132" width="240" height="36" fill="#fff"/>
+              <rect x="620" y="132" width="6" height="36" fill="#22c55e"/>
+              <text x="636" y="154" font-weight="800" fill="#15803d">2</text>
+              <text x="652" y="154" fill="#1a1530">#198</text>
+              <text x="700" y="154" fill="#15803d" font-weight="700">0.83</text>
+              <text x="740" y="154" fill="#dc2626" font-weight="700">HIGH</text>
+              <text x="780" y="154" fill="#b45309" font-weight="700">M</text>
+              <text x="820" y="154" font-weight="800" fill="#065f46">6.1</text>
+              <text x="652" y="164" font-size="8" fill="#6b6680">parser.py</text>
+              <!-- #3 -->
+              <rect x="620" y="168" width="240" height="36" fill="#fff"/>
+              <rect x="620" y="168" width="6" height="36" fill="#fbbf24"/>
+              <text x="636" y="190" font-weight="800" fill="#b45309">3</text>
+              <text x="652" y="190" fill="#1a1530">#220</text>
+              <text x="700" y="190" fill="#b45309" font-weight="700">0.74</text>
+              <text x="740" y="190" fill="#b45309" font-weight="700">MED</text>
+              <text x="780" y="190" fill="#15803d" font-weight="700">S</text>
+              <text x="820" y="190" font-weight="800" fill="#b45309">4.4</text>
+              <text x="652" y="200" font-size="8" fill="#6b6680">cli.py</text>
+              <!-- #4 -->
+              <rect x="620" y="204" width="240" height="36" fill="#fff"/>
+              <rect x="620" y="204" width="6" height="36" fill="#94a3b8"/>
+              <text x="636" y="226" font-weight="800" fill="#6b6680">4</text>
+              <text x="652" y="226" fill="#1a1530">#207</text>
+              <text x="700" y="226" fill="#b91c1c" font-weight="700">0.31</text>
+              <text x="740" y="226" fill="#6b6680" font-weight="700">LOW</text>
+              <text x="780" y="226" fill="#b91c1c" font-weight="700">L</text>
+              <text x="820" y="226" font-weight="800" fill="#6b6680">0.6</text>
+              <text x="652" y="236" font-size="8" fill="#b91c1c">NO_FIX</text>
+            </g>
+            <line x1="632" y1="250" x2="848" y2="250" stroke="#e6e1f3"/>
+            <g font-family="ui-monospace, monospace">
+              <text x="632" y="272" font-size="10" font-weight="800" fill="#15803d" letter-spacing="1">MONDAY LINEUP</text>
+              <text x="632" y="292" font-size="11" fill="#1a1530">→ #211 (90 min)</text>
+              <text x="632" y="308" font-size="11" fill="#1a1530">→ #198 (3 hr)</text>
+              <text x="632" y="322" font-size="10" fill="#6b6680">rest can wait this sprint</text>
+            </g>
+          </g>
+        </svg>
+        <div class="illus-cap">Parallel workers compress 40 bugs into a ranked, scored, single-page lineup the lead can act on in 30 seconds.</div>
+        </div></div>
+        <div class="files"><div class="files-label">Files touched</div>
+          <span class="file-pill">rca-mas.sh</span><span class="file-pill new">scripts/triage.sh</span><span class="file-pill new">scripts/triage_report.sh</span><span class="file-pill">scripts/orchestrator.sh</span><span class="file-pill">docs/cli-reference.md</span>
+        </div>
+      </div>
+
+      <!-- #17 DIFF AWARE -->
+      <div class="card" id="c17">
+        <div class="card-head">
+          <div class="card-num">17</div>
+          <div class="card-title-wrap">
+            <div class="card-title">Diff-Aware Surgical Agent 2</div>
+            <div class="card-meta"><span class="badge b-feat">Feature</span><span class="badge b-effort-m">Medium effort</span><span class="badge b-risk-med">Risk: Med</span></div>
+          </div>
+        </div>
+        <div class="section"><h4>What changes</h4><p>When the bug is "new since &lt;date&gt;" — most of them — feed Agent 2 the <strong>git diff for the suspect file across that window</strong> as primary context, not the whole current file. Cuts input tokens 60–80% on focused regressions and biases the fix toward "revert the bad change" rather than "design a new one".</p></div>
+        <div class="section"><h4>Illustration</h4>
+        <div class="illus">
+        <svg viewBox="0 0 880 320" xmlns="http://www.w3.org/2000/svg">
+          <text x="20" y="22" font-size="10" font-weight="800" fill="#b91c1c" letter-spacing="2">TODAY · WHOLE FILE</text>
+          <text x="460" y="22" font-size="10" font-weight="800" fill="#15803d" letter-spacing="2">PROPOSED · WINDOW DIFF</text>
+          <line x1="440" y1="0" x2="440" y2="320" stroke="#e6e1f3" stroke-dasharray="3,4"/>
+
+          <!-- LEFT: whole file -->
+          <g filter="url(#soft)">
+            <rect x="20" y="44" width="180" height="240" rx="8" fill="#fff" stroke="#ef4444" stroke-width="1.5"/>
+            <rect x="20" y="44" width="180" height="22" rx="8" fill="#fef2f2"/>
+            <rect x="20" y="57" width="180" height="9" fill="#fef2f2"/>
+            <text x="110" y="60" text-anchor="middle" font-size="11" font-weight="700" fill="#7f1d1d" font-family="ui-monospace, monospace">core.py · 1,847 lines</text>
+            <!-- code lines as bars -->
+            <g fill="#cbd5e1">
+              <rect x="32" y="76" width="120" height="3"/><rect x="32" y="83" width="100" height="3"/>
+              <rect x="32" y="90" width="140" height="3"/><rect x="32" y="97" width="80" height="3"/>
+              <rect x="32" y="104" width="130" height="3"/><rect x="32" y="111" width="110" height="3"/>
+              <rect x="32" y="118" width="120" height="3"/><rect x="32" y="125" width="100" height="3"/>
+              <rect x="32" y="132" width="140" height="3"/><rect x="32" y="139" width="80" height="3"/>
+              <rect x="32" y="146" width="130" height="3"/><rect x="32" y="153" width="110" height="3"/>
+              <rect x="32" y="160" width="120" height="3"/><rect x="32" y="167" width="100" height="3"/>
+              <rect x="32" y="174" width="140" height="3"/><rect x="32" y="181" width="80" height="3"/>
+              <rect x="32" y="188" width="130" height="3"/><rect x="32" y="195" width="110" height="3"/>
+              <rect x="32" y="202" width="120" height="3"/><rect x="32" y="209" width="100" height="3"/>
+              <rect x="32" y="216" width="140" height="3"/><rect x="32" y="223" width="80" height="3"/>
+              <rect x="32" y="230" width="130" height="3"/><rect x="32" y="237" width="110" height="3"/>
+              <rect x="32" y="244" width="120" height="3"/><rect x="32" y="251" width="100" height="3"/>
+              <rect x="32" y="258" width="140" height="3"/><rect x="32" y="265" width="80" height="3"/>
+              <rect x="32" y="272" width="130" height="3"/>
+            </g>
+            <!-- highlight the bug area -->
+            <rect x="28" y="158" width="160" height="14" fill="#fee2e2" stroke="#dc2626" stroke-width="0.5"/>
+            <text x="195" y="167" font-size="9" font-weight="700" fill="#b91c1c" text-anchor="start">bug?</text>
+          </g>
+          <!-- right: tokens & cost -->
+          <g font-family="ui-monospace, monospace" font-size="11">
+            <rect x="220" y="76" width="200" height="22" rx="4" fill="#fee2e2"/>
+            <rect x="220" y="76" width="186" height="22" rx="4" fill="url(#gRed)"/>
+            <text x="232" y="91" font-weight="700" fill="#fff">14,000 input tokens</text>
+            <text x="232" y="120" font-size="10" fill="#7f1d1d">model re-derives</text>
+            <text x="232" y="134" font-size="10" fill="#7f1d1d">"what changed recently"</text>
+            <text x="232" y="148" font-size="10" fill="#7f1d1d">from scratch</text>
+          </g>
+
+          <!-- RIGHT: window diff -->
+          <g filter="url(#soft)">
+            <rect x="460" y="44" width="180" height="180" rx="8" fill="#fff" stroke="#15803d" stroke-width="1.5"/>
+            <rect x="460" y="44" width="180" height="22" rx="8" fill="#ecfdf5"/>
+            <rect x="460" y="57" width="180" height="9" fill="#ecfdf5"/>
+            <text x="550" y="60" text-anchor="middle" font-size="11" font-weight="700" fill="#065f46" font-family="ui-monospace, monospace">window_diff · 4 hunks</text>
+            <g font-family="ui-monospace, monospace" font-size="9">
+              <text x="470" y="84" fill="#6b6680">@@ -98,7 +98,7 @@</text>
+              <text x="470" y="98" fill="#dc2626">- old impl</text>
+              <text x="470" y="112" fill="#15803d">+ new impl</text>
+              <text x="470" y="132" fill="#6b6680">@@ -312,4 +312,4 @@</text>
+              <text x="470" y="146" fill="#dc2626">- old fn</text>
+              <text x="470" y="160" fill="#15803d">+ new fn</text>
+              <text x="470" y="180" fill="#6b6680">@@ -842,3 +842,3 @@</text>
+              <text x="470" y="194" fill="#dc2626">- if option.default is None:</text>
+              <text x="470" y="208" fill="#fbbf24" font-weight="700">← BUG HERE</text>
+            </g>
+          </g>
+          <!-- tokens & savings -->
+          <g font-family="ui-monospace, monospace" font-size="11">
+            <rect x="660" y="76" width="200" height="22" rx="4" fill="#d1fae5"/>
+            <rect x="660" y="76" width="46" height="22" rx="4" fill="url(#gOk)"/>
+            <text x="672" y="91" font-weight="700" fill="#fff">3,200</text>
+            <text x="704" y="91" font-weight="700" fill="#065f46">input tokens</text>
+            <text x="672" y="120" font-size="10" fill="#065f46" font-weight="700">−77% tokens</text>
+            <text x="672" y="134" font-size="10" fill="#065f46">surgical "revert hunk #3"</text>
+            <text x="672" y="148" font-size="10" fill="#065f46">candidate emerges naturally</text>
+          </g>
+
+          <!-- bottom comparison bar -->
+          <g filter="url(#soft)">
+            <rect x="20" y="270" width="840" height="36" rx="8" fill="url(#gDark)"/>
+            <text x="40" y="293" font-size="11" font-weight="800" fill="#fbbf24" letter-spacing="2">COST PER FIX ON 5 CLICK BUGS</text>
+            <text x="460" y="293" font-size="13" font-weight="800" fill="#fff" font-family="ui-monospace, monospace">$1.85 → $0.61</text>
+            <text x="600" y="293" font-size="13" font-weight="800" fill="#86efac">  (−67%)</text>
+          </g>
+        </svg>
+        <div class="illus-cap">Replacing the whole file with a focused diff window shrinks context, sharpens reasoning, and cuts cost two-thirds.</div>
+        </div></div>
+        <div class="files"><div class="files-label">Files touched</div>
+          <span class="file-pill">scripts/orchestrator.sh</span><span class="file-pill">prompts/solution.md</span><span class="file-pill new">collectors/window_diff.sh</span><span class="file-pill">schemas/solution.schema.json</span><span class="file-pill">config/defaults.env</span>
+        </div>
+      </div>
+
+      <!-- ==================== PERF / DX ==================== -->
+      <div class="cat-section">
+        <h2><div class="cat-dot" style="background:#3b82f6"></div>Performance &amp; Developer Experience</h2>
+        <div class="cat-sub">Cost, speed, and quality-of-life improvements that don't change the fundamental shape of the system.</div>
+      </div>
+
+      <!-- #18 ADAPTIVE MODEL -->
+      <div class="card" id="c18">
+        <div class="card-head">
+          <div class="card-num">18</div>
+          <div class="card-title-wrap">
+            <div class="card-title">Adaptive Model Selector</div>
+            <div class="card-meta"><span class="badge b-perf">Performance</span><span class="badge b-effort-s">Small effort</span><span class="badge b-risk-low">Risk: Low</span></div>
+          </div>
+        </div>
+        <div class="section"><h4>What changes</h4><p>Today <code>RCA_MODEL</code> is one global. Make it <strong>per-agent</strong> and add an auto-tier mode: Haiku for Agent 1b synthesis, Sonnet for Agent 1a in &lt;XS-tier repos, Opus only escalated when checkpoint confidence is below 0.5. Median cost drops ~35% on easy bugs while hard bugs still get the big model.</p></div>
+        <div class="section"><h4>Illustration</h4>
+        <div class="illus">
+        <svg viewBox="0 0 880 320" xmlns="http://www.w3.org/2000/svg">
+          <text x="20" y="22" font-size="11" font-weight="800" fill="#4c1d95" letter-spacing="2">DECISION MATRIX · model selected per stage × tier</text>
+          <!-- matrix grid -->
+          <g font-family="ui-monospace, monospace" font-size="10" font-weight="700">
+            <!-- col headers -->
+            <rect x="180" y="44" width="120" height="28" rx="4" fill="#ede4ff"/>
+            <text x="240" y="62" text-anchor="middle" fill="#4c1d95">tier XS / S</text>
+            <rect x="304" y="44" width="120" height="28" rx="4" fill="#ede4ff"/>
+            <text x="364" y="62" text-anchor="middle" fill="#4c1d95">tier M / L</text>
+            <rect x="428" y="44" width="160" height="28" rx="4" fill="#fef3c7"/>
+            <text x="508" y="62" text-anchor="middle" fill="#b45309">escalation</text>
+            <!-- row headers + cells -->
+            <!-- Agent 1a -->
+            <rect x="20" y="76" width="156" height="44" rx="4" fill="#fafaff" stroke="#a78bfa"/>
+            <text x="32" y="98" font-weight="800" fill="#4c1d95">Agent 1a</text>
+            <text x="32" y="112" font-size="9" fill="#6b6680">toolful investigation</text>
+            <rect x="180" y="76" width="120" height="44" rx="4" fill="#dbeafe"/>
+            <text x="240" y="100" text-anchor="middle" font-weight="800" fill="#1e40af">Haiku</text>
+            <text x="240" y="114" text-anchor="middle" font-size="9" fill="#1e40af">$$</text>
+            <rect x="304" y="76" width="120" height="44" rx="4" fill="#ede9fe"/>
+            <text x="364" y="100" text-anchor="middle" font-weight="800" fill="#6b21a8">Sonnet</text>
+            <text x="364" y="114" text-anchor="middle" font-size="9" fill="#6b21a8">$$$</text>
+            <rect x="428" y="76" width="160" height="44" rx="4" fill="#fef3c7"/>
+            <text x="508" y="96" text-anchor="middle" font-weight="800" fill="#92400e">Opus</text>
+            <text x="508" y="110" text-anchor="middle" font-size="9" fill="#92400e">if prev conf &lt; 0.5</text>
+
+            <!-- Agent 1b -->
+            <rect x="20" y="124" width="156" height="44" rx="4" fill="#fafaff" stroke="#a78bfa"/>
+            <text x="32" y="146" font-weight="800" fill="#4c1d95">Agent 1b</text>
+            <text x="32" y="160" font-size="9" fill="#6b6680">schema synth · 1-turn</text>
+            <rect x="180" y="124" width="120" height="44" rx="4" fill="#dbeafe"/>
+            <text x="240" y="148" text-anchor="middle" font-weight="800" fill="#1e40af">Haiku</text>
+            <text x="240" y="162" text-anchor="middle" font-size="9" fill="#1e40af">$$</text>
+            <rect x="304" y="124" width="120" height="44" rx="4" fill="#dbeafe"/>
+            <text x="364" y="148" text-anchor="middle" font-weight="800" fill="#1e40af">Haiku</text>
+            <text x="364" y="162" text-anchor="middle" font-size="9" fill="#1e40af">$$</text>
+            <rect x="428" y="124" width="160" height="44" rx="4" fill="#f1f5f9"/>
+            <text x="508" y="148" text-anchor="middle" font-size="10" fill="#6b6680">—</text>
+            <text x="508" y="162" text-anchor="middle" font-size="9" fill="#6b6680">no escalation</text>
+
+            <!-- Agent 2 -->
+            <rect x="20" y="172" width="156" height="44" rx="4" fill="#fafaff" stroke="#a78bfa"/>
+            <text x="32" y="194" font-weight="800" fill="#4c1d95">Agent 2</text>
+            <text x="32" y="208" font-size="9" fill="#6b6680">fix synth</text>
+            <rect x="180" y="172" width="120" height="44" rx="4" fill="#ede9fe"/>
+            <text x="240" y="196" text-anchor="middle" font-weight="800" fill="#6b21a8">Sonnet</text>
+            <text x="240" y="210" text-anchor="middle" font-size="9" fill="#6b21a8">$$$</text>
+            <rect x="304" y="172" width="120" height="44" rx="4" fill="#ede9fe"/>
+            <text x="364" y="196" text-anchor="middle" font-weight="800" fill="#6b21a8">Sonnet</text>
+            <text x="364" y="210" text-anchor="middle" font-size="9" fill="#6b21a8">$$$</text>
+            <rect x="428" y="172" width="160" height="44" rx="4" fill="#fef3c7"/>
+            <text x="508" y="192" text-anchor="middle" font-weight="800" fill="#92400e">Opus</text>
+            <text x="508" y="206" text-anchor="middle" font-size="9" fill="#92400e">if WEAK_EVIDENCE</text>
+          </g>
+
+          <!-- cost meter on the right -->
+          <g filter="url(#soft)">
+            <rect x="620" y="44" width="240" height="180" rx="10" fill="url(#gDark)"/>
+            <text x="640" y="68" font-size="11" font-weight="800" fill="#fbbf24" letter-spacing="2">MEDIAN COST · 5 BUGS</text>
+            <line x1="640" y1="78" x2="840" y2="78" stroke="#fbbf24" stroke-opacity="0.3"/>
+            <!-- old bar -->
+            <text x="640" y="106" font-size="10" fill="#fca5a5" font-family="ui-monospace, monospace">today (RCA_MODEL=opus)</text>
+            <rect x="640" y="112" width="200" height="20" rx="4" fill="#fef2f2" opacity="0.2"/>
+            <rect x="640" y="112" width="200" height="20" rx="4" fill="url(#gRed)"/>
+            <text x="830" y="127" text-anchor="end" font-size="11" font-weight="800" fill="#fff" font-family="ui-monospace, monospace">$5.40</text>
+            <!-- new bar -->
+            <text x="640" y="156" font-size="10" fill="#86efac" font-family="ui-monospace, monospace">auto-tier</text>
+            <rect x="640" y="162" width="200" height="20" rx="4" fill="#ecfdf5" opacity="0.2"/>
+            <rect x="640" y="162" width="131" height="20" rx="4" fill="url(#gOk)"/>
+            <text x="830" y="177" text-anchor="end" font-size="11" font-weight="800" fill="#fff" font-family="ui-monospace, monospace">$3.55</text>
+            <line x1="640" y1="194" x2="840" y2="194" stroke="#fbbf24" stroke-opacity="0.3"/>
+            <text x="740" y="214" text-anchor="middle" font-size="16" font-weight="800" fill="#fbbf24">−34%</text>
+          </g>
+
+          <!-- bottom bar -->
+          <g filter="url(#soft)">
+            <rect x="20" y="244" width="568" height="56" rx="10" fill="url(#gPurSoft)" stroke="#a78bfa"/>
+            <text x="36" y="266" font-size="11" font-weight="800" fill="#4c1d95" letter-spacing="2">EXAMPLE</text>
+            <text x="36" y="286" font-size="12" font-weight="700" fill="#1a1530" font-family="ui-monospace, monospace">$ RCA_MODEL=auto ./rca-mas.sh bug.md</text>
+          </g>
+          <g filter="url(#soft)">
+            <rect x="620" y="244" width="240" height="56" rx="10" fill="url(#gOk)"/>
+            <text x="740" y="270" text-anchor="middle" font-size="11" font-weight="800" fill="#fff" letter-spacing="2">QUALITY HELD</text>
+            <text x="740" y="288" text-anchor="middle" font-size="11" font-weight="700" fill="#d1fae5">0.78 avg conf (was 0.79)</text>
+          </g>
+        </svg>
+        <div class="illus-cap">A per-stage, per-tier matrix routes cheap calls to Haiku and reserves Opus for the moments that actually need it.</div>
+        </div></div>
+        <div class="files"><div class="files-label">Files touched</div>
+          <span class="file-pill">config/defaults.env</span><span class="file-pill">scripts/orchestrator.sh</span><span class="file-pill">scripts/claude_json.sh</span><span class="file-pill">docs/cli-reference.md</span>
+        </div>
+      </div>
+
+      <!-- #19 RUN DIFF REPLAY -->
+      <div class="card" id="c19">
+        <div class="card-head">
+          <div class="card-num">19</div>
+          <div class="card-title-wrap">
+            <div class="card-title">Run-Diff &amp; Replay Tool</div>
+            <div class="card-meta"><span class="badge b-perf">DX</span><span class="badge b-effort-s">Small effort</span><span class="badge b-risk-low">Risk: Low</span></div>
+          </div>
+        </div>
+        <div class="section"><h4>What changes</h4><p>Two utilities. <code>rca-mas diff A B</code> side-by-sides two runs across every stage — turns, confidence, root cause, diff. <code>rca-mas replay RUN_ID --from agent2</code> re-runs from any stage using cached prior artifacts. Today, regressing a prompt means re-running the whole 5-minute pipeline; with replay it's seconds.</p></div>
+        <div class="section"><h4>Illustration</h4>
+        <div class="illus">
+        <svg viewBox="0 0 880 340" xmlns="http://www.w3.org/2000/svg">
+          <!-- header -->
+          <g filter="url(#soft)">
+            <rect x="20" y="20" width="840" height="32" rx="8" fill="url(#gDark)"/>
+            <circle cx="38" cy="36" r="5" fill="#22c55e"/>
+            <text x="56" y="40" font-size="11" font-weight="700" fill="#fff" font-family="ui-monospace, monospace">$ rca-mas diff 20260504-101523  20260504-104812</text>
+          </g>
+          <!-- 3-column comparison table -->
+          <g font-family="ui-monospace, monospace" font-size="11">
+            <!-- column header -->
+            <rect x="20" y="60" width="200" height="28" fill="#ede4ff"/>
+            <rect x="220" y="60" width="220" height="28" fill="#ede4ff"/>
+            <rect x="440" y="60" width="220" height="28" fill="#ede4ff"/>
+            <rect x="660" y="60" width="200" height="28" fill="#fef3c7"/>
+            <text x="32" y="78" font-weight="800" fill="#4c1d95">STAGE</text>
+            <text x="232" y="78" font-weight="800" fill="#4c1d95">A · baseline</text>
+            <text x="452" y="78" font-weight="800" fill="#4c1d95">B · new prompt</text>
+            <text x="672" y="78" font-weight="800" fill="#b45309">Δ</text>
+            <!-- rows -->
+            <g>
+              <rect x="20" y="88" width="840" height="26" fill="#fff"/>
+              <text x="32" y="106" fill="#1a1530">briefing</text>
+              <text x="232" y="106" fill="#6b6680">11.4s</text>
+              <text x="452" y="106" fill="#6b6680">11.5s</text>
+              <text x="672" y="106" fill="#6b6680">±0</text>
+
+              <rect x="20" y="114" width="840" height="26" fill="#fafaff"/>
+              <text x="32" y="132" fill="#1a1530">agent1a</text>
+              <text x="232" y="132" fill="#6b6680">198s  · 28 turns</text>
+              <text x="452" y="132" fill="#6b6680">214s  · 31 turns</text>
+              <text x="672" y="132" fill="#b45309" font-weight="700">+16s</text>
+
+              <rect x="20" y="140" width="840" height="26" fill="#fff"/>
+              <text x="32" y="158" fill="#1a1530">agent1b</text>
+              <text x="232" y="158" fill="#15803d">45s · schema OK</text>
+              <text x="452" y="158" fill="#15803d">43s · schema OK</text>
+              <text x="672" y="158" fill="#6b6680">−2s</text>
+
+              <rect x="20" y="166" width="840" height="26" fill="#fafaff"/>
+              <text x="32" y="184" fill="#1a1530">agent2</text>
+              <text x="232" y="184" fill="#6b6680">62s · FIX 0.78</text>
+              <text x="452" y="184" fill="#15803d" font-weight="700">58s · FIX 0.82</text>
+              <text x="672" y="184" fill="#15803d" font-weight="700">+.04 conf</text>
+
+              <rect x="20" y="192" width="840" height="26" fill="#fff"/>
+              <text x="32" y="210" fill="#1a1530">agent2.5</text>
+              <text x="232" y="210" fill="#15803d">412s · tests PASS</text>
+              <text x="452" y="210" fill="#15803d">411s · tests PASS</text>
+              <text x="672" y="210" fill="#6b6680">±0</text>
+            </g>
+            <!-- summary -->
+            <rect x="20" y="220" width="840" height="32" fill="#ecfdf5" stroke="#15803d"/>
+            <text x="32" y="240" font-weight="800" fill="#065f46">ROOT_CAUSE</text>
+            <text x="232" y="240" fill="#15803d">same</text>
+            <text x="452" y="240" fill="#15803d">same</text>
+            <text x="672" y="240" font-weight="800" fill="#15803d">✓ no drift</text>
+
+            <rect x="20" y="252" width="840" height="32" fill="#ecfdf5" stroke="#15803d"/>
+            <text x="32" y="272" font-weight="800" fill="#065f46">FIX HUNKS</text>
+            <text x="232" y="272" fill="#15803d">1</text>
+            <text x="452" y="272" fill="#15803d">1</text>
+            <text x="672" y="272" font-weight="800" fill="#15803d">✓ identical</text>
+          </g>
+
+          <!-- replay strip -->
+          <g filter="url(#soft)">
+            <rect x="20" y="296" width="840" height="36" rx="8" fill="url(#gGold)"/>
+            <text x="36" y="318" font-size="11" font-weight="800" fill="#3b0764" font-family="ui-monospace, monospace">$ rca-mas replay 20260504-101523 --from agent2  →  reuses cached briefing + diagnosis  →  70s  (was 9m end-to-end)</text>
+          </g>
+        </svg>
+        <div class="illus-cap">Diff turns two runs into one scorecard; replay turns a 9-minute regression test into 70 seconds.</div>
+        </div></div>
+        <div class="files"><div class="files-label">Files touched</div>
+          <span class="file-pill new">scripts/run_diff.sh</span><span class="file-pill new">scripts/replay.sh</span><span class="file-pill">rca-mas.sh</span><span class="file-pill">docs/cli-reference.md</span><span class="file-pill">docs/troubleshooting.md</span>
+        </div>
+      </div>
+
+      <!-- #20 PROMPT CACHING -->
+      <div class="card" id="c20">
+        <div class="card-head">
+          <div class="card-num">20</div>
+          <div class="card-title-wrap">
+            <div class="card-title">Prompt Caching for Briefing &amp; System Prompts</div>
+            <div class="card-meta"><span class="badge b-perf">Performance</span><span class="badge b-effort-s">Small effort</span><span class="badge b-risk-low">Risk: Low</span></div>
+          </div>
+        </div>
+        <div class="section"><h4>What changes</h4><p>Every agent re-sends the same <code>briefing.md</code> + static system prompt on every call (and across recovery/repair). Wire <strong>Claude prompt caching</strong> through <code>scripts/claude_json.sh</code> — mark system + briefing as cache-eligible. From the 2nd call onward (1b after 1a, Agent 2 after 1b, repair) cached tokens bill at 10%. Typical run: 30–50% input-cost cut.</p></div>
+        <div class="section"><h4>Illustration</h4>
+        <div class="illus">
+        <svg viewBox="0 0 880 340" xmlns="http://www.w3.org/2000/svg">
+          <text x="20" y="22" font-size="11" font-weight="800" fill="#4c1d95" letter-spacing="2">PROMPT STRUCTURE · 5 SEQUENTIAL CALLS</text>
+          <!-- TODAY label -->
+          <text x="20" y="56" font-size="10" font-weight="800" fill="#b91c1c" letter-spacing="2">TODAY · NO CACHING</text>
+          <!-- 5 call rows: full price every time -->
+          <g font-family="ui-monospace, monospace" font-size="10">
+            <g>
+              <text x="20" y="86" fill="#6b6680">call 1</text>
+              <rect x="62" y="74" width="80" height="20" rx="3" fill="url(#gRed)"/>
+              <text x="102" y="89" text-anchor="middle" fill="#fff" font-weight="700">sys 1.2k</text>
+              <rect x="148" y="74" width="220" height="20" rx="3" fill="url(#gRed)"/>
+              <text x="258" y="89" text-anchor="middle" fill="#fff" font-weight="700">briefing 8k</text>
+              <rect x="374" y="74" width="60" height="20" rx="3" fill="#fed7aa"/>
+              <text x="404" y="89" text-anchor="middle" fill="#7f1d1d" font-weight="700">user</text>
+              <text x="450" y="89" fill="#7f1d1d" font-weight="800">9.2k billed</text>
+            </g>
+            <g>
+              <text x="20" y="116" fill="#6b6680">call 2 · 1b</text>
+              <rect x="62" y="104" width="80" height="20" rx="3" fill="url(#gRed)"/>
+              <text x="102" y="119" text-anchor="middle" fill="#fff" font-weight="700">sys 1.2k</text>
+              <rect x="148" y="104" width="220" height="20" rx="3" fill="url(#gRed)"/>
+              <text x="258" y="119" text-anchor="middle" fill="#fff" font-weight="700">briefing 8k</text>
+              <rect x="374" y="104" width="60" height="20" rx="3" fill="#fed7aa"/>
+              <text x="404" y="119" text-anchor="middle" fill="#7f1d1d" font-weight="700">user</text>
+              <text x="450" y="119" fill="#7f1d1d" font-weight="800">9.2k billed</text>
+            </g>
+            <g>
+              <text x="20" y="146" fill="#6b6680">call 3 · 2</text>
+              <rect x="62" y="134" width="80" height="20" rx="3" fill="url(#gRed)"/>
+              <text x="102" y="149" text-anchor="middle" fill="#fff" font-weight="700">sys 1.2k</text>
+              <rect x="148" y="134" width="220" height="20" rx="3" fill="url(#gRed)"/>
+              <text x="258" y="149" text-anchor="middle" fill="#fff" font-weight="700">briefing 8k</text>
+              <rect x="374" y="134" width="60" height="20" rx="3" fill="#fed7aa"/>
+              <text x="404" y="149" text-anchor="middle" fill="#7f1d1d" font-weight="700">user</text>
+              <text x="450" y="149" fill="#7f1d1d" font-weight="800">9.2k billed</text>
+            </g>
+            <text x="62" y="170" fill="#6b6680" font-size="10">call 4, 5 · repair / recovery · same again …</text>
+            <text x="540" y="116" font-size="14" font-weight="800" fill="#b91c1c">TOTAL ≈ 42k</text>
+          </g>
+
+          <!-- PROPOSED -->
+          <text x="20" y="208" font-size="10" font-weight="800" fill="#15803d" letter-spacing="2">PROPOSED · PROMPT CACHING (5-MIN TTL)</text>
+          <g font-family="ui-monospace, monospace" font-size="10">
+            <g>
+              <text x="20" y="238" fill="#6b6680">call 1</text>
+              <rect x="62" y="226" width="80" height="20" rx="3" fill="#fbbf24"/>
+              <text x="102" y="241" text-anchor="middle" fill="#3b0764" font-weight="700">sys ★</text>
+              <rect x="148" y="226" width="220" height="20" rx="3" fill="#fbbf24"/>
+              <text x="258" y="241" text-anchor="middle" fill="#3b0764" font-weight="700">briefing ★ CACHE WRITE</text>
+              <rect x="374" y="226" width="60" height="20" rx="3" fill="#fed7aa"/>
+              <text x="404" y="241" text-anchor="middle" fill="#7f1d1d" font-weight="700">user</text>
+              <text x="450" y="241" fill="#92400e" font-weight="800">9.2k + 25% (write)</text>
+            </g>
+            <g>
+              <text x="20" y="268" fill="#6b6680">call 2 · 1b</text>
+              <rect x="62" y="256" width="80" height="20" rx="3" fill="#86efac"/>
+              <text x="102" y="271" text-anchor="middle" fill="#065f46" font-weight="700">sys ⚡</text>
+              <rect x="148" y="256" width="220" height="20" rx="3" fill="#86efac"/>
+              <text x="258" y="271" text-anchor="middle" fill="#065f46" font-weight="700">briefing ⚡ CACHE READ 10%</text>
+              <rect x="374" y="256" width="60" height="20" rx="3" fill="#fed7aa"/>
+              <text x="404" y="271" text-anchor="middle" fill="#7f1d1d" font-weight="700">user</text>
+              <text x="450" y="271" fill="#065f46" font-weight="800">0.9k + user</text>
+            </g>
+            <g>
+              <text x="20" y="298" fill="#6b6680">call 3 · 2</text>
+              <rect x="62" y="286" width="80" height="20" rx="3" fill="#86efac"/>
+              <text x="102" y="301" text-anchor="middle" fill="#065f46" font-weight="700">sys ⚡</text>
+              <rect x="148" y="286" width="220" height="20" rx="3" fill="#86efac"/>
+              <text x="258" y="301" text-anchor="middle" fill="#065f46" font-weight="700">briefing ⚡ CACHE READ 10%</text>
+              <rect x="374" y="286" width="60" height="20" rx="3" fill="#fed7aa"/>
+              <text x="404" y="301" text-anchor="middle" fill="#7f1d1d" font-weight="700">user</text>
+              <text x="450" y="301" fill="#065f46" font-weight="800">0.9k + user</text>
+            </g>
+            <text x="540" y="268" font-size="14" font-weight="800" fill="#15803d">TOTAL ≈ 14k</text>
+            <text x="540" y="288" font-size="13" font-weight="800" fill="#15803d">−65% input cost</text>
+          </g>
+
+          <!-- savings bar -->
+          <g filter="url(#soft)">
+            <rect x="700" y="216" width="160" height="100" rx="10" fill="url(#gDark)"/>
+            <text x="780" y="240" text-anchor="middle" font-size="10" font-weight="800" fill="#fbbf24" letter-spacing="2">SAVINGS</text>
+            <text x="780" y="276" text-anchor="middle" font-size="28" font-weight="800" fill="#86efac">−65%</text>
+            <text x="780" y="298" text-anchor="middle" font-size="10" fill="#ddd6fe">input tokens · per run</text>
+          </g>
+        </svg>
+        <div class="illus-cap">Marking the static prefix as cacheable bills repeat calls at one-tenth — a near-free input-cost reduction.</div>
+        </div></div>
+        <div class="files"><div class="files-label">Files touched</div>
+          <span class="file-pill">scripts/claude_json.sh</span><span class="file-pill">scripts/orchestrator.sh</span><span class="file-pill">prompts/investigation.md</span><span class="file-pill">prompts/diagnosis.md</span><span class="file-pill">prompts/solution.md</span><span class="file-pill">docs/cli-reference.md</span>
+        </div>
+      </div>
+
+      <!-- FOOTER -->
+      <div class="card" style="background: var(--paper-2); border-style: dashed;">
+        <div class="card-head">
+          <div class="card-num" style="background: linear-gradient(135deg, #6b6680, #3a3252);">i</div>
+          <div class="card-title-wrap">
+            <div class="card-title">Notes on scope and lock</div>
+            <div class="card-meta"><span class="badge" style="background:#fef3c7;color:#92400e;">For discussion</span></div>
+          </div>
+        </div>
+        <div class="section">
+          <p>The current architecture in <span class="file-pill">rca-mas/architecture.md</span> is explicitly LOCKED for v1. Every change above would require approval per the rules in that document. Items #1, #13 and #14 are already pre-staged in <span class="file-pill">potential_changes.md</span>; the other 17 are fresh proposals. Quick-win shortlist if only three could ship: <strong>#20 (prompt caching — near-free input-cost reduction)</strong>, <strong>#7 (eval harness — protects everything else)</strong>, <strong>#19 (replay tool — unlocks fast iteration on prompts).</strong></p>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+</div>
+
+</body>
+</html>
