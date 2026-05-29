@@ -33,6 +33,7 @@ _files_examined="$(_jq_array "$DIAGNOSIS" '.files_examined')"
 _unknowns="$(_jq_array "$DIAGNOSIS" '.unknowns')"
 _next_action="$(_jq "$DIAGNOSIS" '.next_best_action' 'N/A')"
 _introducing_commit="$(_jq "$DIAGNOSIS" '.introducing_commit' '(not identified)')"
+_confidence_reasoning="$(_jq "$DIAGNOSIS" '.confidence_reasoning' '')"
 
 # Build evidence section from selected hypothesis
 _evidence="$(jq -r --arg id "$_selected_id" '
@@ -154,6 +155,9 @@ ${_root_cause}
 - **Diagnosis (Agent 1b):** ${_confidence}
 - **Solution (Agent 2):** ${_solution_conf}
 - **Weak evidence flag:** ${_weak_evidence}
+
+**Agent 1 confidence reasoning:**
+${_confidence_reasoning:-*(not provided — run predates self-critique or checkpoint was degraded)*}
 
 ## Evidence
 

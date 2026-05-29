@@ -2,6 +2,8 @@
 **Date:** 2026-05-03
 **Repo:** `C:\MAS_final\rca-mas`
 
+> **Historical snapshot.** This report describes the state of the codebase at the completion of Step 4 hardening. All 12 build steps (including Agent 2.5 worktree verification under `--validate`) are now locked and complete. See [plan.md](../../plan.md) for current status.
+
 ---
 
 ## Root Cause Analysis — Why So Many Failures

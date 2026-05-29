@@ -10,7 +10,7 @@ You do not ask for more context.
 
 Your task: convert the checkpoint findings into diagnosis JSON matching the provided schema.
 
-You have at most 5 turns. One response is sufficient in almost all cases.
+One response is sufficient in almost all cases.
 
 ---
 
@@ -66,7 +66,9 @@ Return a single JSON object. No markdown fences. No explanation text outside the
   "unknowns": ["<anything that could not be confirmed>"],
   "confidence": 0.82,
   "introducing_commit": "<full SHA if found in checkpoint, else null>",
-  "next_best_action": "<what Agent 2 should focus on — be specific about file, function, line>"
+  "next_best_action": "<what Agent 2 should focus on — be specific about file, function, line>",
+  "confidence_reasoning": "<copy from checkpoint.confidence_reasoning verbatim; if absent, write one paragraph: what drove confidence up, what drove it down, which alternative was ruled out and why>",
+  "fix_context": "<verbatim current content of the fix-location function or block, copied from checkpoint.fix_context; null if absent>"
 }
 
 Field rules:
@@ -79,6 +81,8 @@ Field rules:
   - If `checkpoint.hypotheses` is missing or empty, synthesise exactly one hypothesis with id `"h1"` from `checkpoint.hypothesis` (or `root_cause`) and populate its `supporting_evidence` from `checkpoint.supporting_evidence` (top-level array). Set its `confidence` to match `checkpoint.confidence`.
 - `selected_hypothesis_id`: copy from `checkpoint.selected_hypothesis_id` if present; otherwise it must be the `id` of an entry in `hypotheses` you produced (e.g., `"h1"`). Never invent an id that isn't in `hypotheses[].id`.
 - `affected_files`, `call_chain`, `files_examined`, `unknowns`, `rejected_hypotheses`, `next_best_action`, `introducing_commit`: copy from checkpoint verbatim. If absent, use an empty array (or null for `introducing_commit`).
+- `confidence_reasoning`: copy from `checkpoint.confidence_reasoning` verbatim. If absent, write one paragraph summarising: which observations drove confidence up, which uncertainties drove it down, and which alternative was ruled out and why.
+- `fix_context`: copy from `checkpoint.fix_context` verbatim. If absent or null, set to null. Do not summarise or truncate — Agent 2 needs the exact code lines to write a unified diff.
 - Do not invent files, commits, functions, or evidence not in the checkpoint
 - Do not hide uncertainty — put it in `unknowns`
 

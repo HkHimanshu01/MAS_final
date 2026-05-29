@@ -1,4 +1,4 @@
-# RCA MAS — Documentation Index
+# AI-Powered Bug Diagnosis and Resolution — Documentation Index
 
 > Reading order and one-line summary of every doc.
 

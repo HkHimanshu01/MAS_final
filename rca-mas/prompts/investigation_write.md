@@ -56,7 +56,9 @@ Output a single valid JSON object as your entire response. Raw JSON only — no 
   ],
   "unknowns": ["could not confirm introducing commit"],
   "introducing_commit": null,
-  "next_best_action": "Add None guard at foo.py:45"
+  "next_best_action": "Add None guard at foo.py:45",
+  "fix_context": "def bar(self, ctx):\n    # line 43\n    x = self.value\n    # line 45 — guard missing here\n    return x\n",
+  "confidence_reasoning": "Confidence 0.82 driven by three direct observations: foo.py:45 missing None guard (Read-verified), call_chain confirmed via bar.py:12 (Read-verified), and git blame shows guard was never present. Drove down: could not confirm introducing commit. Alternative (error in caller) ruled out because bar.py:12 correctly guards its own input before calling foo.py."
 }
 ```
 
@@ -75,6 +77,8 @@ Field rules:
 - `unknowns`: anything neither findings nor evidence could confirm.
 - `introducing_commit`: full SHA if mentioned in findings/evidence, otherwise null. Never invent.
 - `next_best_action`: concrete action for Agent 2 — e.g., "Add None guard at foo.py:45". Be specific.
+- `fix_context`: for every function or block identified as the fix location in `next_best_action` or in FINAL FINDINGS, copy its current verbatim content. Use this priority order: (1) raw Read tool results from the evidence transcript — prefer these over anything in FINAL FINDINGS because they are guaranteed complete; (2) the verbatim paste in FINAL FINDINGS `### Recommended fix` — only if it satisfies the rule below. **Critical rule: the snippet must include at least 3 lines after the last line being changed.** If the FINAL FINDINGS paste stops at the last changed line (truncated), go back to the evidence transcript and find the Read result for that file/function instead. If two fix locations are named (e.g. `prompt()` and `confirm()`), include both — each must satisfy the 3-lines-after rule independently. If no fix location was identified, set to null.
+- `confidence_reasoning`: copy the `confidence_reasoning` paragraph from the FINAL FINDINGS self-critique (Check 3). If no self-critique paragraph is present in the findings, write a one-paragraph summary of: (a) which specific file:line observations drove confidence up, (b) which uncertainties drove it down, and (c) which alternative hypothesis was ruled out and why. Never omit this field — a brief honest paragraph is always better than an empty string.
 
 **Why these fields:**
 Agent 1b receives this checkpoint and must produce a diagnosis JSON matching `diagnosis.schema.json`. The fields above map 1:1 onto the diagnosis schema so Agent 1b can pass them through with minimal transformation. This reduces hallucination and prevents Agent 1b from inventing structure that wasn't in the investigation.

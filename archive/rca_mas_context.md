@@ -1,4 +1,4 @@
-# RCA Compression MAS — Complete Context Document
+# AI-Powered Bug Diagnosis and Resolution — Complete Context Document
 
 ## What This Is
 This document captures every agreed decision from the architecture design conversation. Use it as full context to continue building in a new thread. The companion HTML file (`rca_mas_final.html`) contains the visual build manual with diagrams and code.

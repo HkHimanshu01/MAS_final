@@ -110,14 +110,16 @@ If a collector times out (exit 124) or fails (non-zero): the failure is logged t
 
 **All script failures are visible.** Earlier versions used `|| true` to suppress errors silently. The current orchestrator captures every non-zero exit (`_A1A_EXTRACT_FAILED`, `_A1A_FINALIZE_FAILED`, `_A1A_RECOVER_FAILED`, `_A1A_QUALITY_FAILED`) and emits `log_event warn` for each, so failures surface in `log.jsonl` and `agent1a.log` rather than being silently swallowed.
 
-**Turn budgets by tier:**
+**Turn budgets by tier (current defaults):**
 
 | Tier | Max turns | Timeout |
 |---|---|---|
-| XS | 30 | 900s |
-| S  | 50 | 900s |
-| M  | 60 | 900s |
-| L  | 80 | 900s |
+| XS | 200 | 900s |
+| S  | 200 | 900s |
+| M  | 200 | 900s |
+| L  | 200 | 900s |
+
+Turns are an emergency cap; the cost cap (`RCA_A1A_BUDGET_USD`) is the primary throttle. Tier slots remain available for per-tier overrides if you need them.
 
 **Allowed tools:** Read, Grep, Glob, Bash (read-only: `git log/show/blame/diff/status`, `grep`, `rg`, `find`, `cat`, `wc`, `head`, `tail`, `ls`, `sed`)
 
@@ -164,7 +166,7 @@ If a collector times out (exit 124) or fails (non-zero): the failure is logged t
 
 **Data flow contract (1a → 1b):** Agent 1a's checkpoint-write phase emits fields that map 1:1 onto the diagnosis schema (`root_cause`, `hypotheses[]`, `selected_hypothesis_id`, etc.) so Agent 1b can copy them through verbatim. See [agent-contracts.md](agent-contracts.md#checkpoint-contract-data-flow-from-agent-1a) for the field-by-field mapping table.
 
-**Turn budget:** Always small (default 5 turns, 120s). The investigation is already done.
+**Turn budget:** Always small (default 20 turns, 120s). The investigation is already done.
 
 **Allowed tools:** None — Agent 1b runs with `--tools ""`. Pure synthesis from the checkpoint.
 
@@ -217,7 +219,7 @@ If a collector times out (exit 124) or fails (non-zero): the failure is logged t
 1. **Gate on diagnosis.json** — must exist, must be a JSON object. If Agent 1b's `agent1b_quality=failed`, write a clean NO_FIX without invoking Claude (saves cost when upstream already failed).
 2. **Compute WEAK_EVIDENCE flag** — orchestrator sets `WEAK_EVIDENCE=true` when `diagnosis.confidence < RCA_CONFIDENCE_WEAK_THRESHOLD` (default 0.6) OR when `agent1a_quality` is `weak`/`failed`. Logs the assessment.
 3. **Assemble prompt** — `agent2_prompt.md` = `prompts/solution.md` + briefing.md (inline) + diagnosis.json (inline) + Run Metadata (`RUN_ID`, `DIAGNOSIS_CONFIDENCE`, `AGENT1A_QUALITY`, `WEAK_EVIDENCE`, `WEAK_EVIDENCE_REASON`, `RCA_CONFIDENCE_NOFX`, `RCA_CONFIDENCE_WEAK_THRESHOLD`).
-4. **Call Claude** — `timeout $RCA_AGENT2_TIMEOUT claude -p ... --output-format json --json-schema ... --max-turns $RCA_AGENT2_TURNS` (default 3). No `--tools` flag — system prompt enforces no-tool synthesis. Stdout to `agent2_raw.json`, stderr to `agent2_stderr.txt`.
+4. **Call Claude** — `timeout $RCA_AGENT2_TIMEOUT claude -p ... --output-format json --json-schema ... --max-turns $RCA_AGENT2_TURNS` (default 20). No `--tools` flag — system prompt enforces no-tool synthesis. Stdout to `agent2_raw.json`, stderr to `agent2_stderr.txt`.
 5. **Extract** via `extract_normalize_json`. Handles structured_output, .result, raw object, stringified/fenced JSON. **Rejects Claude error envelopes** (e.g. `is_error=true`, `subtype=error_max_turns`) — these would otherwise be misread as a top-level object.
 6. **Stamp + enforce weak_evidence** — orchestrator overwrites `weak_evidence` and (when true) `weak_evidence_reason` in the candidate based on its own computed values. Claude doesn't get to ignore the flag.
 7. **Validate** against `solution.schema.json` via `validate_solution_json`. Schema rules + semantic rules: FIX requires confidence ≥ 0.5, non-empty `fixes[]`, valid unified_diff with `diff --git`, `---`, `+++`, and `@@` markers, no markdown fences; NO_FIX requires non-empty `no_fix_reason` and empty `fixes[]`.
@@ -228,7 +230,7 @@ If a collector times out (exit 124) or fails (non-zero): the failure is logged t
 
 **Data flow contract (1b → 2):** Agent 1b emits a schema-validated diagnosis. Agent 2 reads `diagnosis.root_cause`, `diagnosis.confidence`, `diagnosis.affected_files`, `diagnosis.hypotheses[].supporting_evidence`, `diagnosis.next_best_action` to construct a unified diff. `affected_files` in each fix must be a subset of `diagnosis.affected_files`.
 
-**Turn budget:** 3 turns / 180s default. Tight because synthesis only — but ≥2 needed for `--json-schema` enforcement to handle internal thinking turns.
+**Turn budget:** 20 turns / 600s default. Generous because complex multi-part fixes (Bug 3 class) need room for schema enforcement and internal thinking; the cost cap is the real throttle.
 
 **Allowed tools:** None. The system prompt forbids tool use; the orchestrator does not pass `--allowedTools`.
 

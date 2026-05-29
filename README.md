@@ -1,4 +1,4 @@
-# RCA Multi-Agent System
+# AI-Powered Bug Diagnosis and Resolution
 
 > **Bug investigation, compressed.** A purpose-built multi-agent system that diagnoses bugs, proposes the fix, and verifies it with tests &mdash; so the developer only reviews and ships.
 
@@ -11,6 +11,189 @@
 | developer time per bug | cost per bug resolved | of a developer's salary saved annually  | saved per bug vs vibe coding  |
 
 > Validated on real, complex, buggy open-source GitHub repositories (pallets/click).
+
+---
+
+## Getting Started from Scratch
+
+A complete walk-through for someone who has never run this before. End-to-end takes about 10 minutes the first time.
+
+### 1. Install prerequisites
+
+You need four things on the machine that will run the agent:
+
+| Tool | Why | Install check |
+|---|---|---|
+| **Claude Code CLI** | The agents are LLM calls; this is the binary that makes them | `claude --version` |
+| **git** | Used for blame, log, diff, and worktree isolation in validation mode | `git --version` |
+| **jq** | All structured outputs are JSON; jq parses them | `jq --version` |
+| **bash** | The orchestrator is bash. On Windows, install **Git Bash** (ships with Git for Windows) or WSL. PowerShell will not work. | `bash --version` |
+
+Optional but recommended:
+
+- **ripgrep (`rg`)** — makes the briefing step ~10× faster on large repos. Falls back to `git grep` if absent.
+- **GitHub CLI (`gh`)** — only needed if you want `--issue <NUM>` input.
+
+Then log in to Claude Code once:
+
+```bash
+claude auth login
+```
+
+### 2. Clone this repo
+
+```bash
+git clone https://github.com/<your-fork>/MAS_final.git
+cd MAS_final
+```
+
+The agent lives in `rca-mas/`. The entry point is `rca-mas/rca-mas.sh`.
+
+### 3. Write your first bug report
+
+Create a file called `my_bug.md` anywhere. It should describe what the user expected vs. what happened, with concrete error messages or unexpected output **in quotes or fenced code blocks** (the briefing step pulls quoted strings out as grep targets).
+
+A good minimal example:
+
+````markdown
+# Discount lookup returns None for valid coupon codes
+
+When calling `apply_discount(cart, "SUMMER25")` from the checkout flow,
+the function returns `None` instead of the expected discount object.
+
+Stack trace:
+
+```
+TypeError: 'NoneType' object has no attribute 'discount_value'
+  at src/cart/pricing.py:42 in apply_discount
+```
+
+Steps to reproduce:
+
+1. Add any item to cart
+2. Call `apply_discount(cart, "SUMMER25")`
+3. Expected: discount applied. Actual: TypeError.
+````
+
+The richer and more specific the bug report, the better the diagnosis. Mention file paths if you know them — the briefing step will validate they exist in the repo before passing them to the agent.
+
+### 4. Run the agent against the target repo
+
+The agent runs **inside the repo it is analysing**. So `cd` into that repo first, then call the script with an absolute path:
+
+```bash
+cd /path/to/the/target/repo
+/path/to/MAS_final/rca-mas/rca-mas.sh /path/to/my_bug.md
+```
+
+You'll see stage-by-stage progress in the terminal:
+
+```
+[rca-mas] Run 1778649108-c88f333 starting (report-only)
+[rca-mas] Briefing...
+[rca-mas] Briefing: scanning repo...
+[rca-mas] Briefing: 141 files, tier=S, turns=50, errors=5
+[rca-mas] Agent 1a: investigation...
+[rca-mas] Agent 1b: conclusion...
+[rca-mas] Agent 2: solution...
+[rca-mas] Report...
+[rca-mas] Report: /path/to/repo/.rca-mas/runs/1778649108-c88f333/report.md
+```
+
+Expected wall time on an S-tier repo (~150 files): **6–11 minutes** depending on bug complexity and platform (briefing 50–90s, investigation 2–5min, diagnosis 80–110s, solution 95–125s). Windows Git Bash adds ~30–60s of shell overhead vs Linux/macOS.
+
+### 5. Read the report
+
+The report is always at the same convenient path:
+
+```bash
+cat .rca-mas/runs/latest/report.md
+```
+
+It contains: root cause, confidence score, evidence (file:line references), proposed fix as a unified diff, risk level, and what to do next. If the agent could not confidently diagnose, you'll see a `NO_FIX` recommendation with an explanation of what's missing rather than a guessed patch.
+
+### 6. Review and apply the patch (manually)
+
+Always preview first, then apply if the dry-run is clean:
+
+```bash
+# Dry-run: validates the patch applies cleanly to current HEAD without changing anything
+git apply --check .rca-mas/runs/latest/patches/fix.diff
+
+# Apply the patch for real (only if --check succeeded)
+git apply .rca-mas/runs/latest/patches/fix.diff
+```
+
+The agent **never modifies your source code in default mode**. Every change goes through your hands.
+
+### 7. Automated patch verification with `--validate`
+
+Run with `--validate` to have the agent apply the fix in an isolated git worktree, run your existing test suite against it, and write a regression test that captures the original bug. The developer's working tree is never touched.
+
+```bash
+./rca-mas.sh bug.md --validate
+```
+
+The verification stage (Agent 2.5) produces `validation.json` with one of: `TESTS_PASSED`, `TESTS_FAILED`, `TEST_CREATED`, `GENERATED_BUT_NOT_VERIFIED`, `VALIDATION_FAILED`, or `NOT_RUN_NO_COMMAND` (when no test runner is detected). The worktree is removed at the end of the run unless you set `RCA_KEEP_WORKTREE=1` to inspect it.
+
+The developer still decides whether to merge. The verification stage proves the fix works in isolation; promoting it to the main tree always stays with you.
+
+### 8. Run it from Claude Code chat (no terminal)
+
+If you live in Claude Code, you can drive the whole pipeline from chat instead of the terminal. One-time setup, then natural-language prompts like *"use rca-mas to investigate this bug"* or *"use rca-mas to find the issue in bug.md"* just work.
+
+**One-time setup (per target repo):**
+
+1. Copy or clone the `rca-mas/` folder into your target repo so it lives at `<your-repo>/rca-mas/`. Add `rca-mas/` and `.rca-mas/` to that repo's `.gitignore` (the tool and its run artifacts should not be committed).
+2. Append the contents of [rca-mas/templates/CLAUDE.md.snippet](rca-mas/templates/CLAUDE.md.snippet) to your target repo's `CLAUDE.md` (create one at the repo root if absent). That snippet teaches Claude Code what *"use rca-mas to ..."* means.
+3. Open Claude Code with the target repo as the working directory.
+
+**Then in chat:**
+
+> use rca-mas to find the issue in bug.md
+
+Claude Code will run `bash ./rca-mas/rca-mas.sh bug.md`, optionally tail `log.jsonl` while it runs, and at the end show you `report.md` and the proposed `fix.diff`. It will not apply the patch — that decision stays with you.
+
+Other natural phrasings the snippet recognises:
+
+| Say this | What happens |
+|---|---|
+| *"use rca-mas to investigate `<path/to/bug.md>`"* | Report-only run on that bug file |
+| *"use rca-mas to diagnose the bug I just pasted"* | Saves your pasted text to `.rca-mas/bug.md`, then runs |
+| *"use rca-mas on GitHub issue 42"* | `--issue 42` mode (requires `gh auth login`) |
+| *"show me the last rca-mas report"* | `cat .rca-mas/runs/latest/report.md`, no re-run |
+| *"use rca-mas to resolve this bug **with validation**"* | Adds `--validate` to apply the patch in an isolated worktree and run tests |
+
+If you would rather not modify `CLAUDE.md`, you can paste this prompt verbatim into chat instead:
+
+> Run `bash ./rca-mas/rca-mas.sh <path-to-bug.md>` from this repo's root. While it runs, tail `.rca-mas/runs/latest/log.jsonl` so I can see stage transitions. When it finishes, show me `report.md` in full and then `patches/fix.diff`. Do not apply the patch.
+
+This is exactly what the snippet automates — without the snippet you just remember the prompt.
+
+### 9. Skip writing markdown — use a GitHub issue directly
+
+If the bug is already a GitHub issue:
+
+```bash
+/path/to/MAS_final/rca-mas/rca-mas.sh --issue 42 --repo owner/repo
+```
+
+The agent fetches the issue body via `gh issue view`, uses it as the bug report, and writes the issue URL into the run's `manifest.json`. Requires `gh auth login`.
+
+> The `--issue` code path is implemented but the v1 lock-gate validation runs were all from local `bug.md` files. Treat the issue-input mode as a convenience shortcut that's been smoke-tested but not exercised on every variety of GitHub issue formatting.
+
+### What to do if something goes wrong
+
+| Symptom | First thing to check |
+|---|---|
+| `error: Claude Code CLI is required but not found. Run: claude auth login` | Install Claude Code CLI and authenticate. Confirm with `command -v claude`. |
+| `error: git is required but not found.` / `error: jq is required but not found.` | Install the missing prerequisite. The CLI fails fast before any LLM cost is incurred. |
+| `[rca-mas] Briefing: 0 files, tier=XS` | The current directory has no source files the briefing recognises. You're likely in the wrong directory — `cd` into the actual repo and re-run. |
+| Status banner reads `⚠️ FIX proposed (based on weak evidence — review carefully)` and confidence shows 0.4 | The diagnosis was capped because upstream signal was thin. Treat the patch as a draft for human review. Try `RCA_MODEL=claude-opus-4-7 ./rca-mas.sh ...` or a richer bug report. |
+| Status banner reads `🚫 NO_FIX — see reason below` | This is intentional — the agent refused to guess. Read the `Proposed Fix` section: it explains what evidence was missing and what to investigate next. |
+| Patch fails `git apply --check` | The patch may be against a slightly different HEAD than your current working tree. Stash local changes or check out the original ref before applying. |
+
+For deeper troubleshooting, see [rca-mas/docs/troubleshooting.md](rca-mas/docs/troubleshooting.md).
 
 ---
 

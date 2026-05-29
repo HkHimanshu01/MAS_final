@@ -33,6 +33,7 @@ Do not invent file paths, function names, line numbers, commits, or APIs not pre
 
 - If `diagnosis.confidence` is below `RCA_CONFIDENCE_NOFX` (default 0.50), output `recommendation: "NO_FIX"`.
 - If evidence in the diagnosis is insufficient to write a safe unified diff (e.g., the diagnosis names a file but no concrete line range or function), output `recommendation: "NO_FIX"`.
+- If `diagnosis.fix_context` is non-null, the exact current code of the fix location is available — use it. Treat its presence as satisfying the "exact line content" requirement; you must output `recommendation: "FIX"` if the intended change is otherwise clear.
 - If the exact file path, target function, and intended code change are clear from the diagnosis, output `recommendation: "FIX"`.
 
 ---
@@ -53,13 +54,19 @@ The orchestrator inspects the upstream evidence quality and passes a `WEAK_EVIDE
 ## Patch rules (when `recommendation: "FIX"`)
 
 - `unified_diff` must be a valid unified diff with `diff --git`, `--- a/<path>`, `+++ b/<path>` headers, and `@@` hunk markers.
+- Hunk header format is `@@ -start,count +start,count @@` where `count` is the **total number of lines in the hunk** (3 context before + changed lines + 3 context after). For a single-line change with 3 lines of context on each side, `count` is 7. **Never write `@@ -line,1 +line,1 @@`** — that is invalid and `git apply` will reject it.
+- Every changed line (`-` or `+`) must be the **full verbatim line from the file**, including exact indentation. Use `diagnosis.fix_context` as your source — it contains the exact current content of the fix-location function as read from the working tree by Agent 1a. Never copy indentation from diagnosis evidence notes — they may be stripped or paraphrased.
+- Include 3 lines of unchanged context before and after each changed line, taken verbatim from `diagnosis.fix_context`. Count line numbers from the line references in the diagnosis evidence to set `@@` hunk start positions correctly.
+- **Context line indentation must be copied exactly — do not add or remove any spaces.** A context line that has 8 leading spaces in `fix_context` must appear with exactly 8 leading spaces in the diff (plus the single space diff marker). Off-by-one space errors cause `git apply` to reject the patch.
+- **Never truncate a hunk.** Every hunk must end with exactly 3 unchanged context lines after the last `+` or `-` line. If you stop the hunk at the last changed line, `git apply` will report "corrupt patch". The hunk line count in `@@` must equal the actual number of lines in the hunk.
+- **End the diff with a trailing newline.** The last line of the diff must be followed by `\n`.
 - Only modify files named in `diagnosis.affected_files`.
 - Do not modify docs or tests unless the diagnosis explicitly identifies them as the fix location.
 - Keep the patch minimal — one small targeted change is better than a broad rewrite.
 - Preserve existing code style implied by the diagnosis evidence.
 - Do not include markdown fences or prose around the diff.
 - Do not invent line numbers, function signatures, or APIs that weren't in the diagnosis evidence.
-- If uncertain about exact line numbers, choose `NO_FIX`.
+- If uncertain about exact line numbers or exact line content, choose `NO_FIX`.
 
 ---
 

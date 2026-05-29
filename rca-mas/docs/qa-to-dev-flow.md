@@ -1,6 +1,6 @@
 # QA to Developer Flow
 
-How RCA MAS fits into the real bug-investigation workflow, why manual QA finds bugs that automated tests miss, and what the human handoff looks like.
+How AI-Powered Bug Diagnosis and Resolution fits into the real bug-investigation workflow, why manual QA finds bugs that automated tests miss, and what the human handoff looks like.
 
 ---
 
@@ -19,7 +19,7 @@ A QA engineer finds a bug. They write a bug report. That report lands on a devel
 
 Steps 2–5 are pure investigation. On a medium-sized codebase (500–2000 files), this takes 30–60 minutes even for experienced developers. It requires holding a large mental model of the codebase in working memory while searching for a needle in a haystack.
 
-RCA MAS automates steps 2–5. The developer receives a report that already has the root cause, evidence, affected files, and a proposed fix. They review and apply — they do not investigate from scratch.
+The agent system automates steps 2–5. The developer receives a report that already has the root cause, evidence, affected files and a proposed fix. They review and apply — they do not investigate from scratch.
 
 ---
 
@@ -49,7 +49,7 @@ Example: `ctx.invoke()` was changed to use a new sentinel value. The component c
 
 ## The Bug Report Format
 
-RCA MAS expects a `bug.md` file. No strict schema is required, but the tool extracts more signal from richer reports.
+The pipeline expects a `bug.md` file. No strict schema is required, but the tool extracts more signal from richer reports.
 
 **What the tool extracts automatically:**
 - Double-quoted strings (error messages, literal values): `"TypeError: the JSON object must be str"`
@@ -75,7 +75,7 @@ See `examples/bug.md` for a realistic example.
 ## End-to-End Flow
 
 ```
-QA Engineer                Developer               RCA MAS Tool
+QA Engineer                Developer               The Bug Diagnosis Agent Tool
 ──────────────────────────────────────────────────────────────────
 Finds bug in product
   │
@@ -88,9 +88,10 @@ Hands bug.md to developer ──────────────────
                                 Runs: bash rca-mas.sh bug.md     │
                                                                  ▼
                                                    briefing.sh scans repo
-                                                   Agent 1 investigates
+                                                   Agent 1a investigates
+                                                   Agent 1b synthesises diagnosis
                                                    Agent 2 writes fix
-                                                   (Agent 2.5 validates)
+                                                   Agent 2.5 verifies (--validate)
                                                                  │
                            ◄─────────────────── report.md ready │
                            │

@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI-Powered Bug Diagnosis and Resolution</title>
+<style>
+:root{
+  --bg:#fafaff;
+  --paper:#ffffff;
+  --paper-2:#f8f6ff;
+  --ink:#1a1530;
+  --ink-2:#3a3252;
+  --muted:#6b6680;
+  --dim:#a39ebb;
+  --hair:#e6e1f3;
+  --hair-soft:#f0ecf8;
+  --pur:#6b21a8;
+  --pur-2:#7c3aed;
+  --pur-dark:#3b0764;
+  --pur-mid:#4c1d95;
+  --pur-soft:#a78bfa;
+  --lav:#ede4ff;
+  --lav-2:#f4ecff;
+  --gold:#fbbf24;
+  --gold-2:#f59e0b;
+  --grn:#10b981;
+  --grn-soft:#86efac;
+  --ok:#22c55e;
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{
+  background:var(--bg);
+  color:var(--ink);
+  font-family:var(--font);
+  font-size:13px;
+  line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+  padding:24px 36px 40px;
+  background-image:
+    radial-gradient(ellipse 60% 40% at 12% 8%,rgba(124,58,237,.06),transparent 60%),
+    radial-gradient(ellipse 50% 40% at 88% 92%,rgba(167,139,250,.05),transparent 60%);
+}
+.page{max-width:1340px;margin:0 auto}
+
+/* header */
+.hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--hair)}
+.brand{display:flex;align-items:center;gap:9px}
+.brand .glyph{width:16px;height:16px;border-radius:4px;background:linear-gradient(135deg,var(--pur-2),var(--pur-dark));position:relative}
+.brand .glyph::before{content:"";position:absolute;inset:3px;background:var(--bg);border-radius:2px}
+.brand .glyph::after{content:"";position:absolute;inset:5px;background:var(--pur-2);border-radius:1px}
+.brand-name{font-size:14px;font-weight:700;color:var(--ink);letter-spacing:-.01em}
+.hdr .meta{font-size:10.5px;color:var(--muted);letter-spacing:.12em;text-transform:uppercase;font-weight:500;display:flex;gap:18px;align-items:center}
+.hdr .meta strong{color:var(--ink);font-weight:600}
+
+/* tabs */
+.tabs{display:flex;gap:4px;margin-bottom:24px;border-bottom:1px solid var(--hair)}
+.tab{background:transparent;border:none;padding:9px 18px 11px;font-family:var(--font);font-size:12.5px;font-weight:500;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;letter-spacing:.01em;transition:.2s;display:flex;align-items:center;gap:8px}
+.tab:hover{color:var(--ink-2)}
+.tab.active{color:var(--ink);border-bottom-color:var(--pur-2);font-weight:600}
+.tab .tdot{width:6px;height:6px;border-radius:50%;background:var(--hair);transition:.2s}
+.tab.active .tdot{background:var(--pur-2);box-shadow:0 0 4px var(--pur-2)}
+.tabpane{display:none;animation:fade .3s ease}
+.tabpane.active{display:block}
+@keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+
+/* ════════════════════════════════════════════════════════════
+   TAB 1: THE PITCH
+   ════════════════════════════════════════════════════════════ */
+
+.pitch-head{display:grid;grid-template-columns:1fr auto;gap:24px;align-items:end;margin-bottom:20px}
+.pitch-head h1{font-size:38px;font-weight:800;line-height:1.05;letter-spacing:-.025em;color:var(--ink);margin-bottom:8px}
+.pitch-head .sub{font-size:14px;color:var(--ink-2);line-height:1.5}
+.pitch-head .sub strong{color:var(--pur);font-weight:700}
+.validated{display:inline-flex;align-items:center;gap:10px;background:var(--paper);border:1px solid var(--pur-soft);border-radius:99px;padding:8px 16px 8px 12px;box-shadow:0 2px 10px -4px rgba(124,58,237,.15)}
+.validated .vdot{width:9px;height:9px;border-radius:50%;background:var(--ok);box-shadow:0 0 6px var(--ok);flex-shrink:0}
+.validated .vtext{display:grid;gap:0}
+.validated .vtag{font-size:9.5px;font-weight:700;letter-spacing:.18em;color:var(--pur);text-transform:uppercase}
+.validated .vdesc{font-size:11px;color:var(--ink-2);line-height:1.3}
+
+/* three-option comparison */
+.compare{display:grid;grid-template-columns:1fr 1fr 1.4fr;gap:14px;margin-bottom:0}
+.opt{background:var(--paper);border:1px solid var(--hair);border-radius:14px;padding:18px 20px;box-shadow:0 2px 14px -6px rgba(60,40,100,.08);display:flex;flex-direction:column}
+.opt.winner{border:1px solid var(--pur-soft);box-shadow:0 6px 28px -10px rgba(124,58,237,.18);background:linear-gradient(180deg,var(--paper),var(--lav-2))}
+.opt-head{display:flex;justify-content:space-between;align-items:start;margin-bottom:14px}
+.opt-head .l .tag{font-size:9.5px;font-weight:700;letter-spacing:.18em;color:var(--muted);text-transform:uppercase;margin-bottom:3px}
+.opt.winner .opt-head .l .tag{color:var(--pur)}
+.opt-head .l .name{font-size:18px;font-weight:700;color:var(--ink);letter-spacing:-.015em;line-height:1.15}
+.opt-head .l .sub{font-size:11px;color:var(--muted);margin-top:1px}
+.opt-head .r{text-align:right;flex-shrink:0}
+.opt-head .r .num{font-size:32px;font-weight:800;color:var(--ink);letter-spacing:-.025em;line-height:1;font-variant-numeric:tabular-nums}
+.opt.winner .opt-head .r .num{color:var(--pur)}
+.opt-head .r .unit{font-size:11px;color:var(--muted);font-weight:500;margin-left:2px}
+.opt-head .r .qual{font-size:10px;color:var(--pur);font-weight:600;margin-top:2px;letter-spacing:.04em}
+
+.opt-tags{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:12px}
+.opt-tags .pill{font-size:9.5px;font-weight:600;color:var(--pur);background:var(--lav);padding:3px 9px;border-radius:99px;letter-spacing:.02em}
+
+.steps{display:grid;gap:6px;flex:1}
+.step{display:grid;grid-template-columns:28px 1fr auto;gap:10px;background:var(--paper-2);border:1px solid var(--hair-soft);border-radius:8px;padding:9px 11px;align-items:center}
+.opt.winner .step{background:var(--paper);border-color:var(--hair-soft)}
+.step .ic{width:24px;height:24px;border-radius:6px;background:var(--lav);color:var(--pur);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;line-height:1}
+.step.feat .ic{background:linear-gradient(135deg,var(--pur-2),var(--pur));color:#fff}
+.step .body .name{font-size:12.5px;font-weight:600;color:var(--ink);line-height:1.2}
+.step .body .sub{font-size:10.5px;color:var(--muted);line-height:1.3;margin-top:1px}
+.step .time{font-size:11px;font-weight:600;color:var(--ink);background:var(--lav);padding:2px 8px;border-radius:99px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.step.feat .time{background:linear-gradient(95deg,var(--pur-2),var(--pur));color:#fff}
+
+/* agent inner visual on winner card */
+.agent-vis{background:var(--lav-2);border:1px solid var(--lav);border-radius:8px;padding:10px 12px;margin-top:6px;display:grid;gap:5px}
+.agent-vis .av-head{display:flex;justify-content:space-between;font-size:9.5px;color:var(--pur);letter-spacing:.06em;font-weight:600;margin-bottom:2px;text-transform:uppercase}
+.agent-vis .av-row{display:flex;justify-content:space-between;align-items:center;background:linear-gradient(95deg,var(--pur-2),var(--pur));color:#fff;padding:5px 11px;border-radius:6px;font-size:11.5px;font-weight:600}
+.agent-vis .av-row:nth-child(3){background:linear-gradient(95deg,var(--pur),var(--pur-mid))}
+.agent-vis .av-row:nth-child(4){background:linear-gradient(95deg,var(--pur-mid),var(--pur-dark))}
+.agent-vis .av-row .what{font-size:10.5px;font-weight:400;opacity:.85}
+
+.catch{margin-top:auto;padding-top:10px;font-size:10.5px;color:var(--muted);font-style:italic;line-height:1.45}
+.catch strong{color:var(--ink-2);font-style:normal;font-weight:600}
+
+/* cost strip */
+.costs{background:linear-gradient(95deg,var(--pur-dark),var(--pur-mid) 60%,var(--pur));border-radius:14px;padding:18px 22px;display:grid;grid-template-columns:repeat(4,1fr);gap:14px;color:#fff;margin-top:14px;box-shadow:0 6px 28px -10px rgba(75,29,149,.4)}
+.cost{padding:0 6px;position:relative}
+.cost+.cost::before{content:"";position:absolute;left:-7px;top:8px;bottom:8px;width:1px;background:rgba(255,255,255,.15)}
+.cost .ck{font-size:9.5px;color:#e9d5ff;letter-spacing:.18em;text-transform:uppercase;font-weight:600;margin-bottom:4px}
+.cost .cv{font-size:30px;font-weight:800;letter-spacing:-.025em;line-height:1;color:#fff;font-variant-numeric:tabular-nums}
+.cost .cv .vs{font-size:14px;font-weight:500;color:#e9d5ff;margin-left:6px;letter-spacing:.02em}
+.cost.savings .cv{color:var(--gold)}
+.cost .cd{font-size:10.5px;color:#e9d5ff;margin-top:3px;line-height:1.3}
+.cost .cd strong{color:var(--gold-2);font-weight:600}
+
+.footnote{font-size:10.5px;color:var(--muted);margin-top:8px;font-style:italic;text-align:center}
+.footnote strong{color:var(--ink-2);font-style:normal;font-weight:600}
+
+/* ════════════════════════════════════════════════════════════
+   WORKED EXAMPLE
+   ════════════════════════════════════════════════════════════ */
+.example{margin-top:32px;padding-top:24px;border-top:1px dashed var(--hair)}
+.example-head{display:flex;justify-content:space-between;align-items:end;margin-bottom:16px}
+.example-head .l .eb{display:inline-flex;align-items:center;gap:8px;font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--pur);font-weight:700;margin-bottom:6px}
+.example-head .l .eb::before{content:"";width:20px;height:1px;background:var(--pur)}
+.example-head .l h2{font-size:22px;font-weight:700;letter-spacing:-.015em;color:var(--ink)}
+.example-head .l h2 span{color:var(--pur)}
+.example-head .r{text-align:right;font-size:11px;color:var(--muted);max-width:50ch}
+.example-head .r strong{color:var(--ink);font-weight:600}
+
+.bug-input{background:var(--paper);border:1px solid var(--hair);border-radius:10px;padding:13px 18px;margin-bottom:8px;display:grid;grid-template-columns:auto 1fr auto;gap:18px;align-items:center}
+.bug-input .bi-tag{display:flex;align-items:center;gap:8px;font-size:10px;color:var(--pur);font-weight:700;letter-spacing:.14em;text-transform:uppercase}
+.bug-input .bi-tag .ic{width:22px;height:22px;border-radius:50%;background:var(--pur);color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700}
+.bug-input .bi-text{font-size:13px;color:var(--ink);line-height:1.4}
+.bug-input .bi-text em{font-style:italic;color:var(--pur)}
+.bug-input .bi-text strong{color:var(--ink);font-weight:600}
+.bug-input .bi-meta{font-family:var(--mono);font-size:10.5px;color:var(--muted);text-align:right;line-height:1.4}
+.bug-input .bi-meta strong{color:var(--ink-2);font-weight:600}
+
+.timeline{display:grid;gap:8px;margin-bottom:14px;position:relative}
+.timeline::before{content:"";position:absolute;left:32px;top:14px;bottom:14px;width:2px;background:linear-gradient(180deg,var(--pur-2),var(--pur));z-index:0;opacity:.25}
+.tl-row{background:var(--paper);border:1px solid var(--hair);border-radius:10px;padding:13px 16px;display:grid;grid-template-columns:50px 1fr auto;gap:14px;align-items:center;position:relative;z-index:1;box-shadow:0 2px 10px -6px rgba(60,40,100,.07)}
+.tl-row .tl-ic{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--pur-2),var(--pur));color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0;position:relative;z-index:2;box-shadow:0 2px 8px -2px rgba(124,58,237,.4)}
+.tl-row.done .tl-ic{background:linear-gradient(135deg,var(--ok),#16a34a);box-shadow:0 2px 8px -2px rgba(34,197,94,.4)}
+.tl-row .tl-body{display:grid;gap:2px;min-width:0}
+.tl-row .tl-head{display:flex;align-items:center;gap:10px}
+.tl-row .tl-stage{font-size:9.5px;color:var(--muted);font-weight:700;letter-spacing:.14em;text-transform:uppercase}
+.tl-row .tl-name{font-size:13.5px;font-weight:700;color:var(--ink);letter-spacing:-.005em}
+.tl-row .tl-name span{color:var(--pur)}
+.tl-row .tl-desc{font-size:11.5px;color:var(--ink-2);line-height:1.45;margin-top:2px}
+.tl-row .tl-desc code{font-family:var(--mono);font-size:11px;color:var(--pur);background:var(--lav);padding:1px 5px;border-radius:3px}
+.tl-row .tl-out{display:grid;gap:2px;font-size:10.5px;color:var(--muted);text-align:right;flex-shrink:0;font-family:var(--mono);min-width:140px}
+.tl-row .tl-out .k{color:var(--dim);font-size:9.5px;letter-spacing:.08em;text-transform:uppercase}
+.tl-row .tl-out .v{color:var(--ink-2);font-weight:600}
+.tl-row .tl-out .v.grn{color:var(--ok)}
+
+/* mini hypothesis display inline */
+.tl-hyp{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;font-size:11px}
+.tl-hyp .h{background:var(--paper-2);border:1px solid var(--hair-soft);border-radius:6px;padding:8px 10px}
+.tl-hyp .h.win{background:linear-gradient(180deg,var(--lav-2),var(--paper-2));border-color:var(--pur-soft)}
+.tl-hyp .h .hh{display:flex;justify-content:space-between;align-items:center;margin-bottom:3px}
+.tl-hyp .h .hb{font-size:9px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);padding:1px 6px;background:var(--hair-soft);border-radius:99px}
+.tl-hyp .h.win .hb{background:linear-gradient(95deg,var(--pur-2),var(--pur));color:#fff}
+.tl-hyp .h .hc{font-size:13px;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums}
+.tl-hyp .h.win .hc{color:var(--pur)}
+.tl-hyp .h:not(.win) .hc{color:var(--dim)}
+.tl-hyp .h .ht{font-size:11px;color:var(--ink);line-height:1.3}
+.tl-hyp .h .ht em{font-style:italic;font-weight:600;color:var(--pur)}
+.tl-hyp .h:not(.win) .ht em{color:var(--muted)}
+.tl-hyp .h .ht code{font-family:var(--mono);font-size:10px;color:var(--pur);background:var(--lav);padding:1px 5px;border-radius:3px}
+.tl-tests .row.verdict{color:var(--ok);font-weight:700;margin-top:2px}
+.tl-report .item .v.ok{color:var(--ok)}
+
+/* mini fix diff */
+.tl-diff{margin-top:8px;background:var(--paper-2);border:1px solid var(--hair-soft);border-radius:6px;padding:8px 11px;font-family:var(--mono);font-size:10.5px;line-height:1.5}
+.tl-diff .file{color:var(--pur);font-weight:600;margin-bottom:4px}
+.tl-diff .l-del{color:#dc2626}
+.tl-diff .l-add{color:#15803d}
+.tl-diff .l-ctx{color:var(--muted)}
+
+/* mini test results */
+.tl-tests{margin-top:8px;background:var(--paper-2);border:1px solid var(--hair-soft);border-radius:6px;padding:8px 11px;font-family:var(--mono);font-size:11px;line-height:1.6;color:var(--ink-2)}
+.tl-tests .row{display:flex;align-items:center;gap:8px}
+.tl-tests .row .pass{color:var(--ok);font-weight:700}
+.tl-tests .row .pass::before{content:"✓ ";font-weight:700}
+
+/* report card mini */
+.tl-report{margin-top:8px;background:linear-gradient(180deg,var(--lav-2),var(--paper));border:1px solid var(--pur-soft);border-radius:6px;padding:10px 12px;display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.tl-report .lbl{font-size:9px;color:var(--pur);font-weight:700;letter-spacing:.14em;text-transform:uppercase;grid-column:1/-1;margin-bottom:2px}
+.tl-report .item{font-size:11px;color:var(--ink-2);display:grid;grid-template-columns:auto 1fr;gap:6px;align-items:center}
+.tl-report .item .k{font-size:9.5px;color:var(--muted);font-weight:600;letter-spacing:.06em;text-transform:uppercase;white-space:nowrap}
+.tl-report .item .v{color:var(--ink);font-weight:600}
+
+/* big outcome */
+.outcome{background:linear-gradient(95deg,var(--pur-dark),var(--pur-mid));border-radius:12px;padding:16px 22px;color:#fff;display:grid;grid-template-columns:auto 1fr auto;gap:24px;align-items:center;margin-top:12px;box-shadow:0 6px 24px -10px rgba(75,29,149,.4)}
+.outcome .ic{width:38px;height:38px;border-radius:50%;background:var(--gold);color:var(--pur-dark);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:800}
+.outcome .body .tag{font-size:9.5px;color:#e9d5ff;letter-spacing:.18em;text-transform:uppercase;font-weight:700;margin-bottom:2px}
+.outcome .body .ttl{font-size:17px;font-weight:700;letter-spacing:-.005em}
+.outcome .body .ttl strong{color:var(--gold);font-weight:800}
+.outcome .body .dsc{font-size:11.5px;color:#e9d5ff;margin-top:2px}
+.outcome .stats{display:flex;gap:22px;align-items:center}
+.outcome .stats .stat{text-align:center}
+.outcome .stats .n{font-size:22px;font-weight:800;letter-spacing:-.02em;color:var(--gold);line-height:1}
+.outcome .stats .l{font-size:9.5px;color:#e9d5ff;letter-spacing:.08em;text-transform:uppercase;margin-top:3px;font-weight:600}
+
+/* ════════════════════════════════════════════════════════════
+   TAB 2: HLD
+   ════════════════════════════════════════════════════════════ */
+.hld-head{display:flex;justify-content:space-between;align-items:end;margin-bottom:18px;padding-bottom:12px;border-bottom:1px dashed var(--hair)}
+.hld-head .l .eb{display:inline-flex;align-items:center;gap:8px;font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--pur);font-weight:700;margin-bottom:6px}
+.hld-head .l .eb::before{content:"";width:20px;height:1px;background:var(--pur)}
+.hld-head .l h1{font-size:24px;font-weight:700;letter-spacing:-.015em;color:var(--ink)}
+.hld-head .l h1 span{color:var(--pur)}
+.hld-head .r{text-align:right;font-size:11px;color:var(--muted);max-width:46ch}
+.hld-head .r strong{color:var(--ink);font-weight:600}
+
+/* simple flow: boxes connected by arrows, story text on each edge */
+.flow{max-width:600px;margin:24px auto 8px;display:grid;gap:0}
+.box{background:var(--paper);border:1px solid var(--hair);border-radius:12px;padding:18px 26px;text-align:center;box-shadow:0 3px 16px -6px rgba(60,40,100,.1);position:relative}
+.box::before{content:"";position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(95deg,var(--pur-2),var(--pur));border-top-left-radius:12px;border-top-right-radius:12px}
+.box.start::before{background:linear-gradient(95deg,var(--gold),var(--gold-2))}
+.box.end::before{background:linear-gradient(95deg,var(--ok),#16a34a)}
+.box .name{font-size:18px;font-weight:700;color:var(--ink);letter-spacing:-.005em;line-height:1.2}
+.box .tag{font-size:11.5px;color:var(--muted);margin-top:3px;font-weight:500}
+.box.end{background:linear-gradient(135deg,var(--ok),#15803d);border-color:#15803d}
+.box.end .name{color:#fff}
+.box.end .tag{color:#dcfce7}
+.box.start{background:var(--paper-2);border-style:dashed}
+.box.start .name{color:var(--pur-dark)}
+
+.edge{display:flex;flex-direction:column;align-items:center;padding:4px 0;position:relative}
+.edge .line-top{width:2px;height:14px;background:linear-gradient(180deg,var(--pur-2),var(--pur))}
+.edge .story{background:var(--lav-2);border:1px solid var(--pur-soft);border-radius:99px;padding:9px 20px;font-size:13px;color:var(--ink-2);line-height:1.5;max-width:500px;text-align:center;margin:4px 0;box-shadow:0 2px 10px -4px rgba(124,58,237,.15)}
+.edge .story strong{color:var(--pur);font-weight:700}
+.edge .line-bot{width:2px;height:14px;background:linear-gradient(180deg,var(--pur),var(--pur-mid));position:relative}
+.edge .line-bot::after{content:"";position:absolute;bottom:-1px;left:50%;transform:translateX(-50%);width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-top:8px solid var(--pur)}
+
+.flow-foot{max-width:600px;margin:20px auto 0;text-align:center;padding:14px 22px;background:var(--paper-2);border:1px dashed var(--hair);border-radius:10px;font-size:12.5px;color:var(--muted);line-height:1.55}
+.flow-foot strong{color:var(--ink-2);font-weight:600}
+
+@media(max-width:1100px){
+  body{padding:18px 20px}
+  .pitch-head{grid-template-columns:1fr;gap:14px}
+  .compare{grid-template-columns:1fr;gap:10px}
+  .costs{grid-template-columns:1fr 1fr;gap:10px}
+  .bug-input{grid-template-columns:1fr;gap:8px}
+  .tl-row{grid-template-columns:40px 1fr;gap:10px}
+  .tl-row .tl-out{grid-column:1/-1;text-align:left}
+  .outcome{grid-template-columns:1fr;gap:14px}
+}
+</style>
+</head>
+<body>
+
+<div class="page">
+
+  <!-- HEADER -->
+  <div class="hdr">
+    <div class="brand">
+      <span class="glyph"></span>
+      <span class="brand-name">Bug Diagnosis Agent</span>
+    </div>
+    <div class="meta">
+      <span>Accenture · GMI</span>
+      <span><strong>2026</strong></span>
+    </div>
+  </div>
+
+  <!-- TABS -->
+  <div class="tabs" role="tablist">
+    <button type="button" role="tab" class="tab active" data-target="overview"><span class="tdot"></span>The Pitch</button>
+    <button type="button" role="tab" class="tab" data-target="hld"><span class="tdot"></span>High-Level Design</button>
+  </div>
+
+  <!-- ════════════════════════════════════════════════
+       TAB 1 · THE PITCH
+       ════════════════════════════════════════════════ -->
+  <div class="tabpane active" id="overview">
+
+    <!-- PITCH HEADER -->
+    <div class="pitch-head">
+      <div class="l">
+        <h1>AI-Powered Bug Diagnosis and Resolution</h1>
+        <p class="sub">Diagnoses bugs, proposes the fix, verifies with tests. Projected savings: <strong>~$25K/dev projected at 500 bugs/yr</strong></p>
+      </div>
+      <div class="validated">
+        <span class="vdot"></span>
+        <div class="vtext">
+          <span class="vtag">Validated</span>
+          <span class="vdesc">Tested on complex, buggy open-source GitHub repos</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- THREE-OPTION COMPARISON -->
+    <div class="compare">
+
+      <!-- OPTION 1: MANUAL -->
+      <div class="opt">
+        <div class="opt-head">
+          <div class="l">
+            <div class="tag">Option 1 · Manual</div>
+            <div class="name">Developer alone</div>
+          </div>
+          <div class="r">
+            <div class="num">75<span class="unit">mins</span></div>
+          </div>
+        </div>
+        <div class="steps">
+          <div class="step">
+            <span class="ic">⌕</span>
+            <div class="body"><div class="name">Read bug report</div><div class="sub">Pick up the QA ticket.</div></div>
+            <span class="time">5 min</span>
+          </div>
+          <div class="step">
+            <span class="ic">⊙</span>
+            <div class="body"><div class="name">Investigate codebase</div><div class="sub">Hunts the cause across files.</div></div>
+            <span class="time">45 min</span>
+          </div>
+          <div class="step">
+            <span class="ic">⚙</span>
+            <div class="body"><div class="name">Write the fix</div><div class="sub">Makes the code change.</div></div>
+            <span class="time">15 min</span>
+          </div>
+          <div class="step">
+            <span class="ic">✓</span>
+            <div class="body"><div class="name">Test the fix</div><div class="sub">Runs tests to confirm.</div></div>
+            <span class="time">10 min</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- OPTION 2: VIBE CODING -->
+      <div class="opt">
+        <div class="opt-head">
+          <div class="l">
+            <div class="tag">Option 2 · Vibe Coding</div>
+            <div class="name">Dev + Claude Code</div>
+          </div>
+          <div class="r">
+            <div class="num">40<span class="unit">mins</span></div>
+          </div>
+        </div>
+        <div class="steps">
+          <div class="step">
+            <span class="ic">⌕</span>
+            <div class="body"><div class="name">Read bug report</div><div class="sub">Pick up the QA ticket.</div></div>
+            <span class="time">3 min</span>
+          </div>
+          <div class="step">
+            <span class="ic">◐</span>
+            <div class="body"><div class="name">Prompt &amp; investigate</div><div class="sub">Dev guides the AI turn by turn.</div></div>
+            <span class="time">25 min</span>
+          </div>
+          <div class="step">
+            <span class="ic">⚙</span>
+            <div class="body"><div class="name">Write the fix</div><div class="sub">Dev refines the AI draft.</div></div>
+            <span class="time">7 min</span>
+          </div>
+          <div class="step">
+            <span class="ic">✓</span>
+            <div class="body"><div class="name">Test the fix</div><div class="sub">Runs tests to confirm.</div></div>
+            <span class="time">5 min</span>
+          </div>
+        </div>
+        <div class="catch"><strong>The catch:</strong> dev prompts ad-hoc, AI has no structure. On large repos it wanders and stalls.</div>
+      </div>
+
+      <!-- OPTION 3: AGENTIC -->
+      <div class="opt winner">
+        <div class="opt-head">
+          <div class="l">
+            <div class="tag">Option 3 · Agentic Workflow</div>
+            <div class="name">Purpose-built RCA multi-agent system</div>
+          </div>
+          <div class="r">
+            <div class="num">5<span class="unit">mins</span></div>
+            <div class="qual">dev time</div>
+          </div>
+        </div>
+        <div class="opt-tags">
+          <span class="pill">Auto-Triggered</span>
+          <span class="pill">Engineered Context</span>
+          <span class="pill">Specialised Agents</span>
+          <span class="pill">Built-in Guardrails</span>
+        </div>
+        <div class="steps">
+          <div class="step">
+            <span class="ic">▶</span>
+            <div class="body"><div class="name">Hand bug to the agent</div><div class="sub">QA report dropped into the tool.</div></div>
+            <span class="time">1 min</span>
+          </div>
+          <div class="step feat">
+            <span class="ic">⚡</span>
+            <div class="body">
+              <div class="name">Agent investigates, finds root cause, fixes &amp; tests</div>
+              <div class="sub">Three specialised agents handle Diagnose, Fix, and Verify.</div>
+            </div>
+            <span class="time">9 min</span>
+          </div>
+          <div class="agent-vis">
+            <div class="av-head"><span>Inside the agent</span><span>whole repo</span></div>
+            <div class="av-row"><span>Diagnose</span><span class="what">finds root cause</span></div>
+            <div class="av-row"><span>Finds Fix</span><span class="what">writes code change</span></div>
+            <div class="av-row"><span>Verify</span><span class="what">tests pass</span></div>
+          </div>
+          <div class="step">
+            <span class="ic">⌕</span>
+            <div class="body"><div class="name">Dev reviews the report</div><div class="sub">Reads findings, approves the fix.</div></div>
+            <span class="time">3 min</span>
+          </div>
+          <div class="step">
+            <span class="ic">✓</span>
+            <div class="body"><div class="name">Approve &amp; ship</div><div class="sub">Tests already passed in the agent run.</div></div>
+            <span class="time">2 min</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- COST STRIP -->
+    <div class="costs">
+      <div class="cost">
+        <div class="ck">Cost / Bug: Manual</div>
+        <div class="cv">$60.00</div>
+        <div class="cd">75 min × $48/hr</div>
+      </div>
+      <div class="cost">
+        <div class="ck">Cost / Bug: Vibe Coding</div>
+        <div class="cv">$36.00</div>
+        <div class="cd">40 min dev + ~$4 AI tokens</div>
+      </div>
+      <div class="cost">
+        <div class="ck">Cost / Bug: Agentic</div>
+        <div class="cv">$6.00</div>
+        <div class="cd">5 min dev time + ~$2 agent run</div>
+      </div>
+      <div class="cost savings">
+        <div class="ck">Net Savings: Agentic</div>
+        <div class="cv">$30.00<span class="vs">vs Vibe Coding</span></div>
+        <div class="cd"><strong>$54</strong> vs manual</div>
+      </div>
+    </div>
+
+    <p class="footnote">*Assumes a blended developer cost <strong>of $48/hour (loaded)</strong>. Per-run AI costs reflect typical compute. Agent advantage compounds on large, complex codebases.</p>
+
+    <!-- WORKED EXAMPLE -->
+    <div class="example">
+      <div class="example-head">
+        <div class="l">
+          <div class="eb">a real bug, end to end</div>
+          <h2>How it <span>works in practice.</span></h2>
+        </div>
+        <div class="r">Below is an actual run on a real GitHub bug. Every stage produces a structured output the next stage consumes. <strong>The tests pass before the developer ever sees the fix.</strong></div>
+      </div>
+
+      <!-- bug input -->
+      <div class="bug-input">
+        <div class="bi-tag"><span class="ic">!</span><span>QA Bug</span></div>
+        <div class="bi-text"><strong>Issue #42</strong> on <em>pallets/click</em>: <em>"Click options behave differently when their order is reversed."</em></div>
+        <div class="bi-meta">auto-triggered<br><strong>10:42:03</strong></div>
+      </div>
+
+      <!-- timeline -->
+      <div class="timeline">
+
+        <!-- Stage 1: Briefing -->
+        <div class="tl-row done">
+          <div class="tl-ic">1</div>
+          <div class="tl-body">
+            <div class="tl-head"><span class="tl-stage">Stage 01 · Briefing</span><span class="tl-name">The system <span>reads the room.</span></span></div>
+            <div class="tl-desc">Four parallel scanners (no AI yet) pull file paths, error strings, recent git activity, and the project's test command. This narrows the search space before any model runs, saving cost and time.</div>
+          </div>
+          <div class="tl-out">
+            <div class="k">runtime</div>
+            <div class="v">3 seconds</div>
+            <div class="k">output</div>
+            <div class="v grn">briefing.md</div>
+          </div>
+        </div>
+
+        <!-- Stage 2: Diagnosis -->
+        <div class="tl-row done">
+          <div class="tl-ic">2</div>
+          <div class="tl-body">
+            <div class="tl-head"><span class="tl-stage">Stage 02 · Diagnose</span><span class="tl-name">First agent <span>finds the cause.</span></span></div>
+            <div class="tl-desc">The diagnosis agent searches the full repo, builds two competing hypotheses, and weighs evidence until one wins. Confidence is explicit and tied to the file lines it cites.</div>
+            <div class="tl-hyp">
+              <div class="h win">
+                <div class="hh"><span class="hb">Selected</span><span class="hc">0.84</span></div>
+                <div class="ht">Parser <em>sorts options</em> before processing them. Caused by <code>argument.py:142</code> six commits ago.</div>
+              </div>
+              <div class="h">
+                <div class="hh"><span class="hb">Rejected</span><span class="hc">0.12</span></div>
+                <div class="ht">Defaults <em>override</em> user flags. No recent change to defaults; tests still pass; bug reproduces with no defaults set.</div>
+              </div>
+            </div>
+          </div>
+          <div class="tl-out">
+            <div class="k">runtime</div>
+            <div class="v">2 min 22 s</div>
+            <div class="k">output</div>
+            <div class="v grn">diagnosis.json</div>
+          </div>
+        </div>
+
+        <!-- Stage 3: Solution -->
+        <div class="tl-row done">
+          <div class="tl-ic">3</div>
+          <div class="tl-body">
+            <div class="tl-head"><span class="tl-stage">Stage 03 · Fix</span><span class="tl-name">Second agent <span>writes the change.</span></span></div>
+            <div class="tl-desc">The fix agent receives only the diagnosis verdict and the affected files. It returns one focused unified diff, never the whole repo. If evidence is thin, it returns <code>NO_FIX</code> with a reason.</div>
+            <div class="tl-diff">
+              <div class="file">src/click/argument.py</div>
+              <div class="l-ctx">@@ line 142 @@</div>
+              <div class="l-del">- options = sorted(options, key=lambda o: o.name)</div>
+              <div class="l-add">+ # preserve declaration order; sort was unintended</div>
+              <div class="l-ctx">  for opt in options:</div>
+            </div>
+          </div>
+          <div class="tl-out">
+            <div class="k">runtime</div>
+            <div class="v">28 seconds</div>
+            <div class="k">output</div>
+            <div class="v grn">fix.diff</div>
+          </div>
+        </div>
+
+        <!-- Stage 4: Validation -->
+        <div class="tl-row done">
+          <div class="tl-ic">4</div>
+          <div class="tl-body">
+            <div class="tl-head"><span class="tl-stage">Stage 04 · Verify</span><span class="tl-name">Third agent <span>proves the fix.</span></span></div>
+            <div class="tl-desc">The verification agent applies the fix inside an isolated git workspace (never the developer's working tree), runs the existing test suite, and writes a new regression test for the original bug. If tests fail, the fix is rejected before it ever reaches the developer.</div>
+            <div class="tl-tests">
+              <div class="row"><span class="pass">existing test suite — 847 tests passed</span></div>
+              <div class="row"><span class="pass">new regression test added — passes</span></div>
+              <div class="row verdict">VALIDATION: PASSED</div>
+            </div>
+          </div>
+          <div class="tl-out">
+            <div class="k">runtime</div>
+            <div class="v">2 min 01 s</div>
+            <div class="k">output</div>
+            <div class="v grn">validation.json</div>
+          </div>
+        </div>
+
+        <!-- Stage 5: Report -->
+        <div class="tl-row done">
+          <div class="tl-ic">5</div>
+          <div class="tl-body">
+            <div class="tl-head"><span class="tl-stage">Stage 05 · Report</span><span class="tl-name">Everything assembled <span>for the developer.</span></span></div>
+            <div class="tl-desc">A single 11-section report.md lands in the developer's inbox. Status, root cause, evidence, the diff, the test results, the next action. The developer reads in 90 seconds and ships the verified fix.</div>
+            <div class="tl-report">
+              <span class="lbl">report.md preview</span>
+              <div class="item"><span class="k">Status</span><span class="v">FIX recommended · 0.84</span></div>
+              <div class="item"><span class="k">Root cause</span><span class="v">argument.py:142 sort</span></div>
+              <div class="item"><span class="k">Patch</span><span class="v">fix.diff (applied)</span></div>
+              <div class="item"><span class="k">Tests</span><span class="v ok">all passing</span></div>
+            </div>
+          </div>
+          <div class="tl-out">
+            <div class="k">runtime</div>
+            <div class="v">1 second</div>
+            <div class="k">output</div>
+            <div class="v grn">report.md</div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Outcome -->
+      <div class="outcome">
+        <div class="ic">✓</div>
+        <div class="body">
+          <div class="tag">Done · ready to ship</div>
+          <div class="ttl">Five minutes of developer attention. <strong>Zero rabbit holes.</strong></div>
+          <div class="dsc">One bug investigated, fixed, verified, and documented. Developer reads the report, approves, and merges.</div>
+        </div>
+        <div class="stats">
+          <div class="stat"><div class="n">5m</div><div class="l">dev time</div></div>
+          <div class="stat"><div class="n">$6</div><div class="l">total cost</div></div>
+          <div class="stat"><div class="n">847</div><div class="l">tests pass</div></div>
+        </div>
+      </div>
+
+      <!-- Invocation: terminal or chat -->
+      <div style="margin-top:28px;background:var(--paper);border:1px solid var(--hair);border-radius:14px;padding:22px 24px;box-shadow:0 2px 14px -6px rgba(60,40,100,.08)">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;gap:24px;margin-bottom:14px">
+          <div>
+            <div style="font-size:9.5px;font-weight:700;letter-spacing:.18em;color:var(--pur);text-transform:uppercase;margin-bottom:4px">two ways to invoke</div>
+            <div style="font-size:20px;font-weight:700;color:var(--ink);letter-spacing:-.015em;line-height:1.2">From terminal, <span style="color:var(--pur)">or from chat.</span></div>
+          </div>
+          <div style="font-size:11.5px;color:var(--muted);max-width:480px;line-height:1.5">Same pipeline. Same outputs. Same guardrails. Pick the surface that fits the developer's workflow.</div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+          <div style="background:var(--paper-2);border:1px solid var(--hair-soft);border-radius:10px;padding:16px 18px">
+            <div style="font-size:10px;font-weight:700;letter-spacing:.14em;color:var(--muted);text-transform:uppercase;margin-bottom:8px">Terminal</div>
+            <div style="font-family:var(--mono);font-size:11.5px;color:var(--ink-2);background:var(--bg);border:1px solid var(--hair-soft);border-radius:6px;padding:9px 11px;line-height:1.55">bash ./rca-mas/rca-mas.sh bug.md<br>cat .rca-mas/runs/latest/report.md</div>
+            <div style="font-size:11px;color:var(--muted);margin-top:9px;line-height:1.5">Direct invocation. Best for CI hooks, scripted batches, or developers already in a shell.</div>
+          </div>
+          <div style="background:linear-gradient(180deg,var(--paper-2),var(--lav-2));border:1px solid var(--pur-soft);border-radius:10px;padding:16px 18px">
+            <div style="font-size:10px;font-weight:700;letter-spacing:.14em;color:var(--pur);text-transform:uppercase;margin-bottom:8px">Claude Code chat</div>
+            <div style="font-family:var(--mono);font-size:11.5px;color:var(--ink-2);background:var(--paper);border:1px solid var(--hair-soft);border-radius:6px;padding:9px 11px;line-height:1.55">&gt; use rca-mas to find<br>&nbsp;&nbsp;the issue in bug.md</div>
+            <div style="font-size:11px;color:var(--muted);margin-top:9px;line-height:1.5">Plain-English. One-time setup: drop <code style="font-family:var(--mono);font-size:10.5px;background:var(--lav);color:var(--pur);padding:1px 5px;border-radius:3px">rca-mas/</code> in the repo and append the bundled <code style="font-family:var(--mono);font-size:10.5px;background:var(--lav);color:var(--pur);padding:1px 5px;border-radius:3px">CLAUDE.md.snippet</code>.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ════════════════════════════════════════════════
+       TAB 2 · HIGH-LEVEL DESIGN
+       ════════════════════════════════════════════════ -->
+  <div class="tabpane" id="hld">
+
+    <div class="hld-head">
+      <div class="l">
+        <div class="eb">system architecture, end to end</div>
+        <h1>How it's <span>wired.</span></h1>
+      </div>
+      <div class="r">
+        <strong>One bug in, one verified fix out.</strong> Each box is a stage. The text between them is what happens at the handoff.
+      </div>
+    </div>
+
+    <div class="flow">
+
+      <div class="box start">
+        <div class="name">Bug Input</div>
+        <div class="tag">QA file or GitHub Issue</div>
+      </div>
+
+      <div class="edge">
+        <div class="line-top"></div>
+        <div class="story"><strong>The system picks up the bug</strong> and opens a clean run folder.</div>
+        <div class="line-bot"></div>
+      </div>
+
+      <div class="box">
+        <div class="name">Briefing</div>
+        <div class="tag">Bash scan · no AI yet</div>
+      </div>
+
+      <div class="edge">
+        <div class="line-top"></div>
+        <div class="story"><strong>It reads the codebase</strong> like an engineer scanning for clues: affected files, recent commits, error strings, the test command.</div>
+        <div class="line-bot"></div>
+      </div>
+
+      <div class="box">
+        <div class="name">Diagnose</div>
+        <div class="tag">Agent · senior QA</div>
+      </div>
+
+      <div class="edge">
+        <div class="line-top"></div>
+        <div class="story"><strong>Two theories compete.</strong> Evidence picks the winner. Only the verdict moves forward, never the scratch work.</div>
+        <div class="line-bot"></div>
+      </div>
+
+      <div class="box">
+        <div class="name">Fix</div>
+        <div class="tag">Agent · senior engineer</div>
+      </div>
+
+      <div class="edge">
+        <div class="line-top"></div>
+        <div class="story"><strong>One focused change</strong> is written from the verdict. If the evidence is thin, the agent refuses and explains why.</div>
+        <div class="line-bot"></div>
+      </div>
+
+      <div class="box">
+        <div class="name">Verify</div>
+        <div class="tag">Agent · isolated workspace</div>
+      </div>
+
+      <div class="edge">
+        <div class="line-top"></div>
+        <div class="story"><strong>The fix is applied in isolation,</strong> every test runs, and a brand-new test is written for the original bug. The developer's working tree is never touched.</div>
+        <div class="line-bot"></div>
+      </div>
+
+      <div class="box end">
+        <div class="name">Developer</div>
+        <div class="tag">Reads · approves · ships</div>
+      </div>
+
+    </div>
+
+    <div class="flow-foot">
+      Across every stage: <strong>no commits, no network calls, no edits outside the run folder.</strong> Every step is logged and reviewable.
+    </div>
+
+  </div>
+
+</div>
+
+<script>
+const tabs = document.querySelectorAll('.tab');
+const panes = document.querySelectorAll('.tabpane');
+tabs.forEach(t => {
+  t.addEventListener('click', () => {
+    const target = t.dataset.target;
+    tabs.forEach(x => x.classList.toggle('active', x === t));
+    panes.forEach(p => p.classList.toggle('active', p.id === target));
+  });
+});
+</script>
+</body>
+</html>

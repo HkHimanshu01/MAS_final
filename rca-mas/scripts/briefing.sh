@@ -92,6 +92,7 @@ if [ "$FILE_COUNT" -eq 0 ]; then
   FILE_COUNT="$(find "$TARGET_REPO_ROOT" -type f \
     \( -path '*/.git/*' \
     -o -path '*/.rca-mas/*' \
+    -o -path '*/rca-mas/*' \
     -o -path '*/node_modules/*' \
     -o -path '*/.venv/*' \
     -o -path '*/venv/*' \

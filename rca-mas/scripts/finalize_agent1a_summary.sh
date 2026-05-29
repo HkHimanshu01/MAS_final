@@ -70,11 +70,12 @@ else
     _FINALIZE_EXIT=0
     "${CLAUDE_BIN:-claude}" \
       --resume "$_SESSION_ID" \
-      -p "$(cat "$_FORCE_SUMMARY_PROMPT")" \
+      -p \
       --output-format json \
       --max-turns 1 \
       --tools "" \
       "${_MODEL_FLAG[@]}" \
+      < "$_FORCE_SUMMARY_PROMPT" \
       > "$_SUMMARY_JSON" \
       2> "$_SUMMARY_STDERR" \
       || _FINALIZE_EXIT=$?

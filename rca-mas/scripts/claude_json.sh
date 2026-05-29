@@ -56,13 +56,14 @@ run_claude_freetext() {
 
   local exit_code=0
   "$_CLAUDE" \
-    -p "$(cat "$prompt_file")" \
+    -p \
     --output-format stream-json \
     --verbose \
     --max-turns "$max_turns" \
     --tools "$tools" \
     "${model_flag[@]}" \
     "${allowed_flags[@]}" \
+    < "$prompt_file" \
     > "$raw_file" 2>&1 || exit_code=$?
 
   # Extract all assistant text blocks from the saved stream and write to output_file.
@@ -142,13 +143,14 @@ run_claude_schema() {
   # --max-turns caps agentic turns.
   local exit_code=0
   "$_CLAUDE" \
-    -p "$(cat "$prompt_file")" \
+    -p \
     --output-format json \
     --json-schema "$(cat "$schema_file")" \
     --max-turns "$max_turns" \
     "${tools_flag[@]}" \
     "${model_flag[@]}" \
     "${allowed_flags[@]}" \
+    < "$prompt_file" \
     > "$raw_file" \
     2> "${stderr_file:-/dev/null}" \
     || exit_code=$?

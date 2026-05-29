@@ -1,4 +1,4 @@
-# RCA MAS — Build Instructions for Claude Code
+# AI-Powered Bug Diagnosis and Resolution — Build Instructions for Claude Code
 
 ## How to Use These Files
 
@@ -310,10 +310,10 @@ cat .rca-mas/runs/latest/report.md
 jq -e . .rca-mas/runs/latest/diagnosis.json
 jq -e . .rca-mas/runs/latest/solution.json
 
-# GitHub issue (after step 10)
+# GitHub issue input
 ./rca-mas.sh --issue 42
 
-# Validation (after step 11)
+# With verification (Agent 2.5 worktree + test execution)
 ./rca-mas.sh samples/bug.md --validate
 ls .rca-mas/runs/latest/patches
 ```

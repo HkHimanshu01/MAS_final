@@ -222,13 +222,15 @@ _A1A_MODEL_FLAG=()
 # set -e safe capture: initialize exit_code=0, let || capture non-zero
 _A1A_EXIT=0
 timeout "${_A1A_TIMEOUT}" "${CLAUDE_BIN:-claude}" \
-  -p "$(cat "$AGENT1A_PROMPT")" \
+  -p \
   --output-format stream-json \
   --verbose \
   --max-turns "${_A1A_TURNS}" \
+  --max-budget-usd "${RCA_A1A_BUDGET_USD}" \
   --tools "${_A1A_TOOLS}" \
   "${_A1A_MODEL_FLAG[@]}" \
   "${_A1A_ALLOW_FLAGS[@]}" \
+  < "$AGENT1A_PROMPT" \
   > "${_A1A_STREAM}" \
   2> "${_A1A_STDERR}" \
   || _A1A_EXIT=$?
@@ -366,11 +368,13 @@ _A1A_WRITE_OUTPUT="${RUN_DIR}/agent1a_write_output.txt"
 # This avoids interactive permission prompts entirely.
 _A1A_WRITE_EXIT=0
 timeout 180 "${CLAUDE_BIN:-claude}" \
-  -p "$(cat "$_A1A_WRITE_PROMPT")" \
+  -p \
   --output-format json \
   --max-turns 1 \
+  --max-budget-usd "${RCA_A1A_BUDGET_USD}" \
   --tools "" \
   "${_A1A_MODEL_FLAG[@]}" \
+  < "$_A1A_WRITE_PROMPT" \
   > "${_A1A_WRITE_OUTPUT}.json" \
   2> "${_A1A_WRITE_OUTPUT}.stderr" \
   || _A1A_WRITE_EXIT=$?
@@ -554,11 +558,13 @@ _A1B_SCHEMA="${TOOL_ROOT}/schemas/diagnosis.schema.json"
 if [ "$_A1B_STATUS" != "failed" ]; then
   timeout "${RCA_A1B_TIMEOUT}" \
     "${CLAUDE_BIN:-claude}" \
-      -p "$(cat "$AGENT1B_PROMPT")" \
+      -p \
       --output-format json \
       --json-schema "$(cat "$_A1B_SCHEMA")" \
       --max-turns "${RCA_A1B_TURNS}" \
+      --max-budget-usd "${RCA_A1B_BUDGET_USD}" \
       "${_A1A_MODEL_FLAG[@]}" \
+    < "$AGENT1B_PROMPT" \
     > "$AGENT1B_RAW" \
     2> "$AGENT1B_STDERR" \
     || _A1B_EXIT=$?
@@ -636,11 +642,13 @@ if [ "$_A1B_SCHEMA_VALID" != "true" ] && [ "$_A1B_STATUS" != "failed" ]; then
   _A1B_REPAIR_EXIT=0
   timeout "${RCA_A1B_TIMEOUT}" \
     "${CLAUDE_BIN:-claude}" \
-      -p "$(cat "$_A1B_REPAIR_PROMPT")" \
+      -p \
       --output-format json \
       --json-schema "$(cat "$_A1B_SCHEMA")" \
       --max-turns 1 \
+      --max-budget-usd "${RCA_A1B_BUDGET_USD}" \
       "${_A1A_MODEL_FLAG[@]}" \
+    < "$_A1B_REPAIR_PROMPT" \
     > "$AGENT1B_REPAIR_RAW" \
     2> "$AGENT1B_REPAIR_STDERR" \
     || _A1B_REPAIR_EXIT=$?
@@ -807,11 +815,18 @@ if [ "$_A2_STATUS" != "failed" ] && [ "$_A2_SCHEMA_VALID" != "true" ]; then
   _A2_DIAG_CONF="$(jq -r '.confidence // 0' "$DIAGNOSIS" 2>/dev/null || echo '0')"
   _A2_A1A_Q="$(grep '^agent1a_quality=' "${AGENT1A_QUALITY_ENV:-/dev/null}" 2>/dev/null | cut -d= -f2- | head -1 || echo 'unknown')"
 
+  # Sanitise: if confidence isn't a bare number (e.g. came in as a JSON string),
+  # strip quotes; fall back to 0 so weak_evidence fires rather than silently
+  # ignoring bad data.
+  _A2_DIAG_CONF="$(printf '%s' "$_A2_DIAG_CONF" | tr -d '"' | grep -E '^[0-9]*\.?[0-9]+$' || echo '0')"
+  # Guard: threshold must be a number; default to 0.6 if missing/malformed.
+  _A2_THRESHOLD="$(printf '%s' "${RCA_CONFIDENCE_WEAK_THRESHOLD:-}" | grep -E '^[0-9]*\.?[0-9]+$' || echo '0.6')"
+
   _A2_WEAK="false"
   _A2_WEAK_REASON=""
-  if awk -v c="$_A2_DIAG_CONF" -v t="$RCA_CONFIDENCE_WEAK_THRESHOLD" 'BEGIN { exit !(c < t) }'; then
+  if awk -v c="$_A2_DIAG_CONF" -v t="$_A2_THRESHOLD" 'BEGIN { exit !(c < t) }'; then
     _A2_WEAK="true"
-    _A2_WEAK_REASON="Diagnosis confidence ${_A2_DIAG_CONF} is below the weak-evidence threshold (${RCA_CONFIDENCE_WEAK_THRESHOLD})."
+    _A2_WEAK_REASON="Diagnosis confidence ${_A2_DIAG_CONF} is below the weak-evidence threshold (${_A2_THRESHOLD})."
   fi
   if [ "$_A2_A1A_Q" = "weak" ] || [ "$_A2_A1A_Q" = "failed" ]; then
     _A2_WEAK="true"
@@ -826,13 +841,65 @@ if [ "$_A2_STATUS" != "failed" ] && [ "$_A2_SCHEMA_VALID" != "true" ]; then
 fi
 
 # --- Step 3: Assemble prompt ---
+# Pre-process diagnosis: replace fix_context with verbatim content read directly
+# from the affected files in the working tree. This guarantees correct indentation
+# and no CRLF — both of which Agent 1a's checkpoint gets wrong on Windows.
+_A2_DIAGNOSIS_CLEAN="$(mktemp)"
+_A2_FC_NEW=""
+_A2_AF_LIST="$(jq -r '.affected_files[]?' "$DIAGNOSIS" 2>/dev/null | tr -d '\r' || true)"
+for _a2_af in $_A2_AF_LIST; do
+  _a2_af_abs="${TARGET_REPO_ROOT}/${_a2_af}"
+  [ -f "$_a2_af_abs" ] || continue
+  # Read the relevant line ranges from evidence (lines field in supporting_evidence)
+  # Fall back to full file if no line ranges found — still gives correct indentation.
+  _a2_line_ranges="$(jq -r '
+    [.hypotheses[]?.supporting_evidence[]?
+      | select(.path == "'"$_a2_af"'")
+      | .lines // empty
+    ] | unique | .[]
+  ' "$DIAGNOSIS" 2>/dev/null | tr -d '\r' || true)"
+  if [ -n "$_a2_line_ranges" ]; then
+    # Extract a window around each referenced line (line-30 to line+30)
+    _a2_fc_chunk=""
+    for _rng in $_a2_line_ranges; do
+      _ln="$(printf '%s' "$_rng" | grep -oE '^[0-9]+' | head -1)"
+      [ -z "$_ln" ] && continue
+      _start=$(( _ln > 30 ? _ln - 30 : 1 ))
+      _end=$(( _ln + 30 ))
+      _a2_fc_chunk="${_a2_fc_chunk}
+# ${_a2_af} lines ${_start}-${_end}
+$(sed -n "${_start},${_end}p" "$_a2_af_abs")"
+    done
+    _A2_FC_NEW="${_A2_FC_NEW}${_a2_fc_chunk}"
+  else
+    _A2_FC_NEW="${_A2_FC_NEW}
+# ${_a2_af} (full file)
+$(cat "$_a2_af_abs")"
+  fi
+done
+
+if [ -n "$_A2_FC_NEW" ]; then
+  # Replace fix_context with working-tree content; strip any remaining \r
+  jq --arg fc "$_A2_FC_NEW" '.fix_context = $fc' \
+    "$DIAGNOSIS" 2>/dev/null | tr -d '\r' > "$_A2_DIAGNOSIS_CLEAN" \
+    && [ -s "$_A2_DIAGNOSIS_CLEAN" ] \
+    || { tr -d '\r' < "$DIAGNOSIS" > "$_A2_DIAGNOSIS_CLEAN"; }
+else
+  # No affected files found — just strip CRLF
+  jq 'if .fix_context then .fix_context |= gsub("\r";"") else . end' \
+    "$DIAGNOSIS" 2>/dev/null | tr -d '\r' > "$_A2_DIAGNOSIS_CLEAN" \
+    && [ -s "$_A2_DIAGNOSIS_CLEAN" ] \
+    || cp "$DIAGNOSIS" "$_A2_DIAGNOSIS_CLEAN"
+fi
+
 if [ "$_A2_STATUS" != "failed" ] && [ "$_A2_SCHEMA_VALID" != "true" ]; then
+
   {
     cat "${TOOL_ROOT}/prompts/solution.md"
     printf '\n\n---\n\n## Briefing\n\n'
     cat "$BRIEFING"
     printf '\n\n---\n\n## Diagnosis (Agent 1b output)\n\n'
-    cat "$DIAGNOSIS"
+    cat "$_A2_DIAGNOSIS_CLEAN"
     printf '\n\n---\n\n## Run Metadata\n\n'
     printf 'RUN_ID: %s\n' "$RUN_ID"
     printf 'DIAGNOSIS_CONFIDENCE: %s\n' "${_A2_DIAG_CONF}"
@@ -844,6 +911,7 @@ if [ "$_A2_STATUS" != "failed" ] && [ "$_A2_SCHEMA_VALID" != "true" ]; then
   } > "$AGENT2_PROMPT"
   log_event "info" "agent2" "prompt assembled" "turns=${RCA_AGENT2_TURNS}" "timeout=${RCA_AGENT2_TIMEOUT}" "weak_evidence=${_A2_WEAK}"
 fi
+rm -f "$_A2_DIAGNOSIS_CLEAN" 2>/dev/null || true
 
 # --- Step 4: Invoke Claude (--json-schema enforced) ---
 # Pattern matches Agent 1b verbatim:
@@ -860,11 +928,13 @@ _A2_SCHEMA="${TOOL_ROOT}/schemas/solution.schema.json"
 if [ "$_A2_STATUS" != "failed" ] && [ "$_A2_SCHEMA_VALID" != "true" ]; then
   timeout "${RCA_AGENT2_TIMEOUT}" \
     "${CLAUDE_BIN:-claude}" \
-      -p "$(cat "$AGENT2_PROMPT")" \
+      -p \
       --output-format json \
       --json-schema "$(cat "$_A2_SCHEMA")" \
       --max-turns "${RCA_AGENT2_TURNS}" \
+      --max-budget-usd "${RCA_AGENT2_BUDGET_USD}" \
       "${_A1A_MODEL_FLAG[@]}" \
+    < "$AGENT2_PROMPT" \
     > "$AGENT2_RAW" \
     2> "$AGENT2_STDERR" \
     || _A2_EXIT=$?
@@ -906,7 +976,13 @@ if [ "$_A2_NORMALIZED" = "true" ] && [ "$_A2_SCHEMA_VALID" != "true" ]; then
      then .weak_evidence_reason = null
      else .
      end)
-  ' "$_A2_TMP" > "$_tmp_stamp" 2>/dev/null && mv "$_tmp_stamp" "$_A2_TMP" || true
+  ' "$_A2_TMP" > "$_tmp_stamp" 2>"${RUN_DIR}/stamp1.stderr" || { _stamp1_err="$(cat "${RUN_DIR}/stamp1.stderr" 2>/dev/null)"; rm -f "$_tmp_stamp"; _stamp1_err="${_stamp1_err:-jq stamp failed (step 6)}"; }
+  if [ -z "${_stamp1_err:-}" ]; then
+    mv "$_tmp_stamp" "$_A2_TMP"
+  else
+    _A2_FAILURE_REASON="jq stamp failed (step 6): ${_stamp1_err}"
+    log_event "error" "agent2" "jq stamp failed" "reason=${_A2_FAILURE_REASON}"
+  fi
 
   _A2_VALIDATION_ERR="$(validate_solution_json "$_A2_TMP" 2>/dev/null || true)"
   if [ -z "$_A2_VALIDATION_ERR" ]; then
@@ -927,7 +1003,7 @@ if [ "$_A2_SCHEMA_VALID" != "true" ] && [ "$_A2_STATUS" != "failed" ]; then
     printf '\n\n---\n\n## Briefing\n\n'
     cat "$BRIEFING"
     printf '\n\n---\n\n## Diagnosis (Agent 1b output)\n\n'
-    cat "$DIAGNOSIS"
+    cat "$_A2_DIAGNOSIS_CLEAN"
     printf '\n\n---\n\n## Previous invalid Agent 2 output\n\n'
     cat "$SOLUTION_INVALID" 2>/dev/null || printf '(none — extraction failed)\n'
     printf '\n\n---\n\n## Validation error\n\n%s\n' "${_A2_VALIDATION_ERR:-extraction failed}"
@@ -943,11 +1019,13 @@ if [ "$_A2_SCHEMA_VALID" != "true" ] && [ "$_A2_STATUS" != "failed" ]; then
   _A2_REPAIR_EXIT=0
   timeout "${RCA_AGENT2_TIMEOUT}" \
     "${CLAUDE_BIN:-claude}" \
-      -p "$(cat "$AGENT2_REPAIR_PROMPT")" \
+      -p \
       --output-format json \
       --json-schema "$(cat "$_A2_SCHEMA")" \
       --max-turns 1 \
+      --max-budget-usd "${RCA_AGENT2_BUDGET_USD}" \
       "${_A1A_MODEL_FLAG[@]}" \
+    < "$AGENT2_REPAIR_PROMPT" \
     > "$AGENT2_REPAIR_RAW" \
     2> "$AGENT2_REPAIR_STDERR" \
     || _A2_REPAIR_EXIT=$?
@@ -965,7 +1043,13 @@ if [ "$_A2_SCHEMA_VALID" != "true" ] && [ "$_A2_STATUS" != "failed" ]; then
        then .weak_evidence_reason = null
        else .
        end)
-    ' "$_A2_REPAIR_TMP" > "$_tmp_stamp" 2>/dev/null && mv "$_tmp_stamp" "$_A2_REPAIR_TMP" || true
+    ' "$_A2_REPAIR_TMP" > "$_tmp_stamp" 2>"${RUN_DIR}/stamp2.stderr" || { _stamp2_err="$(cat "${RUN_DIR}/stamp2.stderr" 2>/dev/null)"; rm -f "$_tmp_stamp"; _stamp2_err="${_stamp2_err:-jq stamp failed (repair)}"; }
+    if [ -z "${_stamp2_err:-}" ]; then
+      mv "$_tmp_stamp" "$_A2_REPAIR_TMP"
+    else
+      _A2_FAILURE_REASON="jq stamp failed (repair): ${_stamp2_err}"
+      log_event "error" "agent2" "jq stamp failed (repair)" "reason=${_A2_FAILURE_REASON}"
+    fi
 
     _A2_REPAIR_ERR="$(validate_solution_json "$_A2_REPAIR_TMP" 2>/dev/null || true)"
     if [ -z "$_A2_REPAIR_ERR" ]; then
@@ -1039,29 +1123,395 @@ else
 fi
 
 # Clean up tmp files
-rm -f "$_A2_TMP" "${RUN_DIR}/solution_repair.json.tmp" 2>/dev/null || true
+rm -f "$_A2_TMP" "${RUN_DIR}/solution_repair.json.tmp" "${RUN_DIR}/stamp1.stderr" "${RUN_DIR}/stamp2.stderr" 2>/dev/null || true
 
 stage_end "agent2" "$_A2_STATUS"
 log_event "info" "agent2" "stage complete" "status=${_A2_STATUS}" "solution_status=${_A2_SOLUTION_STATUS}" "weak_evidence=${_A2_WEAK:-false}"
 
 # ============================================================
-# STAGE: Validation (always skipped until Step 11)
+# STAGE: Validation (verify fix and write regression test inside an isolated worktree)
 # ============================================================
-cat > "$VALIDATION" <<STUB
-{
-  "run_id": "${RUN_ID}",
-  "status": "SKIPPED",
-  "worktree_path": null,
-  "applied_patch": false,
-  "generated_test": false,
-  "test_command": null,
-  "commands_run": [],
-  "failures": [],
-  "regression_risk": "unknown",
-  "notes": ["Run with --validate to apply patch in a worktree and run tests."]
+stage_begin
+info "Validation..."
+
+# --- Local state ---
+_V_STATUS="SKIPPED"
+_V_WORKTREE_PATH=""
+_V_APPLIED_PATCH="false"
+_V_GENERATED_TEST="false"
+_V_TEST_COMMAND="null"
+_V_TC_RAW=""
+_V_FRAMEWORK="unknown"
+_V_WORKTREE_DIR=""
+_V_COMMANDS_RUN=()        # array of strings for JSON
+_V_FAILURES=()            # array of strings for JSON
+_V_REGRESSION_RISK="unknown"
+_V_NOTES=()
+_V_START="$(date +%s)"
+_V_A25_RAW=""
+_V_REGTEST_TMP=""
+_V_TEST_PATH=""
+_V_TEST_DIFF=""
+_V_GEN_DIFF=""
+_V_TARGETED_CMD=""
+
+# Helper: append to _V_NOTES array
+_v_note() { _V_NOTES+=("$1"); }
+# Helper: append to _V_COMMANDS_RUN array
+_v_cmd_run() { _V_COMMANDS_RUN+=("$1"); }
+# Helper: append to _V_FAILURES array
+_v_fail() { _V_FAILURES+=("$1"); }
+
+# Helper: write validation.json from current state and end stage
+_write_validation_and_end() {
+  local _dur=$(( $(date +%s) - _V_START ))
+
+  # Build JSON arrays safely with jq
+  local _notes_json _cmds_json _failures_json
+  _notes_json="$(printf '%s\n' "${_V_NOTES[@]+"${_V_NOTES[@]}"}" | jq -R . | jq -s . 2>/dev/null || printf '[]')"
+  _cmds_json="$(printf '%s\n' "${_V_COMMANDS_RUN[@]+"${_V_COMMANDS_RUN[@]}"}" | jq -R . | jq -s . 2>/dev/null || printf '[]')"
+  _failures_json="$(printf '%s\n' "${_V_FAILURES[@]+"${_V_FAILURES[@]}"}" | jq -R . | jq -s . 2>/dev/null || printf '[]')"
+
+  local _wt_json="null"
+  [ -n "$_V_WORKTREE_PATH" ] && _wt_json="\"${_V_WORKTREE_PATH}\""
+
+  jq -n \
+    --arg rid "$RUN_ID" \
+    --arg status "$_V_STATUS" \
+    --argjson wt "$_wt_json" \
+    --argjson applied "$_V_APPLIED_PATCH" \
+    --argjson gentest "$_V_GENERATED_TEST" \
+    --argjson tcmd "$_V_TEST_COMMAND" \
+    --argjson cmds "$_cmds_json" \
+    --argjson fails "$_failures_json" \
+    --arg risk "$_V_REGRESSION_RISK" \
+    --argjson notes "$_notes_json" \
+    '{
+      "run_id": $rid,
+      "status": $status,
+      "worktree_path": $wt,
+      "applied_patch": $applied,
+      "generated_test": $gentest,
+      "test_command": $tcmd,
+      "commands_run": $cmds,
+      "failures": $fails,
+      "regression_risk": $risk,
+      "notes": $notes
+    }' > "$VALIDATION"
+
+  log_event "info" "agent25" "stage complete" "status=${_V_STATUS}" "duration_s=${_dur}"
+  stage_end "validation" "$(printf '%s' "$_V_STATUS" | tr '[:upper:]' '[:lower:]')"
 }
-STUB
-stage_end "validation" "skipped"
+
+# Wraps _write_validation_and_end and sets _V_DONE=true so remaining steps are skipped.
+_v_finish() { _write_validation_and_end; _V_DONE="true"; }
+_V_DONE="false"
+
+# --- Gate 1: --validate flag ---
+if [ "${VALIDATE:-0}" != "1" ]; then
+  _v_note "Run with --validate to apply patch in a worktree and run tests."
+  _v_finish
+fi
+
+# --- Gate 2: solution.json must recommend FIX and patches/fix.diff must exist ---
+if [ "$_V_DONE" = "false" ]; then
+  _V_REC="$(jq -r '.recommendation // "NO_FIX"' "$SOLUTION" 2>/dev/null || echo 'NO_FIX')"
+  if [ "$_V_REC" != "FIX" ] || [ ! -f "$FIX_DIFF" ] || [ ! -s "$FIX_DIFF" ]; then
+    _V_STATUS="SKIPPED"
+    _v_note "No fix to validate: solution recommendation=${_V_REC}, fix.diff present=$([ -f "$FIX_DIFF" ] && echo true || echo false)"
+    log_event "info" "agent25" "skipped: no fix" "recommendation=${_V_REC}" "fix_diff_exists=$([ -f "$FIX_DIFF" ] && echo true || echo false)"
+    _v_finish
+  fi
+fi
+
+# --- Read TEST_COMMAND from briefing ---
+if [ "$_V_DONE" = "false" ]; then
+  _V_TC_RAW="$(grep '^TEST_COMMAND:' "$BRIEFING" 2>/dev/null | sed 's/^TEST_COMMAND:[[:space:]]*//' | head -1 || true)"
+  if [ -n "$_V_TC_RAW" ] && [ "$_V_TC_RAW" != "UNKNOWN" ]; then
+    _V_TEST_COMMAND="\"${_V_TC_RAW}\""
+  fi
+
+  # --- Read TEST_FRAMEWORK from briefing (first word of TEST_COMMAND) ---
+  _V_FRAMEWORK="$(printf '%s' "$_V_TC_RAW" | awk '{print $1}' | head -1 || echo 'unknown')"
+
+  # --- Resolve worktree directory (relative to TARGET_REPO_ROOT) ---
+  _V_WORKTREE_DIR="${RCA_WORKTREE_DIR:-../.rca-mas-worktrees}"
+  # Resolve to absolute path; if relative, anchor to TARGET_REPO_ROOT's parent
+  case "$_V_WORKTREE_DIR" in
+    /*) ;;  # already absolute
+    *)  _V_WORKTREE_DIR="$(cd "${TARGET_REPO_ROOT}" && mkdir -p "$_V_WORKTREE_DIR" && cd "$_V_WORKTREE_DIR" && pwd)" ;;
+  esac
+  _V_WORKTREE_PATH="${_V_WORKTREE_DIR}/${RUN_ID}"
+
+  # --- Worktree cleanup trap ---
+  # Fires on EXIT unless RCA_KEEP_WORKTREE=1. Replaces the existing EXIT trap.
+  _V_WORKTREE_CREATED="false"
+  _cleanup_worktree() {
+    if [ "$_V_WORKTREE_CREATED" = "true" ] && [ "${RCA_KEEP_WORKTREE:-0}" != "1" ]; then
+      git -C "${TARGET_REPO_ROOT}" worktree remove --force "$_V_WORKTREE_PATH" 2>/dev/null || true
+      log_event "info" "agent25" "worktree removed" "path=${_V_WORKTREE_PATH}"
+    elif [ "$_V_WORKTREE_CREATED" = "true" ] && [ "${RCA_KEEP_WORKTREE:-0}" = "1" ]; then
+      log_event "info" "agent25" "worktree kept" "path=${_V_WORKTREE_PATH}"
+    fi
+  }
+  trap '_cleanup_worktree; run_cleanup' EXIT
+
+  # --- Step 1: Create worktree ---
+  mkdir -p "$_V_WORKTREE_DIR" 2>/dev/null || true
+  _V_WT_ERR="${RUN_DIR}/agent25_worktree.err"
+  _V_WT_EXIT=0
+  git -C "${TARGET_REPO_ROOT}" worktree add "$_V_WORKTREE_PATH" HEAD \
+    > /dev/null 2> "$_V_WT_ERR" || _V_WT_EXIT=$?
+
+  if [ "$_V_WT_EXIT" -ne 0 ]; then
+    _V_STATUS="VALIDATION_FAILED"
+    _v_note "git worktree add failed (exit=${_V_WT_EXIT}): $(head -5 "$_V_WT_ERR" 2>/dev/null || true)"
+    _v_fail "worktree creation failed: $(head -3 "$_V_WT_ERR" 2>/dev/null || true)"
+    log_event "error" "agent25" "worktree creation failed" "exit=${_V_WT_EXIT}" "err=$(head -3 "$_V_WT_ERR" 2>/dev/null | tr '\n' '|')"
+    _v_finish
+  else
+    _V_WORKTREE_CREATED="true"
+    log_event "info" "agent25" "worktree created" "path=${_V_WORKTREE_PATH}"
+  fi
+fi
+
+# --- Step 2: Apply fix.diff (dry-run first, then real apply) ---
+if [ "$_V_DONE" = "false" ]; then
+  _V_APPLY_ERR="${RUN_DIR}/agent25_apply.err"
+  _V_APPLY_EXIT=0
+  git -C "$_V_WORKTREE_PATH" apply --check "$FIX_DIFF" \
+    > /dev/null 2> "$_V_APPLY_ERR" || _V_APPLY_EXIT=$?
+
+  if [ "$_V_APPLY_EXIT" -ne 0 ]; then
+    _V_STATUS="VALIDATION_FAILED"
+    _v_note "git apply --check failed (exit=${_V_APPLY_EXIT}): $(head -5 "$_V_APPLY_ERR" 2>/dev/null || true)"
+    _v_fail "patch dry-run failed: $(head -3 "$_V_APPLY_ERR" 2>/dev/null || true)"
+    log_event "error" "agent25" "patch dry-run failed" "exit=${_V_APPLY_EXIT}" "diff=${FIX_DIFF}"
+    _v_finish
+  else
+    _V_APPLY_REAL_EXIT=0
+    git -C "$_V_WORKTREE_PATH" apply "$FIX_DIFF" \
+      > /dev/null 2>> "$_V_APPLY_ERR" || _V_APPLY_REAL_EXIT=$?
+
+    if [ "$_V_APPLY_REAL_EXIT" -ne 0 ]; then
+      _V_STATUS="VALIDATION_FAILED"
+      _v_note "git apply failed (exit=${_V_APPLY_REAL_EXIT}): $(head -5 "$_V_APPLY_ERR" 2>/dev/null || true)"
+      _v_fail "patch apply failed: $(head -3 "$_V_APPLY_ERR" 2>/dev/null || true)"
+      log_event "error" "agent25" "patch apply failed" "exit=${_V_APPLY_REAL_EXIT}" "diff=${FIX_DIFF}"
+      _v_finish
+    else
+      _V_APPLIED_PATCH="true"
+      _V_STATUS="PATCH_APPLIED"
+      log_event "info" "agent25" "patch applied" "diff=${FIX_DIFF}"
+    fi
+  fi
+fi
+
+# --- Step 3: Run existing test suite ---
+if [ "$_V_DONE" = "false" ]; then
+  if [ "$_V_TEST_COMMAND" = "null" ] || [ -z "${_V_TC_RAW:-}" ] || [ "${_V_TC_RAW:-}" = "UNKNOWN" ]; then
+    _V_STATUS="NOT_RUN_NO_COMMAND"
+    _v_note "No test command detected. Set TEST_COMMAND in briefing or run manually in the worktree."
+    log_event "warn" "agent25" "no test command detected"
+    _v_finish
+  else
+    _V_EXISTING_OUT="${RUN_DIR}/agent25_existing_tests.out"
+    _V_EXISTING_ERR="${RUN_DIR}/agent25_existing_tests.err"
+    _V_EXISTING_START="$(date +%s)"
+    log_event "info" "agent25" "existing tests running" "command=${_V_TC_RAW}"
+    _v_cmd_run "${_V_TC_RAW} (existing suite)"
+
+    _V_EXISTING_EXIT=0
+    (cd "$_V_WORKTREE_PATH" && timeout "${RCA_AGENT25_TEST_TIMEOUT}" bash -c "$_V_TC_RAW") \
+      > "$_V_EXISTING_OUT" 2> "$_V_EXISTING_ERR" || _V_EXISTING_EXIT=$?
+
+    _V_EXISTING_DUR=$(( $(date +%s) - _V_EXISTING_START ))
+    log_event "info" "agent25" "existing tests complete" "exit=${_V_EXISTING_EXIT}" "duration_s=${_V_EXISTING_DUR}"
+
+    if [ "$_V_EXISTING_EXIT" -eq 124 ]; then
+      _V_STATUS="TESTS_FAILED"
+      _v_note "Existing test suite timed out after ${RCA_AGENT25_TEST_TIMEOUT}s"
+      _v_fail "existing test suite timed out (${RCA_AGENT25_TEST_TIMEOUT}s)"
+      log_event "error" "agent25" "existing tests timed out" "timeout=${RCA_AGENT25_TEST_TIMEOUT}"
+      _v_finish
+    elif [ "$_V_EXISTING_EXIT" -ne 0 ]; then
+      _V_STATUS="TESTS_FAILED"
+      _v_note "Existing test suite failed (exit=${_V_EXISTING_EXIT})"
+      _v_fail "existing tests failed (exit=${_V_EXISTING_EXIT}): $(head -20 "$_V_EXISTING_ERR" 2>/dev/null | tr '\n' '|' || true)"
+      log_event "error" "agent25" "existing tests failed" "exit=${_V_EXISTING_EXIT}" "duration_s=${_V_EXISTING_DUR}"
+      _v_finish
+    else
+      log_event "info" "agent25" "existing tests passed" "exit=0" "duration_s=${_V_EXISTING_DUR}"
+    fi
+  fi
+fi
+
+# --- Step 4: Generate regression test (Claude call) ---
+if [ "$_V_DONE" = "false" ]; then
+  _V_A25_PROMPT="${AGENT25_PROMPT}"
+  _V_A25_RAW="${RUN_DIR}/agent25.raw.json"
+  _V_A25_STDERR="${RUN_DIR}/agent25_stderr.txt"
+
+  # Build a small inline schema for regression test output (not the full validation schema)
+  _V_REGTEST_SCHEMA_FILE="${RUN_DIR}/agent25_regtest.schema.json"
+  cat > "$_V_REGTEST_SCHEMA_FILE" <<'REGTEST_SCHEMA'
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "RegressionTest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["test_path", "test_diff", "explanation"],
+  "properties": {
+    "test_path":    { "type": "string", "minLength": 1 },
+    "test_diff":    { "type": "string", "minLength": 1 },
+    "explanation":  { "type": "string", "minLength": 1 }
+  }
+}
+REGTEST_SCHEMA
+
+  # Assemble prompt: system prompt + bug report + compact diagnosis + framework + test listing
+  _V_TEST_DIR_LS=""
+  for _d in tests test spec __tests__; do
+    if [ -d "${_V_WORKTREE_PATH}/${_d}" ]; then
+      _V_TEST_DIR_LS="$(ls "${_V_WORKTREE_PATH}/${_d}" 2>/dev/null | head -30 || true)"
+      break
+    fi
+  done
+
+  {
+    cat "${TOOL_ROOT}/prompts/validation.md"
+    printf '\n\n---\n\n## Bug Report\n\n'
+    cat "$BUG_FILE"
+    printf '\n\n---\n\n## Diagnosis (compact)\n\n'
+    jq -c '.' "$DIAGNOSIS" 2>/dev/null || cat "$DIAGNOSIS"
+    printf '\n\n---\n\n## Run Metadata\n\n'
+    printf 'RUN_ID: %s\n' "$RUN_ID"
+    printf 'TEST_FRAMEWORK: %s\n' "${_V_FRAMEWORK}"
+    printf 'TEST_COMMAND: %s\n' "${_V_TC_RAW}"
+    printf 'WORKTREE_PATH: %s\n' "${_V_WORKTREE_PATH}"
+    printf '\n## Existing test directory listing\n\n%s\n' "${_V_TEST_DIR_LS:-none}"
+  } > "$_V_A25_PROMPT"
+
+  log_event "info" "agent25" "regression test generation starting" "framework=${_V_FRAMEWORK}" "turns=${RCA_AGENT25_TURNS}"
+
+  _V_A25_MODEL_FLAG=()
+  [ -n "${RCA_MODEL:-}" ] && _V_A25_MODEL_FLAG=(--model "${RCA_MODEL}")
+
+  _V_A25_EXIT=0
+  timeout "${RCA_AGENT25_TIMEOUT}" \
+    "${CLAUDE_BIN:-claude}" \
+      -p \
+      --output-format json \
+      --json-schema "$(cat "$_V_REGTEST_SCHEMA_FILE")" \
+      --max-turns "${RCA_AGENT25_TURNS}" \
+      --max-budget-usd "${RCA_A1B_BUDGET_USD:-10}" \
+      "${_V_A25_MODEL_FLAG[@]}" \
+    < "$_V_A25_PROMPT" \
+    > "$_V_A25_RAW" \
+    2> "$_V_A25_STDERR" \
+    || _V_A25_EXIT=$?
+
+  if [ "$_V_A25_EXIT" -ne 0 ]; then
+    _v_note "Regression test generation failed (Claude exit=${_V_A25_EXIT}). Existing tests passed."
+    log_event "warn" "agent25" "regression test generation failed" "exit=${_V_A25_EXIT}"
+    _v_finish
+  fi
+fi
+
+# Extract regression test JSON
+if [ "$_V_DONE" = "false" ]; then
+  _V_REGTEST_TMP="${RUN_DIR}/agent25_regtest.json.tmp"
+  if ! extract_normalize_json "$_V_A25_RAW" "$_V_REGTEST_TMP" 2>/dev/null; then
+    _v_note "Could not extract regression test JSON from Claude output. Existing tests passed."
+    log_event "warn" "agent25" "regression test extraction failed"
+    _v_finish
+  fi
+fi
+
+if [ "$_V_DONE" = "false" ]; then
+  # Extract test_diff to patches/generated_test.diff
+  _V_GEN_DIFF="${RUN_DIR}/patches/generated_test.diff"
+  _V_TEST_PATH="$(jq -r '.test_path // empty' "$_V_REGTEST_TMP" 2>/dev/null || true)"
+  _V_TEST_DIFF="$(jq -r '.test_diff // empty' "$_V_REGTEST_TMP" 2>/dev/null || true)"
+
+  if [ -z "$_V_TEST_DIFF" ] || [ -z "$_V_TEST_PATH" ]; then
+    _v_note "Regression test JSON missing test_diff or test_path. Existing tests passed."
+    log_event "warn" "agent25" "regression test JSON incomplete"
+    _v_finish
+  fi
+fi
+
+if [ "$_V_DONE" = "false" ]; then
+  printf '%s\n' "$_V_TEST_DIFF" > "$_V_GEN_DIFF"
+  sed -i 's/\r//' "$_V_GEN_DIFF"
+  log_event "info" "agent25" "regression test generated" "path=${_V_TEST_PATH}"
+  _V_STATUS="TEST_CREATED"
+
+  # --- Step 5: Apply regression test diff ---
+  _V_REGTEST_APPLY_EXIT=0
+  git -C "$_V_WORKTREE_PATH" apply "$_V_GEN_DIFF" \
+    > /dev/null 2> "${RUN_DIR}/agent25_regtest_apply.err" || _V_REGTEST_APPLY_EXIT=$?
+
+  if [ "$_V_REGTEST_APPLY_EXIT" -ne 0 ]; then
+    _V_STATUS="GENERATED_BUT_NOT_VERIFIED"
+    _v_note "Could not apply generated test diff (exit=${_V_REGTEST_APPLY_EXIT})"
+    _v_fail "generated test apply failed: $(head -3 "${RUN_DIR}/agent25_regtest_apply.err" 2>/dev/null | tr '\n' '|' || true)"
+    log_event "warn" "agent25" "generated test apply failed" "exit=${_V_REGTEST_APPLY_EXIT}"
+    _v_finish
+  fi
+  _V_GENERATED_TEST="true"
+fi
+
+# --- Step 6: Run the new test only ---
+if [ "$_V_DONE" = "false" ]; then
+  _V_NEW_TEST_OUT="${RUN_DIR}/agent25_new_test.out"
+  _V_NEW_TEST_ERR="${RUN_DIR}/agent25_new_test.err"
+
+  # Build targeted test command based on framework
+  _V_TARGETED_CMD=""
+  case "$_V_FRAMEWORK" in
+    pytest)
+      _V_TARGETED_CMD="pytest -x ${_V_TEST_PATH}"
+      ;;
+    jest|npx)
+      _V_TARGETED_CMD="npx jest ${_V_TEST_PATH} --passWithNoTests"
+      ;;
+    go)
+      _V_TARGETED_CMD="go test ./..."
+      ;;
+    *)
+      _V_TARGETED_CMD="${_V_TC_RAW}"
+      ;;
+  esac
+
+  _v_cmd_run "${_V_TARGETED_CMD} (new regression test)"
+  log_event "info" "agent25" "regression test running" "command=${_V_TARGETED_CMD}"
+
+  _V_NEW_EXIT=0
+  (cd "$_V_WORKTREE_PATH" && timeout "${RCA_AGENT25_TEST_TIMEOUT}" bash -c "$_V_TARGETED_CMD") \
+    > "$_V_NEW_TEST_OUT" 2> "$_V_NEW_TEST_ERR" || _V_NEW_EXIT=$?
+
+  log_event "info" "agent25" "regression test complete" "exit=${_V_NEW_EXIT}" "passed=$([ "$_V_NEW_EXIT" -eq 0 ] && echo true || echo false)"
+
+  if [ "$_V_NEW_EXIT" -eq 0 ]; then
+    _V_STATUS="TESTS_PASSED"
+    _V_REGRESSION_RISK="low"
+    _v_note "Regression test passed: ${_V_TEST_PATH}"
+  else
+    _V_STATUS="TESTS_FAILED"
+    _V_REGRESSION_RISK="high"
+    _v_note "Regression test failed (exit=${_V_NEW_EXIT}): $(head -5 "$_V_NEW_TEST_ERR" 2>/dev/null | tr '\n' '|' || true)"
+    _v_fail "new regression test failed (exit=${_V_NEW_EXIT})"
+    log_event "warn" "agent25" "regression test failed" "exit=${_V_NEW_EXIT}"
+  fi
+
+  # --- Step 7: Save combined diff (fix + test) ---
+  _V_COMBINED_DIFF="${RUN_DIR}/patches/fix_and_test.diff"
+  git -C "$_V_WORKTREE_PATH" diff HEAD > "$_V_COMBINED_DIFF" 2>/dev/null || true
+  [ -s "$_V_COMBINED_DIFF" ] && log_event "info" "agent25" "combined diff saved" "path=${_V_COMBINED_DIFF}"
+
+  _v_finish
+fi
 
 # ============================================================
 # STAGE: Cost summary
@@ -1087,7 +1537,7 @@ _DUR_AGENT2="$(jq -r '.stage_durations_seconds.agent2 // 0' "$MANIFEST" 2>/dev/n
 _DUR_TOTAL=$(( _DUR_BRIEFING + _DUR_A1A + _DUR_A1B + _DUR_AGENT2 ))
 
 [ "$_DUR_TOTAL" -gt "$RCA_COST_WARN_SECONDS" ] && \
-  warn "Total runtime ${_DUR_TOTAL}s exceeds threshold ${RCA_COST_WARN_SECONDS}s"
+  warn "Total runtime ${_DUR_TOTAL}s — bug required deeper investigation than average (threshold ${RCA_COST_WARN_SECONDS}s). Pipeline completed normally."
 
 cat > "$COST_SUMMARY" <<COSTSUMMARY
 {

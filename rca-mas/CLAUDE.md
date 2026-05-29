@@ -1,4 +1,4 @@
-# CLAUDE.md — RCA Compression MAS
+# CLAUDE.md — AI-Powered Bug Diagnosis and Resolution
 
 ## What this project is
 
@@ -14,7 +14,6 @@ cat .rca-mas/runs/latest/report.md
 - `code_practices.md` — implementation authority: bash patterns, CLI contract, agent tool restrictions, security rules
 - `config/defaults.env` — every tunable parameter (turns, timeouts, confidence thresholds, model)
 - `architecture.md` (at repo root) — locked architecture reference
-- `plan.md` (at repo root) — build order and per-file implementation spec
 
 ## Repo layout
 
@@ -165,7 +164,7 @@ Docs that are always in sync with code are a **hard requirement** — see `code_
 
 Follow `plan.md` steps 1–12 in sequence. Do not skip steps.
 
-Current status: **Steps 1–7 complete and locked.** Next: Step 8 (report.sh polish — full 11-section render) and Step 11 (Agent 2.5 validation with worktree, `--validate` only).
+Current status: **All steps complete and locked.** The full pipeline runs end-to-end on real-repo bugs: briefing, diagnose, fix, verify (worktree + test execution under `--validate`), and report.
 
 ### What is done (locked)
 

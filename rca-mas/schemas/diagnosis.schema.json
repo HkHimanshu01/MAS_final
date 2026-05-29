@@ -92,6 +92,14 @@
     "next_best_action": {
       "type": "string",
       "minLength": 1
+    },
+    "confidence_reasoning": {
+      "type": "string",
+      "description": "One paragraph explaining what drove confidence up, what drove it down, and which alternative was ruled out and why."
+    },
+    "fix_context": {
+      "type": ["string", "null"],
+      "description": "Verbatim current content of every function or block identified as the fix location. Enough surrounding lines for Agent 2 to write a unified diff with correct @@ hunk markers."
     }
   },
   "definitions": {

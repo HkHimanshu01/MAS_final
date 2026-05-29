@@ -75,32 +75,38 @@ RCA_MODEL=claude-opus-4-7 bash rca-mas.sh bug.md
 
 | Variable | Default | Description |
 |---|---|---|
-| `RCA_TURNS_XS` | `15` | Max turns for repos with < 100 files |
-| `RCA_TURNS_S` | `25` | Max turns for repos with 100–499 files |
-| `RCA_TURNS_M` | `35` | Max turns for repos with 500–1999 files |
-| `RCA_TURNS_L` | `50` | Max turns for repos with ≥ 2000 files |
-| `RCA_TIMEOUT_XS` | `180` | Wall-clock timeout (seconds) for XS tier |
-| `RCA_TIMEOUT_S` | `300` | Wall-clock timeout (seconds) for S tier |
-| `RCA_TIMEOUT_M` | `420` | Wall-clock timeout (seconds) for M tier |
-| `RCA_TIMEOUT_L` | `600` | Wall-clock timeout (seconds) for L tier |
-| `RCA_CONFIDENCE_STOP` | `0.7` | Agent 1 stops early if confidence exceeds this |
+| `RCA_A1A_TURNS_XS` | `200` | Max turns for repos with < 100 files (backstop; cost cap throttles) |
+| `RCA_A1A_TURNS_S` | `200` | Max turns for repos with 100–499 files |
+| `RCA_A1A_TURNS_M` | `200` | Max turns for repos with 500–1999 files |
+| `RCA_A1A_TURNS_L` | `200` | Max turns for repos with ≥ 2000 files |
+| `RCA_A1A_TIMEOUT_XS` | `900` | Wall-clock timeout (seconds) for XS tier |
+| `RCA_A1A_TIMEOUT_S` | `900` | Wall-clock timeout (seconds) for S tier |
+| `RCA_A1A_TIMEOUT_M` | `900` | Wall-clock timeout (seconds) for M tier |
+| `RCA_A1A_TIMEOUT_L` | `900` | Wall-clock timeout (seconds) for L tier |
+| `RCA_A1A_BUDGET_USD` | `10` | Per-agent cost cap (primary throttle; 0 disables) |
+| `RCA_A1B_TURNS` | `20` | Synthesis turns for Agent 1b |
+| `RCA_A1B_TIMEOUT` | `120` | Wall-clock timeout for Agent 1b |
+| `RCA_A1B_BUDGET_USD` | `10` | Cost cap for Agent 1b |
+| `RCA_CONFIDENCE_STOP` | `0.7` | Agent 1a stops early if confidence exceeds this |
 | `RCA_CONFIDENCE_CHECKPOINT` | `0.4` | Confidence value written on timeout recovery |
 
 ### Agent 2 — Solution
 
 | Variable | Default | Description |
 |---|---|---|
-| `RCA_AGENT2_TURNS` | `1` | Max turns for Agent 2 |
-| `RCA_AGENT2_TIMEOUT` | `180` | Timeout in seconds for Agent 2 |
+| `RCA_AGENT2_TURNS` | `20` | Max turns for Agent 2 |
+| `RCA_AGENT2_TIMEOUT` | `600` | Timeout in seconds for Agent 2 |
+| `RCA_AGENT2_BUDGET_USD` | `10` | Cost cap for Agent 2 |
 | `RCA_CONFIDENCE_NOFX` | `0.5` | Agent 2 emits NO_FIX if confidence is below this |
+| `RCA_CONFIDENCE_WEAK_THRESHOLD` | `0.6` | Agent 2 marks `weak_evidence=true` below this confidence |
 
 ### Agent 2.5 — Validation
 
 | Variable | Default | Description |
 |---|---|---|
 | `RCA_AGENT25_TURNS` | `15` | Max turns for Agent 2.5 |
-| `RCA_AGENT25_TIMEOUT` | `300` | Timeout in seconds for Agent 2.5 |
-| `RCA_AGENT25_TEST_TIMEOUT` | `120` | Timeout for test suite execution inside worktree |
+| `RCA_AGENT25_TIMEOUT` | `1800` | Timeout in seconds for Agent 2.5 |
+| `RCA_AGENT25_TEST_TIMEOUT` | `1200` | Timeout for test suite execution inside worktree |
 | `RCA_KEEP_WORKTREE` | `0` | Set to `1` to keep the worktree after the run (for debugging) |
 
 ### Briefing / Collectors
@@ -109,7 +115,7 @@ RCA_MODEL=claude-opus-4-7 bash rca-mas.sh bug.md
 |---|---|---|
 | `RCA_GIT_LOOKBACK` | `"14 days ago"` | How far back `git.sh` looks in git history |
 | `RCA_ERROR_GREP_LIMIT` | `50` | Max output lines per error string in `errors.sh` |
-| `RCA_COLLECTOR_TIMEOUT` | `30` | Timeout per collector in seconds |
+| `RCA_COLLECTOR_TIMEOUT` | `150` | Timeout per collector in seconds |
 
 ### Tier Breakpoints
 
@@ -130,7 +136,7 @@ RCA_MODEL=claude-opus-4-7 bash rca-mas.sh bug.md
 
 | Variable | Default | Description |
 |---|---|---|
-| `RCA_COST_WARN_SECONDS` | `480` | Log a warning if total runtime exceeds this |
+| `RCA_COST_WARN_SECONDS` | `900` | Log a warning if total runtime exceeds this |
 | `RCA_COST_WARN_AGENT1_TURNS` | `40` | Log a warning if Agent 1 uses more than this many turns |
 
 ---

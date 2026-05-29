@@ -119,9 +119,9 @@ git worktree prune
 |---|---|---|
 | `RCA_WORKTREE_DIR` | `"../.rca-mas-worktrees"` | Parent directory for all worktrees |
 | `RCA_KEEP_WORKTREE` | `0` | Set to `1` to skip cleanup after the run |
-| `RCA_AGENT25_TEST_TIMEOUT` | `120` | Seconds allowed for test suite execution |
+| `RCA_AGENT25_TEST_TIMEOUT` | `1200` | Seconds allowed for test suite execution |
 | `RCA_AGENT25_TURNS` | `15` | Max turns for Agent 2.5 |
-| `RCA_AGENT25_TIMEOUT` | `300` | Wall-clock timeout for the entire Agent 2.5 stage |
+| `RCA_AGENT25_TIMEOUT` | `1800` | Wall-clock timeout for the entire Agent 2.5 stage |
 
 ---
 

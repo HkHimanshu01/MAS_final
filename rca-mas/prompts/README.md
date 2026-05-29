@@ -160,4 +160,4 @@ Prompts are plain Markdown. The orchestrator assembles each one with bug report,
 - The prompts are loaded with `cat "$prompt_file"` inside `-p "$()"`. No templating engine. `${VAR}` will not expand — anything dynamic is appended by the orchestrator as a trailing block, not interpolated.
 - Output format clauses (raw JSON only, no fences, no prose) are load-bearing for the JSON-mode calls (`investigation_write.md`, `diagnosis.md`, `agent1b_repair.md`). Loosening them will break extraction.
 - The checkpoint contract is the most sensitive coupling in this directory. If you change `investigation_write.md`'s output shape, update `diagnosis.md`'s mapping rules in the same step. Both must match `schemas/diagnosis.schema.json`.
-- After any prompt change, re-run real-repo bugs 3, 4, and 5 (`tests/real_repos/click/bugs/`) before locking — these are the regression baseline for Agent 1.
+- After any prompt change, re-run the full real-repo test suite (`bash run.sh test-real-repo`) before locking — these are the regression baseline for Agent 1. The current fixture uses 5 real bugs from `pallets/click` as the benchmark repo.

@@ -1,0 +1,2129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI-Powered Bug Diagnosis and Resolution · Demo</title>
+<style>
+:root{
+  --bg:#fafaff;
+  --paper:#ffffff;
+  --paper-2:#f8f6ff;
+  --ink:#1a1530;
+  --ink-2:#3a3252;
+  --muted:#6b6680;
+  --dim:#a39ebb;
+  --hair:#e6e1f3;
+  --hair-soft:#f0ecf8;
+  --pur:#6b21a8;
+  --pur-2:#7c3aed;
+  --pur-dark:#3b0764;
+  --pur-mid:#4c1d95;
+  --pur-soft:#a78bfa;
+  --lav:#ede4ff;
+  --lav-2:#f4ecff;
+  --gold:#fbbf24;
+  --gold-2:#f59e0b;
+  --grn:#10b981;
+  --grn-soft:#86efac;
+  --ok:#22c55e;
+  --red:#ef4444;
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%}
+body{
+  background:var(--bg);
+  color:var(--ink);
+  font-family:var(--font);
+  font-size:13px;
+  line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+  overflow:hidden;
+  background-image:
+    radial-gradient(ellipse 60% 40% at 15% 10%,rgba(124,58,237,.06),transparent 60%),
+    radial-gradient(ellipse 50% 40% at 85% 90%,rgba(167,139,250,.05),transparent 60%);
+}
+.app{display:grid;grid-template-rows:auto auto 1fr;height:100vh;padding:18px 32px}
+
+/* ─────────── HEADER ─────────── */
+.hdr{display:flex;justify-content:space-between;align-items:center;padding-bottom:12px;border-bottom:1px solid var(--hair);margin-bottom:14px}
+.brand{display:flex;align-items:center;gap:10px}
+.brand .glyph{width:18px;height:18px;border-radius:5px;background:linear-gradient(135deg,var(--pur-2),var(--pur-dark));position:relative}
+.brand .glyph::before{content:"";position:absolute;inset:3px;background:var(--bg);border-radius:3px}
+.brand .glyph::after{content:"";position:absolute;inset:6px;background:var(--pur-2);border-radius:2px}
+.brand-name{font-size:14px;font-weight:700;color:var(--ink);letter-spacing:-.01em}
+.brand-sub{font-size:11px;color:var(--muted);font-weight:500;margin-left:8px;letter-spacing:.02em}
+.hdr .right{display:flex;align-items:center;gap:14px;font-size:11px;color:var(--muted)}
+.hdr a{color:var(--pur);text-decoration:none;font-weight:600}
+.hdr a:hover{text-decoration:underline}
+
+/* progress bar */
+.progress{display:flex;align-items:center;gap:6px;margin:0 auto}
+.progress .step-dot{width:24px;height:6px;border-radius:99px;background:var(--hair);transition:.4s cubic-bezier(.2,.7,.2,1);cursor:pointer}
+.progress .step-dot.active{background:var(--pur-2);width:48px;box-shadow:0 0 8px var(--pur-soft)}
+.progress .step-dot.past{background:var(--pur-soft)}
+
+/* ─────────── STAGE AREA ─────────── */
+.stage{display:none;grid-template-rows:auto 1fr auto;gap:14px;overflow:hidden}
+.stage.active{display:grid;animation:fade-in .5s ease}
+@keyframes fade-in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+.stage-head{display:flex;justify-content:space-between;align-items:end;gap:24px}
+.stage-head .l .tag{font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--pur);font-weight:700;margin-bottom:6px;display:inline-flex;align-items:center;gap:8px}
+.stage-head .l .tag::before{content:"";width:24px;height:1px;background:var(--pur)}
+.stage-head .l h1{font-size:30px;font-weight:800;letter-spacing:-.02em;color:var(--ink);line-height:1.05}
+.stage-head .l h1 span{color:var(--pur)}
+.stage-head .l .sub{font-size:13px;color:var(--ink-2);margin-top:6px;max-width:none;line-height:1.5;padding-right:24px}
+.stage-head .r{text-align:right}
+.stage-head .r .clock{font-family:var(--mono);font-size:11.5px;color:var(--muted);font-weight:600;letter-spacing:.04em;display:flex;align-items:center;gap:6px;justify-content:flex-end}
+.stage-head .r .clock .dot{width:6px;height:6px;border-radius:50%;background:var(--ok);box-shadow:0 0 6px var(--ok);animation:pulse 1.4s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.stage-head .r .runtime{font-size:18px;font-weight:700;color:var(--ink);margin-top:4px;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+
+/* main 3-col layout */
+.stage-body{display:grid;grid-template-columns:1fr 1.4fr 1fr;gap:14px;align-items:stretch;min-height:0}
+.col{background:var(--paper);border:1px solid var(--hair);border-radius:14px;box-shadow:0 4px 22px -10px rgba(60,40,100,.1);display:flex;flex-direction:column;overflow:hidden;min-height:0}
+.col-head{padding:11px 18px;background:var(--paper-2);border-bottom:1px solid var(--hair-soft);display:flex;justify-content:space-between;align-items:center}
+.col-head .ck{font-size:10px;font-weight:700;letter-spacing:.16em;color:var(--muted);text-transform:uppercase}
+.col-head .cv{font-family:var(--mono);font-size:10px;color:var(--pur);font-weight:600;background:var(--lav);padding:2px 8px;border-radius:99px}
+.col-body{padding:18px 22px;display:flex;flex-direction:column;gap:10px;flex:1;overflow-y:auto;min-height:0}
+
+.col.input .col-head .ck{color:var(--gold-2)}
+.col.input .col-head{background:linear-gradient(180deg,var(--paper),rgba(251,191,36,.06))}
+.col.thinking{border-color:var(--pur-soft);box-shadow:0 6px 28px -10px rgba(124,58,237,.18)}
+.col.thinking .col-head{background:linear-gradient(95deg,var(--pur-2),var(--pur));color:#fff}
+.col.thinking .col-head .ck{color:#f0e7ff}
+.col.thinking .col-head .cv{background:rgba(255,255,255,.18);color:#fff}
+.col.output .col-head .ck{color:var(--ok)}
+.col.output .col-head{background:linear-gradient(180deg,var(--paper),rgba(34,197,94,.05))}
+
+/* ─────────── REUSABLE CONTENT BITS ─────────── */
+.fact{display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:start;padding:8px 0}
+.fact .k{font-size:10px;font-weight:700;letter-spacing:.1em;color:var(--muted);text-transform:uppercase;min-width:84px;padding-top:1px}
+.fact .v{font-size:13px;color:var(--ink);line-height:1.45}
+.fact .v code{font-family:var(--mono);font-size:11.5px;color:var(--pur);background:var(--lav);padding:1px 6px;border-radius:4px}
+.fact .v.tools-list{display:block}
+.tool-row{font-size:11.5px;color:var(--ink);line-height:1.5;padding:3px 0;border-bottom:1px dashed var(--hair-soft)}
+.tool-row:last-child{border-bottom:none}
+.tool-row code{font-family:var(--mono);font-size:11px;color:var(--pur);background:var(--lav);padding:1px 5px;border-radius:3px;margin-right:4px;font-weight:600}
+
+.self-crit{margin-top:10px;background:var(--paper-2);border:1px solid var(--pur-soft);border-radius:8px;padding:10px 12px}
+.self-crit .sc-h{font-size:10px;font-weight:700;letter-spacing:.12em;color:var(--pur);text-transform:uppercase;margin-bottom:7px;padding-bottom:5px;border-bottom:1px solid var(--lav)}
+.self-crit .sc-row{display:grid;grid-template-columns:18px 1fr;gap:6px;font-size:11.5px;line-height:1.4;padding:4px 0}
+.self-crit .sc-row+.sc-row{border-top:1px dashed var(--hair-soft)}
+.self-crit .sc-n{width:16px;height:16px;border-radius:50%;background:var(--pur);color:#fff;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;line-height:1;margin-top:2px}
+.self-crit .sc-q{color:var(--ink);font-weight:600;display:block}
+.self-crit .sc-a{color:var(--muted);font-size:11px;display:block;margin-top:1px;grid-column:2;font-style:italic}
+.self-crit .sc-row{grid-template-columns:18px 1fr}
+.self-crit .sc-row{display:grid}
+.fact+.fact{border-top:1px dashed var(--hair-soft)}
+.fact .v .v-sub{display:block;font-size:10.5px;color:var(--muted);font-weight:400;margin-top:2px;line-height:1.4}
+
+.note{font-size:11.5px;color:var(--muted);font-style:italic;line-height:1.5;padding:6px 10px;background:var(--paper-2);border-left:2px solid var(--pur-soft);border-radius:0 6px 6px 0}
+
+/* bug card on stage 1 */
+.bug-card{background:var(--paper-2);border:1px solid var(--hair);border-radius:10px;padding:14px 16px}
+.bug-card .b-tag{font-size:9.5px;font-weight:700;letter-spacing:.14em;color:var(--red);text-transform:uppercase;display:flex;align-items:center;gap:6px;margin-bottom:6px}
+.bug-card .b-tag .ic{width:14px;height:14px;border-radius:50%;background:var(--red);color:#fff;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700}
+.bug-card .b-ttl{font-size:14px;font-weight:700;color:var(--ink);margin-bottom:6px;line-height:1.3}
+.bug-card .b-meta{display:flex;gap:12px;font-size:11px;color:var(--muted);margin-bottom:8px;flex-wrap:wrap}
+.bug-card .b-meta span strong{color:var(--ink-2);font-weight:600}
+.bug-card .b-body{font-size:12px;color:var(--ink-2);line-height:1.55;background:var(--paper);padding:9px 11px;border-radius:6px;border:1px solid var(--hair-soft)}
+.bug-card .b-body code{font-family:var(--mono);font-size:10.5px;color:var(--pur);background:var(--lav);padding:1px 4px;border-radius:3px}
+.bug-card .b-body em{color:var(--ink);font-style:italic;font-weight:500}
+
+/* collector list on stage 2 */
+.collectors{display:grid;gap:8px}
+.collector{background:var(--paper-2);border:1px solid var(--hair-soft);border-radius:8px;padding:9px 12px;display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;font-size:12px}
+.collector .check{width:20px;height:20px;border-radius:50%;background:var(--ok);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700}
+.collector .nm{font-family:var(--mono);font-weight:600;color:var(--ink);font-size:12px}
+.collector .result{color:var(--muted);font-size:11px;text-align:right}
+.collector .result strong{color:var(--ink-2);font-weight:600}
+
+/* hypothesis cards on stage 3 */
+.hyps{display:grid;gap:10px}
+.hyp{border-radius:10px;padding:12px 14px;border:1px solid var(--hair-soft);background:var(--paper-2);position:relative;overflow:hidden}
+.hyp.win{border:1.5px solid var(--pur-soft);background:linear-gradient(180deg,var(--lav-2),var(--paper))}
+.hyp::before{content:"";position:absolute;top:0;left:0;right:0;height:2px;background:var(--hair)}
+.hyp.win::before{background:linear-gradient(95deg,var(--pur-2),var(--gold))}
+.hyp .hh{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.hyp .label{font-size:9.5px;font-weight:700;letter-spacing:.14em;color:var(--muted);text-transform:uppercase;padding:2px 7px;background:var(--hair-soft);border-radius:99px}
+.hyp.win .label{background:linear-gradient(95deg,var(--pur-2),var(--gold));color:#fff}
+.hyp .conf{font-size:18px;font-weight:800;color:var(--ink);font-variant-numeric:tabular-nums;letter-spacing:-.015em}
+.hyp.win .conf{color:var(--pur)}
+.hyp:not(.win) .conf{color:var(--dim)}
+.hyp .sum{font-size:12.5px;color:var(--ink);line-height:1.4;margin-bottom:8px;font-weight:500}
+.hyp .sum em{color:var(--pur);font-style:italic;font-weight:600}
+.hyp:not(.win) .sum em{color:var(--muted)}
+.hyp .bar{height:3px;background:var(--hair-soft);border-radius:99px;margin-bottom:8px;overflow:hidden}
+.hyp .bar .fill{height:100%;background:linear-gradient(90deg,var(--pur-2),var(--gold));border-radius:99px;transition:width 1.5s ease}
+.hyp:not(.win) .bar .fill{background:var(--dim)}
+.hyp .bar .fill.w84{width:84%}
+.hyp .bar .fill.w12{width:12%}
+.hyp .ev{display:grid;gap:4px;font-size:11px;color:var(--ink-2);line-height:1.4}
+.hyp .ev .row{display:grid;grid-template-columns:14px 1fr;gap:6px}
+.hyp .ev .ic{width:13px;height:13px;border-radius:50%;background:var(--pur);color:#fff;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;margin-top:1px}
+.hyp:not(.win) .ev .ic{background:var(--hair);color:var(--muted)}
+.hyp .ev code{font-family:var(--mono);font-size:10.5px;color:var(--pur-dark);background:var(--lav);padding:1px 4px;border-radius:3px}
+
+/* diff display on stage 4 */
+.diff{background:var(--paper-2);border:1px solid var(--hair-soft);border-radius:8px;padding:12px 14px;font-family:var(--mono);font-size:11px;line-height:1.6}
+.diff .file{color:var(--pur);font-weight:700;margin-bottom:6px}
+.diff .ctx{color:var(--muted)}
+.diff .del{color:var(--red);background:rgba(239,68,68,.06);padding:1px 4px;border-radius:3px;display:inline-block;margin:1px 0}
+.diff .add{color:var(--ok);background:rgba(34,197,94,.06);padding:1px 4px;border-radius:3px;display:inline-block;margin:1px 0}
+
+/* test results on stage 5 */
+.tests{background:var(--paper-2);border:1px solid var(--hair-soft);border-radius:8px;padding:12px 14px;font-family:var(--mono);font-size:11.5px;line-height:1.7;color:var(--ink-2)}
+.tests .row{display:flex;align-items:center;gap:10px}
+.tests .row .check{color:var(--ok);font-weight:700;font-size:13px}
+.tests .row .count{color:var(--pur);font-weight:700}
+.tests .row.head{border-bottom:1px solid var(--hair-soft);padding-bottom:6px;margin-bottom:6px;color:var(--ink);font-weight:600}
+.tests .verdict{margin-top:8px;padding:8px 12px;background:linear-gradient(95deg,var(--ok),#15803d);color:#fff;border-radius:6px;font-weight:700;text-align:center;letter-spacing:.04em;font-size:12px}
+
+/* report preview on stage 6 */
+.report-prev{background:var(--paper-2);border:1px solid var(--hair-soft);border-radius:8px;padding:14px 16px;font-size:11.5px;line-height:1.55;color:var(--ink-2)}
+.report-prev .h{font-size:14px;font-weight:700;color:var(--ink);margin-bottom:4px;letter-spacing:-.005em}
+.report-prev .meta{font-family:var(--mono);font-size:10.5px;color:var(--muted);margin-bottom:10px}
+.report-prev .sec{margin-top:8px;padding-top:8px;border-top:1px dashed var(--hair-soft)}
+.report-prev .sec:first-of-type{border-top:none;padding-top:0;margin-top:0}
+.report-prev .sec .k{font-size:9.5px;font-weight:700;letter-spacing:.14em;color:var(--pur);text-transform:uppercase;display:block;margin-bottom:2px}
+.report-prev .sec .v{font-size:11.5px;color:var(--ink)}
+.report-prev .sec .v code{font-family:var(--mono);font-size:10.5px;color:var(--pur);background:var(--lav);padding:1px 4px;border-radius:3px}
+.report-prev .sec .v.ok{color:var(--ok);font-weight:600}
+
+/* finale screen */
+.finale{display:grid;grid-template-rows:auto 1fr;gap:14px;min-height:0}
+.finale-card{background:linear-gradient(135deg,var(--pur-dark),var(--pur-mid));border-radius:16px;padding:28px 32px;color:#f0ebff;text-align:center;box-shadow:0 12px 40px -12px rgba(75,29,149,.4);display:grid;align-content:center;gap:14px;min-height:0;overflow:hidden}
+.finale-card .badge{display:inline-flex;align-items:center;gap:8px;padding:6px 14px;background:rgba(251,191,36,.15);border:1px solid var(--gold);border-radius:99px;color:var(--gold);font-size:11px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;width:fit-content;margin:0 auto}
+.finale-card .badge::before{content:"✓";color:var(--gold);font-weight:800}
+.finale-card h2{font-size:36px;font-weight:800;letter-spacing:-.02em;line-height:1.1;color:#fff}
+.finale-card h2 span{color:var(--gold)}
+.finale-card p{font-size:14px;color:#d8caf5;max-width:55ch;margin:0 auto;line-height:1.55}
+.finale-card p strong{color:var(--gold);font-weight:800}
+.finale-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:8px}
+.finale-stat{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:10px;padding:14px 16px}
+.finale-stat .n{font-size:32px;font-weight:800;color:var(--gold);letter-spacing:-.02em;line-height:1;font-variant-numeric:tabular-nums}
+.finale-stat .l{font-size:11px;color:#d8caf5;margin-top:4px;letter-spacing:.04em;text-transform:uppercase;font-weight:600}
+
+/* intro screen */
+.intro{display:grid;place-items:center;text-align:center;padding:24px 32px;height:100%;min-height:0}
+.intro-inner{max-width:680px;display:grid;gap:18px;justify-items:center}
+.intro .pill{display:inline-flex;align-items:center;gap:8px;font-size:11px;font-weight:700;color:var(--pur);background:var(--lav);padding:5px 14px;border-radius:99px;letter-spacing:.14em;text-transform:uppercase}
+.intro .pill .dot{width:7px;height:7px;border-radius:50%;background:var(--pur);box-shadow:0 0 6px var(--pur)}
+.intro h1{font-size:46px;font-weight:800;line-height:1.05;letter-spacing:-.025em;color:var(--ink)}
+.intro h1 span{color:var(--pur)}
+.intro .sub{font-size:16px;color:var(--ink-2);line-height:1.55;max-width:52ch}
+.intro .sub strong{color:var(--ink);font-weight:600}
+.intro .cta{display:inline-flex;align-items:center;gap:10px;padding:14px 28px;background:var(--ink);color:var(--bg);border-radius:99px;font-size:14px;font-weight:600;border:none;cursor:pointer;margin-top:8px;letter-spacing:.01em;transition:.2s}
+.intro .cta:hover{transform:translateY(-1px);box-shadow:0 6px 20px -6px rgba(60,40,100,.3)}
+.intro .stats-row{display:flex;gap:32px;justify-content:center;margin-top:8px;flex-wrap:wrap}
+.intro .stats-row .s{text-align:center}
+.intro .stats-row .s .n{font-size:24px;font-weight:800;color:var(--pur);letter-spacing:-.015em;line-height:1}
+.intro .stats-row .s .l{font-size:11px;color:var(--muted);margin-top:3px;font-weight:500;letter-spacing:.06em}
+
+/* ─────────── FOOTER NAV ─────────── */
+.footnav{display:flex;justify-content:space-between;align-items:center;padding-top:12px;border-top:1px solid var(--hair);margin-top:14px;gap:14px}
+.footnav button{padding:9px 18px;font-family:var(--font);font-size:13px;font-weight:600;border-radius:99px;border:1px solid var(--hair);background:var(--paper);color:var(--ink);cursor:pointer;display:inline-flex;align-items:center;gap:8px;transition:.2s}
+.footnav button:hover:not(:disabled){border-color:var(--pur-soft);color:var(--pur);transform:translateY(-1px)}
+.footnav button:disabled{opacity:.4;cursor:not-allowed}
+.footnav .next{background:linear-gradient(95deg,var(--pur-2),var(--pur));color:#fff;border:1px solid transparent;box-shadow:0 4px 16px -6px rgba(124,58,237,.4)}
+.footnav .next:hover:not(:disabled){background:linear-gradient(95deg,var(--pur),var(--pur-mid));color:#fff;transform:translateY(-1px);box-shadow:0 6px 22px -6px rgba(124,58,237,.5)}
+.footnav .counter{font-size:12px;color:var(--muted);font-weight:600;letter-spacing:.04em}
+.footnav .counter strong{color:var(--ink);font-weight:700}
+.footnav .hint{font-size:11px;color:var(--dim);font-style:italic}
+.footnav .kbd{padding:2px 7px;background:var(--paper-2);border:1px solid var(--hair);border-radius:4px;font-size:10.5px;color:var(--ink-2);font-weight:600;font-family:var(--font)}
+
+/* ═════════════════════════════════════════════════════
+   PITCH TAB (slide reproduction)
+   ═════════════════════════════════════════════════════ */
+.pitch-wrap{padding:4px 8px 18px;overflow-y:auto;height:100%}
+.pitch-head{display:grid;grid-template-columns:1fr auto;gap:20px;align-items:end;margin-bottom:16px}
+.pitch-head h1{font-size:30px;font-weight:800;line-height:1.05;letter-spacing:-.02em;color:var(--ink);margin-bottom:6px}
+.pitch-head h1 span{color:var(--pur)}
+.pitch-head .sub{font-size:12.5px;color:var(--ink-2);line-height:1.5;max-width:64ch}
+.pitch-head .sub strong{color:var(--pur);font-weight:700}
+.validated{display:inline-flex;align-items:center;gap:10px;background:var(--paper);border:1px solid var(--pur-soft);border-radius:99px;padding:7px 14px 7px 11px;box-shadow:0 2px 10px -4px rgba(124,58,237,.15)}
+.validated .vdot{width:8px;height:8px;border-radius:50%;background:var(--ok);box-shadow:0 0 6px var(--ok);flex-shrink:0}
+.validated .vtext{display:grid;gap:0}
+.validated .vtag{font-size:9px;font-weight:700;letter-spacing:.18em;color:var(--pur);text-transform:uppercase}
+.validated .vdesc{font-size:10.5px;color:var(--ink-2);line-height:1.3}
+
+.compare{display:grid;grid-template-columns:1fr 1fr 1.4fr;gap:12px;margin-bottom:0}
+.opt{background:var(--paper);border:1px solid var(--hair);border-radius:12px;padding:14px 16px;box-shadow:0 2px 14px -6px rgba(60,40,100,.08);display:flex;flex-direction:column}
+.opt.winner{border:1px solid var(--pur-soft);box-shadow:0 6px 28px -10px rgba(124,58,237,.18);background:linear-gradient(180deg,var(--paper),var(--lav-2))}
+.opt-head{display:flex;justify-content:space-between;align-items:start;margin-bottom:10px}
+.opt-head .l .tag{font-size:9px;font-weight:700;letter-spacing:.16em;color:var(--muted);text-transform:uppercase;margin-bottom:2px}
+.opt.winner .opt-head .l .tag{color:var(--pur)}
+.opt-head .l .name{font-size:15px;font-weight:700;color:var(--ink);letter-spacing:-.012em;line-height:1.15}
+.opt-head .r{text-align:right;flex-shrink:0}
+.opt-head .r .num{font-size:26px;font-weight:800;color:var(--ink);letter-spacing:-.025em;line-height:1;font-variant-numeric:tabular-nums}
+.opt.winner .opt-head .r .num{color:var(--pur)}
+.opt-head .r .unit{font-size:10.5px;color:var(--muted);font-weight:500;margin-left:2px}
+.opt-head .r .qual{font-size:9.5px;color:var(--pur);font-weight:600;margin-top:1px;letter-spacing:.04em}
+.opt-tags{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:9px}
+.opt-tags .pill{font-size:9px;font-weight:600;color:var(--pur);background:var(--lav);padding:2px 7px;border-radius:99px;letter-spacing:.02em}
+.opt .steps{display:grid;gap:5px;flex:1}
+.opt .step{display:grid;grid-template-columns:22px 1fr auto;gap:8px;background:var(--paper-2);border:1px solid var(--hair-soft);border-radius:7px;padding:7px 9px;align-items:center}
+.opt.winner .step{background:var(--paper);border-color:var(--hair-soft)}
+.opt .step .ic{width:20px;height:20px;border-radius:5px;background:var(--lav);color:var(--pur);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;line-height:1}
+.opt .step.feat .ic{background:linear-gradient(135deg,var(--pur-2),var(--pur));color:#fff}
+.opt .step .body .name{font-size:11.5px;font-weight:600;color:var(--ink);line-height:1.2}
+.opt .step .body .sub{font-size:10px;color:var(--muted);line-height:1.3;margin-top:1px}
+.opt .step .time{font-size:10.5px;font-weight:600;color:var(--ink);background:var(--lav);padding:1px 7px;border-radius:99px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.opt .step.feat .time{background:linear-gradient(95deg,var(--pur-2),var(--pur));color:#fff}
+
+/* process flow (Option 1 & 2 block diagrams) */
+.flow{display:flex;flex-direction:column;align-items:stretch;gap:0;flex:1}
+.flow .blk{background:var(--paper-2);border:1px solid var(--hair-soft);border-radius:7px;padding:7px 10px;display:grid;grid-template-columns:22px 1fr auto;gap:8px;align-items:center;position:relative}
+.flow .blk .ic{width:20px;height:20px;border-radius:5px;background:var(--lav);color:var(--pur);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;line-height:1}
+.flow .blk .body .name{font-size:11.5px;font-weight:600;color:var(--ink);line-height:1.2}
+.flow .blk .body .sub{font-size:10px;color:var(--muted);line-height:1.3;margin-top:1px}
+.flow .blk .time{font-size:10.5px;font-weight:600;color:var(--ink);background:var(--lav);padding:1px 7px;border-radius:99px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.flow .blk .time.danger{background:#fee2e2;color:#991b1b;font-weight:800;border:1px solid #fca5a5;font-size:11.5px}
+.flow .blk .time.warn{background:#fef3c7;color:#92400e;font-weight:800;border:1px solid #fbbf24;font-size:11.5px}
+
+/* proportional block heights (visualise time-spent) */
+.flow .blk.t-sm{min-height:34px}
+.flow .blk.t-md{min-height:52px}
+.flow .blk.t-lg{min-height:90px}
+.flow .blk.t-xl{min-height:130px}
+.flow .blk.t-lg .body,.flow .blk.t-xl .body{align-self:center}
+.flow .blk.t-xl.danger-bg{background:linear-gradient(180deg,#fef2f2,var(--paper-2));border-color:#fca5a5}
+.flow .blk.t-lg.warn-bg{background:linear-gradient(180deg,#fef9e7,var(--paper-2));border-color:#fbbf24}
+.flow .arr{align-self:center;height:14px;width:2px;background:var(--pur-soft);position:relative;margin:2px 0}
+.flow .arr::after{content:"";position:absolute;bottom:-1px;left:-3px;width:0;height:0;border-top:6px solid var(--pur-soft);border-left:4px solid transparent;border-right:4px solid transparent}
+
+
+/* funnel visual on winner card (progressively narrower rows) */
+.agent-vis{background:var(--lav-2);border:1px solid var(--lav);border-radius:7px;padding:8px 10px;margin-top:5px;display:flex;flex-direction:column;align-items:center;gap:4px}
+.agent-vis .av-head{display:flex;justify-content:space-between;font-size:9px;color:var(--pur);letter-spacing:.06em;font-weight:600;margin-bottom:2px;text-transform:uppercase;width:100%}
+.agent-vis .av-row{display:flex;justify-content:space-between;align-items:center;color:#fff;padding:4px 11px;border-radius:5px;font-size:11px;font-weight:600}
+.agent-vis .av-row.r1{background:linear-gradient(95deg,var(--pur-2),var(--pur));width:100%}
+.agent-vis .av-row.r2{background:linear-gradient(95deg,var(--pur),var(--pur-mid));width:84%}
+.agent-vis .av-row.r3{background:linear-gradient(95deg,var(--pur-mid),var(--pur-dark));width:68%}
+.agent-vis .av-row .what{font-size:10px;font-weight:400;opacity:.9}
+
+.catch{margin-top:10px;padding:9px 12px;font-size:11.5px;color:#5b3a07;font-style:italic;line-height:1.5;background:linear-gradient(135deg,#fef9e7,#fef3c7);border:1px solid #fbbf24;border-left:3px solid var(--gold-2);border-radius:7px}
+.catch strong{color:#7c2d12;font-style:normal;font-weight:800}
+.catch .hi{color:#7c2d12;font-style:normal;font-weight:700;background:rgba(251,191,36,.4);padding:1px 4px;border-radius:3px}
+
+.costs{background:linear-gradient(95deg,var(--pur-dark),var(--pur-mid) 60%,var(--pur));border-radius:12px;padding:14px 18px;display:grid;grid-template-columns:repeat(4,1fr);gap:10px;color:#fff;margin-top:12px;box-shadow:0 6px 28px -10px rgba(75,29,149,.4)}
+.cost{padding:0 4px;position:relative}
+.cost+.cost::before{content:"";position:absolute;left:-5px;top:6px;bottom:6px;width:1px;background:rgba(255,255,255,.15)}
+.cost .ck{font-size:9px;color:#e9d5ff;letter-spacing:.16em;text-transform:uppercase;font-weight:600;margin-bottom:4px}
+.cost .cv{font-size:20px;font-weight:800;letter-spacing:-.02em;line-height:1.05;color:#fff;font-variant-numeric:tabular-nums;display:flex;align-items:baseline;gap:5px;flex-wrap:wrap}
+.cost .cv .reg{font-size:9.5px;font-weight:500;color:#e9d5ff;letter-spacing:.02em;text-transform:uppercase}
+.cost .cv .sep{color:#c4b5fd;font-weight:400;font-size:14px}
+.cost.savings .cv{color:var(--gold)}
+.cost.savings .cv .reg{color:#fde68a}
+.cost .cd{font-size:10px;color:#e9d5ff;margin-top:3px;line-height:1.3}
+.cost .cd strong{color:var(--gold-2);font-weight:600}
+
+.pitch-foot{font-size:10px;color:var(--muted);margin-top:8px;font-style:italic;text-align:center}
+.pitch-foot strong{color:var(--ink-2);font-style:normal;font-weight:600}
+
+.assump{margin-top:10px;display:flex;justify-content:center;gap:18px;flex-wrap:wrap;font-family:var(--mono);font-size:11px;color:var(--ink-2);padding:8px 14px;background:var(--paper-2);border:1px dashed var(--hair);border-radius:8px}
+.assump .lbl{font-family:var(--font);font-size:10px;font-weight:700;letter-spacing:.14em;color:var(--muted);text-transform:uppercase;margin-right:6px}
+.assump .row{display:inline-flex;align-items:baseline;gap:8px}
+.assump .role{color:var(--ink);font-weight:600}
+.assump .reg{font-size:9px;font-weight:700;letter-spacing:.12em;color:var(--pur);text-transform:uppercase;padding:1px 6px;background:var(--lav);border-radius:99px}
+.assump .rate{color:var(--pur-dark);font-weight:700;font-variant-numeric:tabular-nums}
+.assump .sep{color:var(--dim)}
+
+/* ═════════════════════════════════════════════════════
+   VALUE PROPOSITION TAB
+   ═════════════════════════════════════════════════════ */
+.vp-wrap{padding:4px 8px 18px;overflow-y:auto;height:100%;max-width:1140px;margin:0 auto}
+.vp-head{text-align:center;padding:8px 0 18px}
+.vp-head .tag{font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--pur);font-weight:700;margin-bottom:6px;display:inline-flex;align-items:center;gap:8px}
+.vp-head .tag::before,.vp-head .tag::after{content:"";width:24px;height:1px;background:var(--pur)}
+.vp-head h2{font-size:26px;font-weight:800;letter-spacing:-.015em;color:var(--ink);line-height:1.1}
+.vp-head h2 span{color:var(--pur)}
+.vp-head p{font-size:13px;color:var(--ink-2);margin:8px auto 0;max-width:68ch;line-height:1.55}
+
+.vp-tagline{background:linear-gradient(135deg,var(--pur-dark),var(--pur-mid));border-radius:12px;padding:18px 28px;color:#f0ebff;margin-bottom:18px;text-align:center;box-shadow:0 6px 22px -8px rgba(75,29,149,.4)}
+.vp-tagline .lbl{font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--gold);font-weight:700;margin-bottom:6px}
+.vp-tagline .quote{font-size:17px;font-weight:600;line-height:1.4;letter-spacing:-.005em;max-width:none;margin:0 auto;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.vp-tagline .quote em{font-style:italic;color:var(--gold)}
+
+.vp-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:18px}
+.vp-card{background:var(--paper);border:1px solid var(--hair);border-radius:12px;padding:16px 18px;box-shadow:0 3px 14px -6px rgba(60,40,100,.08)}
+.vp-card .hd{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.vp-card .ic{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,var(--pur-2),var(--pur));color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;flex-shrink:0}
+.vp-card .t{font-size:14px;font-weight:700;color:var(--ink);letter-spacing:-.005em;line-height:1.2}
+.vp-card .t .sub-t{font-size:10.5px;font-weight:500;color:var(--pur);letter-spacing:.04em;display:block;margin-top:1px}
+.vp-card p{font-size:12.5px;color:var(--ink-2);line-height:1.55}
+.vp-card p strong{color:var(--ink);font-weight:600}
+.vp-card p code{font-family:var(--mono);font-size:11px;color:var(--pur);background:var(--lav);padding:1px 5px;border-radius:3px}
+
+/* engineering technique cards */
+.tech-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:18px}
+.tech-card.wide{grid-column:1 / -1}
+.tech-card{background:var(--paper);border:1px solid var(--hair);border-radius:12px;padding:14px 16px;box-shadow:0 3px 14px -6px rgba(60,40,100,.08);display:flex;flex-direction:column;gap:8px}
+.tech-card .impact{font-size:13px;font-weight:700;color:#7c2d12;background:linear-gradient(95deg,#fef9e7,#fef3c7);border-left:3px solid var(--gold-2);padding:8px 10px 8px 12px;border-radius:5px;line-height:1.4;letter-spacing:-.005em}
+.tech-card .impact em{color:var(--pur-dark);font-style:normal;font-weight:800;background:rgba(251,191,36,.45);padding:1px 5px;border-radius:3px}
+.tech-card .hd{display:flex;align-items:center;gap:10px}
+.tech-card .badge{font-size:9px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--pur);padding:2px 8px;background:var(--lav);border-radius:99px;line-height:1.4}
+.tech-card .num{margin-left:auto;font-size:22px;font-weight:800;color:var(--lav);font-variant-numeric:tabular-nums;letter-spacing:-.02em;line-height:1}
+.tech-card .t{font-size:14px;font-weight:700;color:var(--ink);letter-spacing:-.005em;line-height:1.25}
+.tech-card .t .sub-t{font-size:11px;font-weight:500;color:var(--muted);display:block;margin-top:2px;letter-spacing:.01em}
+.tech-card .diagram{background:linear-gradient(180deg,var(--paper-2),var(--lav-2));border:1px dashed var(--lav);border-radius:8px;padding:10px 12px;min-height:64px;display:flex;align-items:center;justify-content:center}
+.tech-card p{font-size:12px;color:var(--ink-2);line-height:1.5}
+.tech-card p strong{color:var(--ink);font-weight:600}
+.tech-card p code{font-family:var(--mono);font-size:10.5px;color:var(--pur);background:var(--lav);padding:1px 5px;border-radius:3px}
+
+/* mini-diagram: context funnel */
+.dg-funnel{display:flex;flex-direction:column;gap:3px;width:100%;align-items:center}
+.dg-funnel .bar{color:#fff;font-size:9.5px;font-weight:700;padding:3px 8px;border-radius:4px;display:flex;justify-content:space-between;align-items:center;font-family:var(--font);letter-spacing:.02em}
+.dg-funnel .bar .sz{font-size:8.5px;font-weight:500;opacity:.85;font-family:var(--mono)}
+.dg-funnel .b1{background:linear-gradient(95deg,var(--pur-2),var(--pur));width:100%}
+.dg-funnel .b2{background:linear-gradient(95deg,var(--pur),var(--pur-mid));width:78%}
+.dg-funnel .b3{background:linear-gradient(95deg,var(--pur-mid),var(--pur-dark));width:56%}
+.dg-funnel .b4{background:linear-gradient(95deg,var(--pur-dark),#1e0540);width:36%}
+
+/* mini-diagram: prompt-engineering ledger */
+.dg-ledger{display:grid;gap:3px;width:100%;font-family:var(--mono);font-size:9.5px;color:var(--ink-2);line-height:1.35}
+.dg-ledger .ll{padding:2px 8px;background:var(--paper);border:1px solid var(--hair-soft);border-left:2px solid var(--pur-2);border-radius:3px}
+.dg-ledger .ll strong{color:var(--pur);font-weight:700;font-family:var(--font);font-size:9px;letter-spacing:.06em;text-transform:uppercase;margin-right:6px}
+.dg-ledger .ll .v{color:var(--ink)}
+
+/* mini-diagram: schema gate */
+.dg-gate{display:grid;grid-template-columns:1fr auto 1fr;gap:8px;width:100%;align-items:center;font-family:var(--mono);font-size:9.5px}
+.dg-gate .box{background:var(--paper);border:1px solid var(--hair);border-radius:5px;padding:5px 8px;color:var(--ink);text-align:center;line-height:1.3}
+.dg-gate .box.in{border-color:var(--gold)}
+.dg-gate .box.out{border-color:var(--ok);color:var(--ok);font-weight:700}
+.dg-gate .box.rej{border-color:#fca5a5;color:#991b1b;font-size:8.5px;margin-top:3px}
+.dg-gate .gate{position:relative;width:30px;height:30px;background:linear-gradient(135deg,var(--pur-2),var(--pur));border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;font-weight:800;line-height:1;flex-shrink:0;box-shadow:0 2px 8px -3px rgba(124,58,237,.45)}
+.dg-gate .col{display:grid;gap:3px}
+
+/* mini-diagram: deterministic wraps LLM */
+.dg-wrap{display:grid;width:100%;gap:0;font-family:var(--font);font-size:10px}
+.dg-wrap .outer{background:#fef3c7;border:1px dashed var(--gold-2);border-radius:7px;padding:6px 8px;color:#78350f;font-weight:700;letter-spacing:.04em;display:flex;align-items:center;gap:6px;font-size:10px;text-transform:uppercase;letter-spacing:.1em}
+.dg-wrap .outer .lbl{flex:1}
+.dg-wrap .outer .pc{font-family:var(--mono);font-size:9px;font-weight:500;color:#92400e;text-transform:none;letter-spacing:0}
+.dg-wrap .mid{background:linear-gradient(95deg,var(--pur-2),var(--pur));color:#fff;padding:6px 10px;font-weight:700;font-size:10.5px;display:flex;align-items:center;gap:6px;border-left:1px dashed var(--gold-2);border-right:1px dashed var(--gold-2);letter-spacing:.04em}
+.dg-wrap .mid .pc{font-family:var(--mono);font-size:9px;font-weight:500;opacity:.85;margin-left:auto}
+
+/* mini-diagram: guarded validation */
+.dg-guard{display:flex;align-items:center;gap:6px;width:100%;font-family:var(--mono);font-size:9.5px;flex-wrap:wrap;justify-content:center}
+.dg-guard .step{background:var(--paper);border:1px solid var(--hair);border-radius:5px;padding:4px 7px;color:var(--ink);display:flex;align-items:center;gap:5px;line-height:1.3;white-space:nowrap}
+.dg-guard .step .ic{width:13px;height:13px;border-radius:50%;background:var(--ok);color:#fff;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;line-height:1}
+.dg-guard .arr{color:var(--pur);font-weight:700;font-size:11px}
+.dg-guard .step.gated{border-color:var(--pur-soft);background:var(--lav-2)}
+.dg-guard .step .ic.gate{background:var(--pur)}
+
+/* mini-diagram: specialised agents */
+.dg-team{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;width:100%}
+.dg-team .role{background:var(--paper);border:1px solid var(--hair);border-radius:6px;padding:6px 4px;text-align:center;font-size:9.5px;line-height:1.3;color:var(--ink-2);display:flex;flex-direction:column;align-items:center;gap:3px}
+.dg-team .role .who{font-family:var(--font);font-size:9px;font-weight:700;color:var(--pur);text-transform:uppercase;letter-spacing:.08em}
+.dg-team .role .ic{width:22px;height:22px;border-radius:50%;background:linear-gradient(135deg,var(--pur-2),var(--pur));color:#fff;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;line-height:1}
+.dg-team .role .does{font-size:9px;color:var(--ink);font-weight:600}
+
+/* mini-diagram: audit trail */
+.dg-trail{display:grid;gap:3px;width:100%;font-family:var(--mono);font-size:9.5px}
+.dg-trail .row{display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:center;padding:2px 8px;background:var(--paper);border:1px solid var(--hair-soft);border-radius:4px}
+.dg-trail .row .nm{color:var(--pur);font-weight:700}
+.dg-trail .row .what{color:var(--ink-2);font-family:var(--font);font-size:9.5px}
+.dg-trail .row .sz{color:var(--muted);font-size:9px}
+
+/* mini-diagram: security shield */
+.dg-shield{display:grid;grid-template-columns:1fr auto 1fr;gap:8px;width:100%;align-items:center;font-family:var(--mono);font-size:9.5px}
+.dg-shield .denied{display:grid;gap:3px}
+.dg-shield .denied .item{padding:3px 7px;background:#fee2e2;border:1px solid #fca5a5;color:#7f1d1d;border-radius:4px;text-decoration:line-through;font-weight:600;text-align:center;line-height:1.3}
+.dg-shield .sh{width:42px;height:42px;background:linear-gradient(135deg,var(--pur-2),var(--pur));border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:18px;font-weight:800;flex-shrink:0;box-shadow:0 3px 12px -3px rgba(124,58,237,.5);position:relative}
+.dg-shield .sh::after{content:"";position:absolute;inset:-3px;border:2px solid var(--pur-soft);border-radius:50%;opacity:.5}
+.dg-shield .allowed{display:grid;gap:3px}
+.dg-shield .allowed .item{padding:3px 7px;background:var(--paper);border:1px solid var(--ok);color:var(--ok);border-radius:4px;font-weight:600;text-align:center;line-height:1.3}
+
+.vp-section-h{font-size:14px;font-weight:800;letter-spacing:-.005em;color:var(--ink);margin:8px 0 10px;display:flex;align-items:center;gap:8px}
+.vp-section-h::before{content:"";width:20px;height:2px;background:var(--pur);border-radius:99px}
+
+.vp-qa{display:grid;gap:10px;margin-bottom:18px}
+.vp-q{background:var(--paper);border:1px solid var(--hair);border-radius:10px;padding:13px 16px;box-shadow:0 2px 10px -5px rgba(60,40,100,.07)}
+.vp-q .q{font-size:13px;font-weight:700;color:var(--ink);letter-spacing:-.005em;margin-bottom:6px;display:flex;gap:10px;align-items:start;line-height:1.35}
+.vp-q .q .qm{flex-shrink:0;width:22px;height:22px;border-radius:6px;background:var(--lav);color:var(--pur);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;line-height:1}
+.vp-q .a{font-size:12px;color:var(--ink-2);line-height:1.55;padding-left:32px}
+.vp-q .a strong{color:var(--ink);font-weight:600}
+.vp-q .a code{font-family:var(--mono);font-size:11px;color:var(--pur);background:var(--lav);padding:1px 5px;border-radius:3px}
+
+.vp-caveat{background:linear-gradient(135deg,#fef9e7,#fef3c7);border:1px solid var(--gold);border-radius:10px;padding:14px 18px;display:flex;gap:14px;align-items:start;margin-top:8px}
+.vp-caveat .ic{width:26px;height:26px;border-radius:50%;background:var(--gold);color:#78350f;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;flex-shrink:0}
+.vp-caveat .body .h{font-size:11px;letter-spacing:.14em;color:#92400e;font-weight:700;text-transform:uppercase;margin-bottom:4px}
+.vp-caveat .body .b{font-size:12.5px;color:#5b3a07;line-height:1.55}
+.vp-caveat .body .b strong{color:#3b2305;font-weight:700}
+
+/* ═════════════════════════════════════════════════════
+   GET STARTED TAB
+   ═════════════════════════════════════════════════════ */
+.gs-wrap{padding:4px 16px 18px;overflow-y:auto;height:100%;max-width:1400px;margin:0 auto}
+.gs-head{text-align:center;padding:6px 0 14px}
+.gs-head .tag{font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--pur);font-weight:700;margin-bottom:6px;display:inline-flex;align-items:center;gap:8px}
+.gs-head .tag::before,.gs-head .tag::after{content:"";width:24px;height:1px;background:var(--pur)}
+.gs-head h2{font-size:26px;font-weight:800;letter-spacing:-.015em;color:var(--ink);line-height:1.1}
+.gs-head h2 span{color:var(--pur)}
+.gs-head p{font-size:13px;color:var(--ink-2);margin:8px auto 0;max-width:60ch;line-height:1.55}
+
+.gs-steps{display:grid;gap:10px}
+.gs-step{background:var(--paper);border:1px solid var(--hair);border-radius:11px;padding:14px 18px;display:grid;grid-template-columns:42px 1fr;gap:16px;align-items:start;box-shadow:0 2px 12px -6px rgba(60,40,100,.08)}
+.gs-step .gs-num{width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,var(--pur-2),var(--pur));color:#fff;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:800;flex-shrink:0;box-shadow:0 2px 8px -3px rgba(124,58,237,.5)}
+.gs-step.gs-done .gs-num{background:linear-gradient(135deg,var(--ok),#15803d);box-shadow:0 2px 8px -3px rgba(34,197,94,.5)}
+.gs-step .gs-body .gs-title{font-size:14px;font-weight:700;color:var(--ink);margin-bottom:4px;letter-spacing:-.005em}
+.gs-step .gs-body p{font-size:12.5px;color:var(--ink-2);line-height:1.55}
+.gs-step .gs-body p code{font-family:var(--mono);font-size:11px;color:var(--pur);background:var(--lav);padding:1px 5px;border-radius:3px}
+.gs-step .gs-body p strong{color:var(--ink);font-weight:600}
+.gs-step .gs-body p em{color:var(--pur);font-style:italic;font-weight:600;background:var(--lav-2);padding:1px 6px;border-radius:4px;font-family:var(--mono);font-size:11.5px}
+.gs-code{font-family:var(--mono);font-size:11.5px;color:var(--ink);background:#f4eeff;border:1px solid var(--lav);padding:8px 12px;border-radius:6px;margin-top:8px;display:block;line-height:1.55}
+.gs-code .cmt{color:var(--muted);font-style:italic}
+.gs-grid{display:grid;gap:5px;margin-top:6px;font-size:11.5px;color:var(--ink-2)}
+.gs-grid span{padding:5px 9px;background:var(--paper-2);border:1px solid var(--hair-soft);border-radius:5px;font-family:var(--mono)}
+.gs-grid span strong{color:var(--ink);font-weight:700;margin-right:6px;font-family:var(--font)}
+
+/* Two-lane Get Started: visual / tactile vs technical */
+.gs-lanes{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:6px}
+.gs-lane{background:var(--paper);border:1px solid var(--hair);border-radius:12px;padding:14px 16px;display:flex;flex-direction:column;gap:10px;box-shadow:0 3px 14px -6px rgba(60,40,100,.1)}
+.gs-lane .gs-lane-h{display:flex;align-items:center;gap:10px;padding-bottom:8px;border-bottom:1px solid var(--hair-soft)}
+.gs-lane .gs-lane-h .badge{font-size:9.5px;font-weight:700;letter-spacing:.16em;color:var(--pur);text-transform:uppercase;padding:3px 9px;background:var(--lav);border-radius:99px;border:1px solid var(--pur-soft)}
+.gs-lane .gs-lane-h .t{font-size:14px;font-weight:800;color:var(--ink);letter-spacing:-.005em;line-height:1.2}
+.gs-lane .gs-lane-h .t .sub-t{display:block;font-size:11px;font-weight:500;color:var(--muted);margin-top:2px;letter-spacing:.01em}
+.gs-lane.terminal{background:linear-gradient(180deg,var(--paper),var(--lav-2))}
+.gs-mini{display:grid;grid-template-columns:28px 1fr;gap:10px;align-items:start;padding:7px 2px}
+.gs-mini + .gs-mini{border-top:1px dashed var(--hair-soft)}
+.gs-mini .n{width:26px;height:26px;border-radius:8px;background:linear-gradient(135deg,var(--pur-2),var(--pur));color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;line-height:1;flex-shrink:0;box-shadow:0 2px 6px -2px rgba(124,58,237,.45)}
+.gs-mini .body .title{font-size:12.5px;font-weight:700;color:var(--ink);line-height:1.25;margin-bottom:3px}
+.gs-mini .body .desc{font-size:11.5px;color:var(--ink-2);line-height:1.5}
+.gs-mini .body .desc code{font-family:var(--mono);font-size:10.5px;color:var(--pur);background:var(--lav);padding:1px 5px;border-radius:3px}
+.gs-mini .body .desc strong{color:var(--ink);font-weight:600}
+.gs-mini .body .desc em{color:var(--pur);font-style:italic;font-weight:600}
+
+/* visual drop-zone illustration */
+.gs-drop{display:flex;align-items:center;gap:8px;margin-top:6px;font-size:11px;color:var(--ink-2);background:var(--paper-2);border:1.5px dashed var(--pur-soft);border-radius:8px;padding:8px 10px}
+.gs-drop .chip{display:inline-flex;align-items:center;gap:6px;padding:4px 9px;background:#fff;border:1px solid var(--hair);border-radius:6px;font-size:11px;font-weight:600;color:var(--ink);font-family:var(--mono);line-height:1.2;box-shadow:0 1px 4px -2px rgba(60,40,100,.15)}
+.gs-drop .chip .folder{color:var(--gold-2);font-size:13px;line-height:1}
+.gs-drop .chip .file{color:var(--pur);font-size:13px;line-height:1}
+.gs-drop .arr-into{color:var(--pur);font-weight:800;font-size:14px;line-height:1}
+.gs-drop .dest{font-family:var(--mono);font-size:11px;color:var(--ink);font-weight:600}
+
+/* technical lane: command blocks */
+.gs-cmd{font-family:var(--mono);font-size:11.5px;color:var(--ink);background:#1e1b2e;border-radius:7px;padding:9px 12px;line-height:1.6;margin-top:6px;color:#e9d5ff;overflow-x:auto;border:1px solid var(--pur-dark)}
+.gs-cmd .cmt{color:#a78bfa;font-style:italic}
+.gs-cmd .kw{color:var(--gold)}
+.gs-cmd .str{color:var(--grn-soft)}
+
+/* converge banner: both lanes meet here */
+.gs-converge{margin-top:14px;padding:14px 18px;background:linear-gradient(95deg,var(--pur-dark),var(--pur-mid));color:#fff;border-radius:11px;display:grid;grid-template-columns:auto 1fr;gap:16px;align-items:center;box-shadow:0 6px 22px -8px rgba(75,29,149,.4)}
+.gs-converge .merge-ic{width:38px;height:38px;border-radius:50%;background:rgba(251,191,36,.15);border:1.5px solid var(--gold);color:var(--gold);display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:800;flex-shrink:0}
+.gs-converge .body .h{font-size:10px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--gold);margin-bottom:3px}
+.gs-converge .body .t{font-size:14.5px;font-weight:700;color:#fff;letter-spacing:-.005em;line-height:1.3;margin-bottom:3px}
+.gs-converge .body .t code{font-family:var(--mono);font-size:13px;color:var(--gold);background:rgba(251,191,36,.12);padding:2px 8px;border-radius:5px;font-weight:700}
+.gs-converge .body .sub{font-size:11.5px;color:#d8caf5;line-height:1.5}
+.gs-converge .body .sub strong{color:#fff;font-weight:600}
+
+/* ═════════════════════════════════════════════════════
+   KNOBS / CUSTOM CHANGES TAB
+   ═════════════════════════════════════════════════════ */
+.kb-wrap{padding:4px 18px 24px;overflow-y:auto;height:100%;max-width:1500px;margin:0 auto}
+.kb-head{text-align:center;padding:8px 0 18px}
+.kb-head .tag{font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--pur);font-weight:700;margin-bottom:6px;display:inline-flex;align-items:center;gap:8px}
+.kb-head .tag::before,.kb-head .tag::after{content:"";width:24px;height:1px;background:var(--pur)}
+.kb-head h2{font-size:26px;font-weight:800;letter-spacing:-.015em;color:var(--ink);line-height:1.1}
+.kb-head h2 span{color:var(--pur)}
+.kb-head p{font-size:13px;color:var(--ink-2);margin:8px auto 0;max-width:68ch;line-height:1.55}
+.kb-section{margin-top:14px}
+.kb-section-h{font-size:13px;font-weight:800;letter-spacing:-.005em;color:var(--ink);margin:0 0 8px;display:flex;align-items:center;gap:10px;padding-bottom:6px;border-bottom:1px solid var(--hair-soft)}
+.kb-section-h::before{content:"";width:14px;height:14px;border-radius:4px;background:linear-gradient(135deg,var(--pur-2),var(--pur))}
+.kb-section-h .ct{font-family:var(--mono);font-size:10px;font-weight:600;color:var(--muted);letter-spacing:.04em;margin-left:auto}
+.kb-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.kb-card{background:var(--paper);border:1px solid var(--hair);border-radius:9px;padding:10px 14px;display:grid;grid-template-columns:auto 1fr;gap:12px;align-items:start;box-shadow:0 2px 8px -5px rgba(60,40,100,.08);min-width:0}
+.kb-card .ic{width:26px;height:26px;border-radius:6px;background:var(--lav);color:var(--pur);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;flex-shrink:0}
+.kb-card .body .path{font-family:var(--mono);font-size:11px;font-weight:600;color:var(--pur-dark);background:var(--lav-2);padding:1px 6px;border-radius:4px;display:inline-block;margin-bottom:3px}
+.kb-card .body .desc{font-size:11.5px;color:var(--ink-2);line-height:1.45}
+.kb-card .body .desc strong{color:var(--ink);font-weight:600}
+.kb-card .body .desc code{font-family:var(--mono);font-size:10.5px;color:var(--pur);background:var(--lav);padding:1px 4px;border-radius:3px}
+.kb-card.danger{border-color:#fca5a5;background:linear-gradient(180deg,var(--paper),#fef2f2)}
+.kb-card.danger .ic{background:#fee2e2;color:#991b1b}
+.kb-card.tune{border-left:3px solid var(--gold-2)}
+.kb-card .ctrl{display:block;font-family:var(--font);font-size:12px;font-weight:500;color:#5b3a07;background:linear-gradient(95deg,#fef9e7,#fef3c7);border-left:3px solid var(--gold-2);padding:6px 12px;border-radius:5px;margin-top:6px;line-height:1.5}
+.kb-card .ctrl strong{color:#7c2d12;font-weight:800;letter-spacing:.04em;text-transform:uppercase;font-size:10px;margin-right:8px}
+.kb-group-h{margin:22px 0 8px;font-size:11px;font-weight:700;letter-spacing:.18em;color:var(--pur);text-transform:uppercase;display:flex;align-items:center;gap:10px}
+.kb-group-h::before,.kb-group-h::after{content:"";flex:1;height:1px;background:var(--hair)}
+.kb-group-sub{font-size:11.5px;color:var(--muted);text-align:center;margin:-4px 0 6px;font-style:italic;line-height:1.4}
+.kb-advanced .kb-section-h{color:var(--ink-2)}
+.kb-advanced .kb-section-h::before{background:linear-gradient(135deg,var(--dim),var(--muted))}
+.kb-advanced .kb-card{background:var(--paper-2)}
+
+/* ═════════════════════════════════════════════════════
+   TABS + ARCHITECTURE HLD
+   ═════════════════════════════════════════════════════ */
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--hair);padding-bottom:0;margin-bottom:14px;flex-shrink:0}
+.tab{background:transparent;border:none;padding:9px 18px 11px;font-family:var(--font);font-size:12.5px;font-weight:500;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;letter-spacing:.01em;transition:.2s;display:flex;align-items:center;gap:8px}
+.tab:hover{color:var(--ink-2)}
+.tab.active{color:var(--ink);border-bottom-color:var(--pur-2);font-weight:600}
+.tab .tdot{width:6px;height:6px;border-radius:50%;background:var(--hair);transition:.2s}
+.tab.active .tdot{background:var(--pur-2);box-shadow:0 0 4px var(--pur-2)}
+
+.tabpane{display:none;min-height:0;height:100%}
+.tabpane.active{animation:fade-in .4s ease}
+#walkthrough.active{display:grid;grid-template-rows:1fr auto;gap:14px;overflow:hidden}
+#architecture.active{display:block;overflow:auto}
+#pitch.active{display:block;overflow:auto}
+#valueprop.active{display:block;overflow:auto}
+#getstarted.active{display:block;overflow:auto}
+#knobs.active{display:block;overflow:auto}
+
+/* progress dots only on Walkthrough */
+.progress{visibility:hidden;pointer-events:none}
+body.mode-walkthrough .progress{visibility:visible;pointer-events:auto}
+
+/* arch tab content */
+.arch-head{text-align:center;padding:4px 0 8px}
+.arch-head h2{margin-top:0}
+.arch-head .tag{font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--pur);font-weight:700;margin-bottom:6px;display:inline-flex;align-items:center;gap:8px}
+.arch-head .tag::before,.arch-head .tag::after{content:"";width:24px;height:1px;background:var(--pur)}
+.arch-head h2{font-size:26px;font-weight:800;letter-spacing:-.015em;color:var(--ink);line-height:1.1}
+.arch-head h2 span{color:var(--pur)}
+.arch-head p{font-size:13px;color:var(--ink-2);margin:8px auto 0;max-width:60ch;line-height:1.55}
+
+/* flow chart */
+.flowchart{display:flex;flex-direction:column;align-items:center;gap:0;max-width:920px;margin:0 auto;padding:8px 16px 24px}
+
+/* nodes */
+.fc-node{padding:13px 24px;font-size:14px;font-weight:700;color:var(--ink);background:var(--paper);border:1px solid var(--hair);border-radius:10px;box-shadow:0 3px 14px -6px rgba(60,40,100,.1);text-align:center;min-width:260px;max-width:300px;display:flex;flex-direction:column;align-items:center;gap:2px;line-height:1.25}
+.fc-node .lbl-sub{font-size:11px;font-weight:500;color:var(--muted);letter-spacing:.01em}
+.fc-node .agent-tag{display:inline-block;font-size:9px;font-weight:700;letter-spacing:.14em;color:var(--pur);text-transform:uppercase;padding:2px 8px;background:var(--lav);border-radius:99px;margin-bottom:3px}
+.fc-node.start,.fc-node.end{border-radius:99px;padding:14px 30px}
+.fc-node.start{background:linear-gradient(135deg,#fef3c7,#fde68a);border-color:var(--gold);color:#78350f}
+.fc-node.start .lbl-sub{color:#92400e}
+.fc-node.end{background:linear-gradient(135deg,var(--ok),#15803d);border-color:#15803d;color:#fff}
+.fc-node.end .lbl-sub{color:#bbf7d0}
+.fc-node.bash .agent-tag{color:#92400e;background:rgba(251,191,36,.18)}
+.fc-node.output{background:linear-gradient(135deg,var(--pur-2),var(--pur));border-color:var(--pur);color:#fff;border-radius:14px;min-width:280px}
+.fc-node.output .lbl-sub{color:#e9d5ff}
+.fc-node.no-fix{background:linear-gradient(135deg,#fee2e2,#fecaca);border-color:#fca5a5;color:#7f1d1d}
+.fc-node.no-fix .lbl-sub{color:#991b1b}
+.fc-node.no-fix .agent-tag{color:#7f1d1d;background:rgba(239,68,68,.15)}
+
+/* decision diamond */
+.fc-decision{width:170px;height:170px;background:linear-gradient(135deg,var(--pur-2),var(--pur));transform:rotate(45deg);margin:26px 0 0 0;display:flex;align-items:center;justify-content:center;box-shadow:0 6px 22px -8px rgba(124,58,237,.4)}
+.fc-decision .inner{transform:rotate(-45deg);text-align:center;color:#fff;width:130px;line-height:1.3}
+.fc-decision .inner .q{display:block;font-size:14px;font-weight:700}
+.fc-decision .inner .cond{display:block;font-size:11px;font-weight:500;opacity:.85;margin-top:4px;letter-spacing:.02em}
+
+/* arrows */
+.fc-arrow{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0;position:relative;height:42px}
+.fc-arrow .line{width:2px;height:30px;background:var(--pur)}
+.fc-arrow .head{color:var(--pur);font-size:11px;font-weight:700;line-height:1;margin-top:-2px}
+.fc-arrow .label{position:absolute;left:calc(50% + 14px);top:50%;transform:translateY(-50%);font-family:var(--mono);font-size:10.5px;color:var(--ink-2);background:var(--paper);padding:2px 10px;border-radius:99px;border:1px solid var(--hair);font-weight:600;white-space:nowrap;box-shadow:0 1px 4px -2px rgba(60,40,100,.1)}
+
+/* branching */
+.fc-branch{display:grid;grid-template-columns:1fr 1fr;gap:80px;width:100%;max-width:760px;position:relative;justify-items:center;margin:0;padding:60px 0 30px}
+.fc-branch::after{content:"";position:absolute;top:0;left:50%;transform:translateX(-50%);width:2px;height:24px;background:var(--pur)}
+.fc-branch::before{content:"";position:absolute;top:24px;left:25%;right:25%;height:2px;background:var(--pur)}
+.fc-branch-col{display:flex;flex-direction:column;align-items:center;position:relative;gap:0}
+.fc-branch-col::before{content:"";position:absolute;top:-36px;width:2px;height:36px;background:var(--pur)}
+.fc-branch-col .head{position:absolute;top:-12px;color:var(--pur);font-size:11px;font-weight:700;line-height:1}
+.fc-branch-label{font-size:10.5px;font-weight:700;letter-spacing:.16em;color:var(--pur);text-transform:uppercase;padding:3px 12px;background:var(--lav);border-radius:99px;margin-bottom:10px;display:inline-block;border:1px solid var(--pur-soft)}
+.fc-branch-label.no{color:#991b1b;background:#fee2e2;border-color:#fca5a5}
+
+/* merge line below branch */
+.fc-merge{width:100%;max-width:760px;height:36px;position:relative}
+.fc-merge::before{content:"";position:absolute;top:0;left:25%;right:25%;height:2px;background:var(--pur)}
+.fc-merge::after{content:"";position:absolute;top:0;left:50%;transform:translateX(-50%);width:2px;height:36px;background:var(--pur)}
+.fc-merge .head{position:absolute;bottom:-3px;left:50%;transform:translateX(-50%);color:var(--pur);font-size:11px;font-weight:700;line-height:1}
+
+/* ════════════════════════════════════════════════════
+   HORIZONTAL HLD (compact, no scroll)
+   ════════════════════════════════════════════════════ */
+.hh-wrap{display:flex;flex-direction:column;align-items:center;gap:10px;padding:4px 0 8px}
+.hh-canvas{position:relative;width:1080px;height:240px;max-width:100%;margin:0 auto;flex-shrink:0}
+
+/* nodes */
+.hh-node{position:absolute;padding:8px 12px;background:var(--paper);border:1px solid var(--hair);border-radius:9px;box-shadow:0 3px 12px -6px rgba(60,40,100,.12);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;text-align:center}
+.hh-node .tag{font-size:8.5px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--pur);padding:1px 6px;background:var(--lav);border-radius:99px;margin-bottom:2px;line-height:1.2}
+.hh-node .name{font-size:13px;font-weight:700;color:var(--ink);line-height:1.1}
+.hh-node .sub{font-size:10px;color:var(--muted);line-height:1.25;font-weight:500;margin-top:1px}
+.hh-node.start,.hh-node.end{border-radius:99px}
+.hh-node.start{background:linear-gradient(135deg,#fef3c7,#fde68a);border-color:var(--gold)}
+.hh-node.start .name{color:#78350f}
+.hh-node.start .sub{color:#92400e}
+.hh-node.end{background:linear-gradient(135deg,var(--ok),#15803d);border-color:#15803d}
+.hh-node.end .name{color:#fff}
+.hh-node.end .sub{color:#bbf7d0}
+.hh-node.bash .tag{color:#92400e;background:rgba(251,191,36,.18)}
+.hh-node.no-fix{background:linear-gradient(135deg,#fee2e2,#fecaca);border-color:#fca5a5}
+.hh-node.no-fix .name{color:#7f1d1d}
+.hh-node.no-fix .sub{color:#991b1b}
+.hh-node.no-fix .tag{color:#7f1d1d;background:rgba(239,68,68,.15)}
+
+/* positions */
+.hh-bug{left:0;top:25px;width:118px;height:70px}
+.hh-brief{left:152px;top:25px;width:128px;height:70px}
+.hh-diag{left:316px;top:25px;width:128px;height:70px}
+.hh-fix{left:608px;top:25px;width:128px;height:70px}
+.hh-verify{left:772px;top:25px;width:128px;height:70px}
+.hh-dev{left:936px;top:25px;width:138px;height:70px}
+.hh-nofix{left:444px;top:160px;width:172px;height:62px}
+
+/* diamond */
+.hh-decision{position:absolute;left:482px;top:16px;width:88px;height:88px;background:linear-gradient(135deg,var(--pur-2),var(--pur));transform:rotate(45deg);box-shadow:0 4px 14px -4px rgba(124,58,237,.4)}
+.hh-decision .inner{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;transform:rotate(-45deg);color:#fff;text-align:center}
+.hh-decision .inner .q{font-size:11px;font-weight:700;line-height:1.2}
+.hh-decision .inner .cond{display:block;font-size:9px;font-weight:500;opacity:.9;margin-top:2px}
+
+/* arrows */
+.hh-arr{position:absolute;background:var(--pur)}
+.hh-arr.h{height:2px}
+.hh-arr.v{width:2px}
+.hh-arr.h::after{content:"";position:absolute;right:-6px;top:-5px;width:0;height:0;border-left:8px solid var(--pur);border-top:6px solid transparent;border-bottom:6px solid transparent}
+.hh-arr.v.down::after{content:"";position:absolute;bottom:-7px;left:-5px;width:0;height:0;border-top:8px solid var(--pur);border-left:6px solid transparent;border-right:6px solid transparent}
+.hh-arr.v.up::after{content:"";position:absolute;top:-7px;left:-5px;width:0;height:0;border-bottom:8px solid var(--pur);border-left:6px solid transparent;border-right:6px solid transparent}
+.hh-arr.noarrow::after{display:none}
+
+.hh-arr .lbl{position:absolute;font-family:var(--mono);font-size:9px;color:var(--ink-2);background:var(--paper);padding:1px 5px;border-radius:99px;border:1px solid var(--hair);font-weight:600;white-space:nowrap;line-height:1.3}
+.hh-arr.h .lbl{top:-14px;left:50%;transform:translateX(-50%)}
+.hh-arr.h.above .lbl{top:auto;bottom:7px}
+.hh-arr.v .lbl{top:50%;left:9px;transform:translateY(-50%)}
+.hh-arr .lbl.yes{color:var(--pur);border-color:var(--pur-soft);background:var(--lav-2);font-family:var(--font);font-size:10px;font-weight:700;letter-spacing:.1em}
+.hh-arr .lbl.no{color:#991b1b;border-color:#fca5a5;background:#fee2e2;font-family:var(--font);font-size:10px;font-weight:700;letter-spacing:.1em}
+
+/* arrow positions */
+.hh-a1{left:118px;top:59px;width:34px}
+.hh-a2{left:280px;top:59px;width:36px}
+.hh-a3{left:444px;top:59px;width:38px}
+.hh-a4{left:570px;top:59px;width:38px}
+.hh-a5{left:736px;top:59px;width:36px}
+.hh-a6{left:900px;top:59px;width:36px}
+.hh-a7{left:525px;top:104px;height:56px}
+.hh-a8{left:616px;top:205px;width:458px}
+.hh-a9{left:1074px;top:95px;height:110px}
+
+/* legend (reuse) */
+.fc-legend{display:flex;gap:14px;justify-content:center;padding:8px 14px;background:var(--paper-2);border:1px dashed var(--hair);border-radius:8px;margin:0;flex-wrap:wrap}
+.fc-legend .item{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--ink-2);font-weight:500}
+.fc-legend .item .sw{width:22px;height:14px;border-radius:4px;border:1px solid var(--hair);flex-shrink:0}
+.fc-legend .item .sw.start{background:linear-gradient(135deg,#fef3c7,#fde68a);border-color:var(--gold);border-radius:99px}
+.fc-legend .item .sw.process{background:var(--paper)}
+.fc-legend .item .sw.decision{background:linear-gradient(135deg,var(--pur-2),var(--pur));border:none;transform:rotate(45deg);width:13px;height:13px}
+.fc-legend .item .sw.output{background:linear-gradient(135deg,var(--pur-2),var(--pur));border:none}
+.fc-legend .item .sw.end{background:linear-gradient(135deg,var(--ok),#15803d);border-color:#15803d;border-radius:99px}
+.fc-legend .item .sw.no-fix{background:linear-gradient(135deg,#fee2e2,#fecaca);border-color:#fca5a5}
+
+/* HLD bottom row: legend + confidence-band side by side */
+.hld-bottom{display:grid;grid-template-columns:auto 1fr;gap:12px;margin-top:10px;align-items:stretch;max-width:1080px;width:100%}
+.hld-bottom .fc-legend{flex:0 0 auto}
+
+/* confidence-band callout (HLD tab) */
+.conf-band{background:var(--paper-2);border:1px solid var(--hair);border-radius:8px;padding:8px 12px;display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:center;min-width:0}
+.conf-band .lbl{font-size:9px;font-weight:700;letter-spacing:.14em;color:var(--muted);text-transform:uppercase;writing-mode:vertical-rl;transform:rotate(180deg);padding-right:6px;border-right:1px solid var(--hair-soft);line-height:1}
+.conf-band .scale{display:grid;grid-template-columns:1fr 1.6fr 1.4fr;gap:0;font-family:var(--mono);font-size:10px;border-radius:5px;overflow:hidden;border:1px solid var(--hair-soft)}
+.conf-band .scale .seg{padding:6px 9px;line-height:1.3;text-align:center}
+.conf-band .scale .seg .rng{font-family:var(--font);font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;display:block;margin-bottom:1px}
+.conf-band .scale .seg .what{font-size:10px;color:var(--ink);font-weight:600;font-family:var(--font)}
+.conf-band .scale .seg.no{background:#fee2e2;color:#7f1d1d}
+.conf-band .scale .seg.no .rng{color:#991b1b}
+.conf-band .scale .seg.weak{background:#fef3c7;color:#7c2d12}
+.conf-band .scale .seg.weak .rng{color:#92400e}
+.conf-band .scale .seg.ok{background:#dcfce7;color:#14532d}
+.conf-band .scale .seg.ok .rng{color:#15803d}
+
+@media(max-width:1100px){
+  .app{padding:14px 18px}
+  .stage-body{grid-template-columns:1fr;gap:10px}
+  .stage-head{flex-direction:column;align-items:start;gap:8px}
+  .stage-head .r{text-align:left}
+  .stage-head .r .clock{justify-content:flex-start}
+  .intro h1{font-size:32px}
+  .finale-card h2{font-size:26px}
+  .finale-stats{grid-template-columns:1fr 1fr}
+  .fc-branch{grid-template-columns:1fr;gap:24px}
+  .fc-branch::before{display:none}
+}
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- HEADER -->
+  <div class="hdr">
+    <div class="brand">
+      <span class="glyph"></span>
+      <span class="brand-name">AI-Powered Bug Diagnosis and Resolution</span>
+    </div>
+    <div class="progress" id="progress"></div>
+    <div class="right"></div>
+  </div>
+
+  <!-- TABS -->
+  <div class="tabs" role="tablist">
+    <button type="button" role="tab" class="tab active" data-target="pitch"><span class="tdot"></span>The Pitch</button>
+    <button type="button" role="tab" class="tab" data-target="walkthrough"><span class="tdot"></span>Walkthrough</button>
+    <button type="button" role="tab" class="tab" data-target="architecture"><span class="tdot"></span>Architecture HLD</button>
+    <button type="button" role="tab" class="tab" data-target="valueprop"><span class="tdot"></span>Value Proposition</button>
+    <button type="button" role="tab" class="tab" data-target="getstarted"><span class="tdot"></span>Get Started</button>
+    <button type="button" role="tab" class="tab" data-target="knobs"><span class="tdot"></span>Knobs &amp; Custom Changes</button>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════
+       TAB 1 · THE PITCH (slide reproduction)
+       ═══════════════════════════════════════════════════════ -->
+  <div class="tabpane active" id="pitch">
+    <div class="pitch-wrap">
+
+      <div class="pitch-head">
+        <div class="l">
+          <h1>AI-Powered <span>Bug Diagnosis and Resolution</span></h1>
+          <p class="sub">Diagnoses bugs, proposes the fix, verifies with tests. Projected savings: <strong>~$12K/dev (IN) / ~$45K (US) at 500 bugs/yr</strong></p>
+        </div>
+        <div class="validated">
+          <span class="vdot"></span>
+          <div class="vtext">
+            <span class="vtag">Validated</span>
+            <span class="vdesc">Tested on complex, buggy open-source GitHub repos</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="compare">
+
+        <!-- OPTION 1: MANUAL -->
+        <div class="opt">
+          <div class="opt-head">
+            <div class="l">
+              <div class="tag">Option 1 · Manual</div>
+              <div class="name">Developer alone</div>
+            </div>
+            <div class="r">
+              <div class="num">75<span class="unit">mins</span></div>
+            </div>
+          </div>
+          <div class="flow">
+            <div class="blk t-sm">
+              <span class="ic">⌕</span>
+              <div class="body"><div class="name">Read bug report</div><div class="sub">Pick up the QA ticket.</div></div>
+              <span class="time">5 min</span>
+            </div>
+            <div class="arr"></div>
+            <div class="blk t-xl danger-bg">
+              <span class="ic">⊙</span>
+              <div class="body"><div class="name">Investigate codebase</div><div class="sub">Hunts the cause across files.</div></div>
+              <span class="time danger">45 min</span>
+            </div>
+            <div class="arr"></div>
+            <div class="blk t-md">
+              <span class="ic">⚙</span>
+              <div class="body"><div class="name">Write the fix</div><div class="sub">Makes the code change.</div></div>
+              <span class="time">15 min</span>
+            </div>
+            <div class="arr"></div>
+            <div class="blk t-sm">
+              <span class="ic">✓</span>
+              <div class="body"><div class="name">Test the fix</div><div class="sub">Runs tests to confirm.</div></div>
+              <span class="time">10 min</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- OPTION 2: VIBE CODING -->
+        <div class="opt">
+          <div class="opt-head">
+            <div class="l">
+              <div class="tag">Option 2 · Vibe Coding</div>
+              <div class="name">Dev + Claude Code</div>
+            </div>
+            <div class="r">
+              <div class="num">40<span class="unit">mins</span></div>
+            </div>
+          </div>
+          <div class="flow">
+            <div class="blk t-sm">
+              <span class="ic">⌕</span>
+              <div class="body"><div class="name">Read bug report</div><div class="sub">Pick up the QA ticket.</div></div>
+              <span class="time">3 min</span>
+            </div>
+            <div class="arr"></div>
+            <div class="blk t-lg warn-bg">
+              <span class="ic">◐</span>
+              <div class="body"><div class="name">Prompt &amp; investigate</div><div class="sub">Dev guides Claude Code turn by turn.</div></div>
+              <span class="time warn">25 min</span>
+            </div>
+            <div class="arr"></div>
+            <div class="blk t-sm">
+              <span class="ic">⚙</span>
+              <div class="body"><div class="name">Write the fix</div><div class="sub">Dev refines the AI draft.</div></div>
+              <span class="time">7 min</span>
+            </div>
+            <div class="arr"></div>
+            <div class="blk t-sm">
+              <span class="ic">✓</span>
+              <div class="body"><div class="name">Test the fix</div><div class="sub">Runs tests to confirm.</div></div>
+              <span class="time">5 min</span>
+            </div>
+          </div>
+          <div class="catch"><strong>The catch:</strong> dev prompts ad-hoc, <span class="hi">AI has no structure</span>. On large repos it <strong>wanders and stalls</strong>.</div>
+        </div>
+
+        <!-- OPTION 3: AGENTIC (winner) -->
+        <div class="opt winner">
+          <div class="opt-head">
+            <div class="l">
+              <div class="tag">Option 3 · Agentic Workflow</div>
+              <div class="name">Purpose-built multi-agent system</div>
+            </div>
+            <div class="r">
+              <div class="num">5<span class="unit">mins</span></div>
+              <div class="qual">dev time</div>
+            </div>
+          </div>
+          <div class="opt-tags">
+            <span class="pill">Auto-Triggered</span>
+            <span class="pill">Engineered Context</span>
+            <span class="pill">Specialised Agents</span>
+            <span class="pill">Built-in Guardrails</span>
+          </div>
+          <div class="steps">
+            <div class="step">
+              <span class="ic">▶</span>
+              <div class="body"><div class="name">Hand bug to the agent</div><div class="sub">QA report dropped into the tool.</div></div>
+              <span class="time">1 min</span>
+            </div>
+            <div class="step feat">
+              <span class="ic">⚡</span>
+              <div class="body">
+                <div class="name">Agent investigates, finds root cause, fixes &amp; tests</div>
+                <div class="sub">Specialised agents handle Diagnose, Fix, and Verify.</div>
+              </div>
+              <span class="time">12 min</span>
+            </div>
+            <div class="agent-vis">
+              <div class="av-head"><span>QA Bug › Investigate</span><span>whole repo</span></div>
+              <div class="av-row r1"><span>Diagnose</span><span class="what">finds root cause</span></div>
+              <div class="av-row r2"><span>Finds Fix</span><span class="what">writes code change</span></div>
+              <div class="av-row r3"><span>Verify</span><span class="what">tests pass</span></div>
+            </div>
+            <div class="step">
+              <span class="ic">⌕</span>
+              <div class="body"><div class="name">Dev reviews the report</div><div class="sub">Reads findings, approves the fix.</div></div>
+              <span class="time">3 min</span>
+            </div>
+            <div class="step">
+              <span class="ic">✓</span>
+              <div class="body"><div class="name">Approve &amp; ship</div><div class="sub">Tests already passed in the agent run.</div></div>
+              <span class="time">2 min</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- COST STRIP -->
+      <div class="costs">
+        <div class="cost">
+          <div class="ck">Cost / Bug: Manual</div>
+          <div class="cv">$50<span class="reg">IN</span><span class="sep">/</span>$200<span class="reg">US</span></div>
+          <div class="cd">75 mins of senior dev time</div>
+        </div>
+        <div class="cost">
+          <div class="ck">Cost / Bug: Vibe Coding</div>
+          <div class="cv">$30<span class="reg">IN</span><span class="sep">/</span>$110<span class="reg">US</span></div>
+          <div class="cd">40 min dev + ~$4 AI tokens</div>
+        </div>
+        <div class="cost">
+          <div class="ck">Cost / Bug: Agentic</div>
+          <div class="cv">$7<span class="reg">IN</span><span class="sep">/</span>$15<span class="reg">US</span></div>
+          <div class="cd">5 min dev time + ~$2 agent run</div>
+        </div>
+        <div class="cost savings">
+          <div class="ck">Net Savings: Agentic</div>
+          <div class="cv">$23<span class="reg">IN</span><span class="sep">/</span>$95<span class="reg">US</span></div>
+          <div class="cd"><strong>vs Vibe Coding</strong></div>
+        </div>
+      </div>
+
+      <div class="assump">
+        <span class="lbl">Rate assumptions used for $ calculations</span>
+        <span class="row"><span class="role">Data Engineer (mid)</span><span class="reg">IN</span><span class="rate">$41.57/hr</span></span>
+        <span class="sep">·</span>
+        <span class="row"><span class="role">Data Engineer (mid)</span><span class="reg">US</span><span class="rate">$160.20/hr</span></span>
+      </div>
+
+      <p class="pitch-foot">*Per-run AI costs reflect typical compute. Agent advantage compounds on large complex codebases. <strong>Source:</strong> Primary research.</p>
+
+    </div>
+  </div>
+  <!-- /TAB 1 -->
+
+
+  <!-- ═══════════════════════════════════════════════════════
+       TAB 2 · WALKTHROUGH
+       ═══════════════════════════════════════════════════════ -->
+  <div class="tabpane" id="walkthrough">
+
+  <!-- ═══════════════════════════════════════════════════════
+       STAGE 0 · INTRO
+       ═══════════════════════════════════════════════════════ -->
+  <div class="stage active" data-i="0">
+    <div></div>
+    <div class="intro">
+      <div class="intro-inner">
+        <span class="pill"><span class="dot"></span>Live Demo</span>
+        <h1>Watch one bug get <span>diagnosed, fixed, and verified.</span></h1>
+        <p class="sub">A real bug from <strong>pallets/click</strong> goes into the agent. Click <strong>Next</strong> to walk through each stage. Every screen shows what entered, what the agent reasoned, and what came out. Total runtime: roughly five minutes of agent work, five minutes of developer attention.</p>
+        <button type="button" class="cta" id="start-btn">See the steps <span>→</span></button>
+        <div class="stats-row">
+          <div class="s"><div class="n">6</div><div class="l">stages</div></div>
+          <div class="s"><div class="n">5 min</div><div class="l">dev time</div></div>
+          <div class="s"><div class="n">$6</div><div class="l">total cost</div></div>
+          <div class="s"><div class="n">847</div><div class="l">tests run</div></div>
+        </div>
+      </div>
+    </div>
+    <div></div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════
+       STAGE 1 · BUG ARRIVES
+       ═══════════════════════════════════════════════════════ -->
+  <div class="stage" data-i="1">
+    <div class="stage-head">
+      <div class="l">
+        <div class="tag">Stage 01 of 06 · Intake Stage · no agent yet</div>
+        <h1>A QA tester <span>reports a bug.</span></h1>
+        <p class="sub">Pure intake, <strong>no AI runs here.</strong> A small bash entry script catches the bug from a markdown file or a GitHub Issue and opens a clean run folder.</p>
+      </div>
+      <div class="r">
+        <div class="clock"><span class="dot"></span>10:42:03 · run started</div>
+        <div class="runtime">0 sec</div>
+      </div>
+    </div>
+
+    <div class="stage-body">
+      <div class="col input">
+        <div class="col-head"><span class="ck">Input</span><span class="cv">QA / GitHub</span></div>
+        <div class="col-body">
+          <div class="fact"><span class="k">Source</span><span class="v">GitHub Issue <code>#42</code> on <code>pallets/click</code></span></div>
+          <div class="fact"><span class="k">Trigger</span><span class="v">Issue label <em>"bug"</em> applied</span></div>
+          <div class="fact"><span class="k">Auto?</span><span class="v">Yes, picked up within seconds</span></div>
+          <div class="note">In file mode, the QA tester drops a <code>bug.md</code> into the repo. The entry script picks it up the same way.</div>
+          <div class="fact"><span class="k">Kickoff</span><span class="v">Manual today<span class="v-sub">Productionising it: a Claude Code hook auto-triggers the pipeline on new <code>bug.md</code> or issue label.</span></span></div>
+        </div>
+      </div>
+
+      <div class="col thinking">
+        <div class="col-head"><span class="ck">What happens (bash only)</span><span class="cv">≈ 1 second</span></div>
+        <div class="col-body">
+          <div class="bug-card">
+            <div class="b-tag"><span class="ic">!</span><span>Issue #42 · pallets/click</span></div>
+            <div class="b-ttl">Click options behave differently when their order is reversed</div>
+            <div class="b-meta"><span>Reporter <strong>qa-team</strong></span><span>Version <strong>v8.1.3</strong></span><span>Severity <strong>regression</strong></span></div>
+            <div class="b-body">When invoking the CLI with <code>--bar --foo</code> instead of <code>--foo --bar</code>, the wrong handler is selected. <em>Started after the v8.1 release.</em> Reproducible 100% of the time. No workaround known.</div>
+          </div>
+          <div class="note">The entry script (<code>rca-mas.sh</code>) treats the bug as <strong>untrusted text</strong>, validates prerequisites, and opens a fresh run folder. <strong>No LLM call is made in this stage.</strong></div>
+        </div>
+      </div>
+
+      <div class="col output">
+        <div class="col-head"><span class="ck">Output</span><span class="cv">bug.md</span></div>
+        <div class="col-body">
+          <div class="fact"><span class="k">Saved</span><span class="v"><code>bug.md</code> + <code>manifest.json</code></span></div>
+          <div class="fact"><span class="k">Run folder</span><span class="v"><code>.rca-mas/runs/1778649108-c88f333/</code></span></div>
+          <div class="fact"><span class="k">Status</span><span class="v">Ready for Briefing</span></div>
+          <div class="note">Every artifact from now on lands inside this folder. The developer's working tree is never touched.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════
+       STAGE 2 · BRIEFING
+       ═══════════════════════════════════════════════════════ -->
+  <div class="stage" data-i="2">
+    <div class="stage-head">
+      <div class="l">
+        <div class="tag">Stage 02 of 06 · Briefing · no agent yet</div>
+        <h1>Four small bash scripts <span>gather the clues.</span></h1>
+        <p class="sub">Still no AI. Four bash collectors run in parallel to gather what an engineer would look at first: commits, imports, error strings and the test command.</p>
+      </div>
+      <div class="r">
+        <div class="clock"><span class="dot"></span>collectors running</div>
+        <div class="runtime">3 sec</div>
+      </div>
+    </div>
+
+    <div class="stage-body">
+      <div class="col input">
+        <div class="col-head"><span class="ck">Input</span><span class="cv">bug.md</span></div>
+        <div class="col-body">
+          <div class="fact"><span class="k">Reads</span><span class="v">The QA bug report from Stage 1</span></div>
+          <div class="fact"><span class="k">Extracts</span><span class="v">Quoted file paths, quoted error strings, version numbers</span></div>
+          <div class="fact"><span class="k">Sizes repo</span><span class="v"><code>141 files</code>, tier <em>S</em>, turn cap <em>200</em>, timeout <em>900s</em></span></div>
+          <div class="note">If the bug report mentions a file, the briefing validates that the path actually exists in the repo before passing it on.</div>
+        </div>
+      </div>
+
+      <div class="col thinking">
+        <div class="col-head"><span class="ck">Four collectors, parallel</span><span class="cv">bash · no AI</span></div>
+        <div class="col-body">
+          <div class="collectors">
+            <div class="collector">
+              <span class="check">✓</span>
+              <span class="nm">git.sh</span>
+              <span class="result"><strong>Checks recent commit history</strong><br><code>git log</code> and <code>git blame</code> on mentioned files. Found 6 commits in 14 days. <strong>argument.py</strong> changed recently.</span>
+            </div>
+            <div class="collector">
+              <span class="check">✓</span>
+              <span class="nm">deps.sh</span>
+              <span class="result"><strong>Traces import / require chains</strong><br>Walks Python, JS and Go imports. 12 imports traced. 3 files use <strong>argument</strong>.</span>
+            </div>
+            <div class="collector">
+              <span class="check">✓</span>
+              <span class="nm">errors.sh</span>
+              <span class="result"><strong>Greps for the bug's error strings</strong><br>Fixed-string search across the whole repo. 3 quoted strings found. 2 match real call sites.</span>
+            </div>
+            <div class="collector">
+              <span class="check">✓</span>
+              <span class="nm">testrunner.sh</span>
+              <span class="result"><strong>Detects the test command</strong><br>Looks at config files (no tests run). Found <strong>pytest</strong>. 847 tests available to use later.</span>
+            </div>
+          </div>
+          <div class="note">Each collector runs with a hard timeout. A slow or missing collector logs a warning. The pipeline never blocks.</div>
+        </div>
+      </div>
+
+      <div class="col output">
+        <div class="col-head"><span class="ck">Output</span><span class="cv">briefing.md</span></div>
+        <div class="col-body">
+          <div class="fact"><span class="k">Wrote</span><span class="v"><code>briefing.md</code> + <code>errors.txt</code></span></div>
+          <div class="fact"><span class="k">Size</span><span class="v">~10 KB structured text</span></div>
+          <div class="fact"><span class="k">Saves 8 to 12 turns</span><span class="v">Agent 1 starts with the context already gathered, not blank</span></div>
+          <div class="note"><strong>If the bug report is sparse</strong> (no file paths, no quoted errors), the briefing produces less. <strong>The pipeline does not stop.</strong> Agent 1 simply uses more of its turn budget to discover context itself in Stage 3.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════
+       STAGE 3 · DIAGNOSE
+       ═══════════════════════════════════════════════════════ -->
+  <div class="stage" data-i="3">
+    <div class="stage-head">
+      <div class="l">
+        <div class="tag">Stage 03 of 06 · Diagnose · Agent 1a + Agent 1b</div>
+        <h1>Agent 1 <span>finds the root cause.</span></h1>
+        <p class="sub">Agent 1a investigates the repo and forms competing theories. Agent 1b takes that evidence and writes the structured verdict with explicit confidence.</p>
+      </div>
+      <div class="r">
+        <div class="clock"><span class="dot"></span>Agent 1 thinking</div>
+        <div class="runtime">2 min 22 sec</div>
+      </div>
+    </div>
+
+    <div class="stage-body">
+      <div class="col input">
+        <div class="col-head"><span class="ck">Input</span><span class="cv">briefing.md + bug.md</span></div>
+        <div class="col-body">
+          <div class="fact"><span class="k">Agent 1a</span><span class="v">Investigator · <em>18 of 200 turns used</em></span></div>
+          <div class="fact"><span class="k">Agent 1b</span><span class="v">Synthesizer · schema-enforced JSON</span></div>
+          <div class="fact"><span class="k">Tools</span><span class="v"><code>Read</code> · <code>Grep</code> · <code>Glob</code> · <code>git log/blame/diff</code></span></div>
+          <div class="fact"><span class="k">Files examined</span><span class="v"><strong>12 files</strong> across argument, core, types</span></div>
+        </div>
+      </div>
+
+      <div class="col thinking">
+        <div class="col-head"><span class="ck">Two theories competing</span><span class="cv">live reasoning</span></div>
+        <div class="col-body">
+          <div class="hyps">
+            <div class="hyp win">
+              <div class="hh"><span class="label">Selected · h1</span><span class="conf">0.84</span></div>
+              <div class="sum">The parser <em>sorts options</em> before processing them.</div>
+              <div class="bar"><div class="fill w84"></div></div>
+              <div class="ev">
+                <div class="row"><span class="ic">+</span><span><code>argument.py:142</code> introduces sort() six commits ago</span></div>
+                <div class="row"><span class="ic">+</span><span>regression first appears in the same commit</span></div>
+                <div class="row"><span class="ic">+</span><span>no test covers the unordered case</span></div>
+              </div>
+            </div>
+            <div class="hyp">
+              <div class="hh"><span class="label">Rejected · h2</span><span class="conf">0.12</span></div>
+              <div class="sum">Defaults <em>override</em> the user's explicit flags.</div>
+              <div class="bar"><div class="fill w12"></div></div>
+              <div class="ev">
+                <div class="row"><span class="ic">−</span><span>no recent change to <code>defaults.py</code></span></div>
+                <div class="row"><span class="ic">−</span><span>default-related tests still pass</span></div>
+                <div class="row"><span class="ic">−</span><span>bug reproduces with no defaults set</span></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="self-crit">
+            <div class="sc-h">Mandatory self-critique · 3 checks before FINAL FINDINGS</div>
+            <div class="sc-row"><span class="sc-n">1</span><span class="sc-q">Working-tree verification</span><span class="sc-a">Every cited file:line must be re-Read from the actual file, not <code>git show &lt;sha&gt;</code>. <code>argument.py:142</code> re-Read at HEAD · sort() still present.</span></div>
+            <div class="sc-row"><span class="sc-n">2</span><span class="sc-q">Counter-hypothesis challenge</span><span class="sc-a">Cite concrete evidence that rules out the strongest alternative. h2 ruled out: no recent diff to <code>defaults.py</code> + bug reproduces with defaults unset.</span></div>
+            <div class="sc-row"><span class="sc-n">3</span><span class="sc-q">Confidence justified by observation count</span><span class="sc-a">≥0.8 needs ≥4 direct observations · ≥0.6 needs 3 · ≥0.4 needs 2. Score 0.84 backed by 4 Read-verified observations on argument.py and core.py.</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col output">
+        <div class="col-head"><span class="ck">Output</span><span class="cv">diagnosis.json</span></div>
+        <div class="col-body">
+          <div class="fact"><span class="k">Verdict</span><span class="v"><strong>h1</strong> · confidence <em>0.84</em></span></div>
+          <div class="fact"><span class="k">Root cause</span><span class="v">Unintended sort() in <code>argument.py:142</code></span></div>
+          <div class="fact"><span class="k">Affected files</span><span class="v">argument.py · core.py · types.py</span></div>
+          <div class="fact"><span class="k">Next action</span><span class="v">Hand off to Agent 2 for the fix</span></div>
+          <div class="note">Diagnosis also carries the verbatim fix-location code, so Agent 2 can write a valid diff without re-reading the repo. If evidence is weak, confidence is capped at 0.4 and <code>WEAK_EVIDENCE</code> is flagged.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════
+       STAGE 4 · FIX
+       ═══════════════════════════════════════════════════════ -->
+  <div class="stage" data-i="4">
+    <div class="stage-head">
+      <div class="l">
+        <div class="tag">Stage 04 of 06 · Fix · Agent 2</div>
+        <h1>Agent 2 <span>writes the fix.</span></h1>
+        <p class="sub">Agent 2 reads the verdict and the verbatim fix-location code, designs the change and emits it as a unified diff. If the evidence is thin it returns <code>NO_FIX</code> with a reason.</p>
+      </div>
+      <div class="r">
+        <div class="clock"><span class="dot"></span>Agent 2 writing</div>
+        <div class="runtime">28 sec</div>
+      </div>
+    </div>
+
+    <div class="stage-body">
+      <div class="col input">
+        <div class="col-head"><span class="ck">Input</span><span class="cv">briefing.md + diagnosis.json</span></div>
+        <div class="col-body">
+          <div class="fact"><span class="k">Persona</span><span class="v">Senior software engineer</span></div>
+          <div class="fact"><span class="k">Tools</span><span class="v"><code>Read</code>, <code>Grep</code> only · no write access</span></div>
+          <div class="fact"><span class="k">Sees</span><span class="v">Verdict, evidence, verbatim fix-location code</span></div>
+          <div class="fact"><span class="k">Does not see</span><span class="v">Agent 1a's investigation transcript</span></div>
+          <div class="note">If diagnosis confidence is below 0.5, Agent 2 returns <em>NO_FIX</em>.</div>
+        </div>
+      </div>
+
+      <div class="col thinking">
+        <div class="col-head"><span class="ck">One unified diff</span><span class="cv">schema-enforced JSON</span></div>
+        <div class="col-body">
+          <div class="diff">
+            <div class="file">diff --git a/src/click/argument.py b/src/click/argument.py</div>
+            <div class="ctx">@@ -138,7 +138,7 @@ def process(self, ctx, args):</div>
+            <div class="ctx">     args = list(args)</div>
+            <div class="ctx">     consumed = []</div>
+            <br>
+            <div class="del">- options = sorted(options, key=lambda o: o.name)</div>
+            <div class="add">+ # preserve declaration order — sort was unintended</div>
+            <br>
+            <div class="ctx">     for opt in options:</div>
+            <div class="ctx">         val = opt.consume(args)</div>
+            <div class="ctx">         consumed.append(val)</div>
+          </div>
+          <div class="note">Every <code>-</code> / <code>+</code> line and 3 lines of context above and below are copied verbatim from <code>diagnosis.fix_context</code>. If <code>fix_context</code> is missing and the diagnosis notes only contain a fragment, Agent 2 chooses <strong>NO_FIX</strong> instead of guessing line content.</div>
+        </div>
+      </div>
+
+      <div class="col output">
+        <div class="col-head"><span class="ck">Output</span><span class="cv">solution.json + fix.diff</span></div>
+        <div class="col-body">
+          <div class="fact"><span class="k">Recommendation</span><span class="v"><strong>FIX</strong> · confidence 0.78</span></div>
+          <div class="fact"><span class="k">Risk</span><span class="v"><em>low</em></span></div>
+          <div class="fact"><span class="k">Files changed</span><span class="v">1 file, 3 lines</span></div>
+          <div class="fact"><span class="k">Why this works</span><span class="v">Restores declaration order, matches the API contract before v8.1</span></div>
+          <div class="note">Patch saved to <code>patches/fix.diff</code>. Applied by Agent 2.5 in the next stage.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════
+       STAGE 5 · VERIFY
+       ═══════════════════════════════════════════════════════ -->
+  <div class="stage" data-i="5">
+    <div class="stage-head">
+      <div class="l">
+        <div class="tag">Stage 05 of 06 · Verify · Agent 2.5</div>
+        <h1>Agent 2.5 <span>proves the fix.</span></h1>
+        <p class="sub">Bash creates an isolated worktree, applies the patch, runs the existing suite. Agent 2.5 then writes one targeted regression test. The orchestrator applies it and re-runs only that test. Each step gates the next.</p>
+      </div>
+      <div class="r">
+        <div class="clock"><span class="dot"></span>Agent 2.5 verifying</div>
+        <div class="runtime">2 min 01 sec</div>
+      </div>
+    </div>
+
+    <div class="stage-body">
+      <div class="col input">
+        <div class="col-head"><span class="ck">Input</span><span class="cv">solution.json + fix.diff</span></div>
+        <div class="col-body">
+          <div class="fact"><span class="k">Workspace</span><span class="v">Sibling <code>git worktree</code> · developer's tree untouched</span></div>
+          <div class="fact"><span class="k">Test runner</span><span class="v"><code>pytest</code> (detected from the project)</span></div>
+          <div class="fact"><span class="k">Test timeout</span><span class="v">20 min per test run</span></div>
+          <div class="fact"><span class="k">Verify budget</span><span class="v">30 min total</span></div>
+          <div class="note">Tunable in <code>config/defaults.env</code>. Worktree is cleaned up on exit unless <code>RCA_KEEP_WORKTREE=1</code>.</div>
+        </div>
+      </div>
+
+      <div class="col thinking">
+        <div class="col-head"><span class="ck">Gated 7-step flow</span><span class="cv">bash + 1 Claude call</span></div>
+        <div class="col-body">
+          <div class="tests">
+            <div class="row head"><span>each step gates the next · first failure writes status and exits</span></div>
+            <div class="row"><span class="check">1</span><span><code>git worktree add</code> at HEAD</span><span class="count">PATCH_APPLIED on miss → VALIDATION_FAILED</span></div>
+            <div class="row"><span class="check">2</span><span><code>git apply --check fix.diff</code> dry-run, then real apply</span><span class="count">→ status PATCH_APPLIED</span></div>
+            <div class="row"><span class="check">3</span><span>$ pytest tests/ <em>(verbatim TEST_COMMAND)</em></span><span class="count">847 / 847</span></div>
+            <div class="row"><span class="check">4</span><span>Claude call · schema-enforced JSON · writes ONE regression test</span><span class="count">test_path + test_diff</span></div>
+            <div class="row"><span class="check">5</span><span><code>git apply</code> generated_test.diff in worktree</span><span class="count">→ status TEST_CREATED</span></div>
+            <div class="row"><span class="check">6</span><span>$ pytest -x &lt;test_path&gt; <em>(targeted, not full suite)</em></span><span class="count">1 / 1</span></div>
+            <div class="row"><span class="check">7</span><span><code>git diff HEAD</code> → <code>patches/fix_and_test.diff</code></span><span class="count">combined diff saved</span></div>
+            <div class="verdict">VALIDATION: TESTS_PASSED · regression_risk=low</div>
+          </div>
+          <div class="note">Claude is invoked once, schema-enforced, with a tiny prompt: bug report + compact diagnosis + test framework + <code>ls</code> of the test directory. It returns <code>{test_path, test_diff, explanation}</code> — no tool use, no repo access. The targeted re-run on step 6 uses the right runner per framework: <code>pytest -x</code>, <code>npx jest</code>, <code>go test ./...</code>.</div>
+        </div>
+      </div>
+
+      <div class="col output">
+        <div class="col-head"><span class="ck">Output</span><span class="cv">validation.json</span></div>
+        <div class="col-body">
+          <div class="fact"><span class="k">Status</span><span class="v ok"><strong>TESTS_PASSED</strong></span></div>
+          <div class="fact"><span class="k">Existing tests</span><span class="v">847 passed · 0 failed</span></div>
+          <div class="fact"><span class="k">New test</span><span class="v">Added · passed</span></div>
+          <div class="fact"><span class="k">Risk</span><span class="v"><em>low</em></span></div>
+          <div class="note">Regression test and combined diff saved to <code>patches/</code>. Worktree removed.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════
+       STAGE 6 · REPORT
+       ═══════════════════════════════════════════════════════ -->
+  <div class="stage" data-i="6">
+    <div class="stage-head">
+      <div class="l">
+        <div class="tag">Stage 06 of 06 · Report Creation</div>
+        <h1>Everything assembled <span>for the developer.</span></h1>
+        <p class="sub">A single eleven-section report lands in the run folder with status, root cause, evidence, diff, test results and next action. The developer reads it in ninety seconds and ships.</p>
+      </div>
+      <div class="r">
+        <div class="clock"><span class="dot"></span>report assembled</div>
+        <div class="runtime">1 sec</div>
+      </div>
+    </div>
+
+    <div class="stage-body">
+      <div class="col input">
+        <div class="col-head"><span class="ck">Input</span><span class="cv">all artifacts</span></div>
+        <div class="col-body">
+          <div class="fact"><span class="k">From Stage 02</span><span class="v"><code>briefing.md</code></span></div>
+          <div class="fact"><span class="k">From Stage 03</span><span class="v"><code>diagnosis.json</code></span></div>
+          <div class="fact"><span class="k">From Stage 04</span><span class="v"><code>solution.json</code> + <code>fix.diff</code></span></div>
+          <div class="fact"><span class="k">From Stage 05</span><span class="v"><code>validation.json</code> + <code>generated_test.diff</code></span></div>
+          <div class="note">Everything is structured JSON. No transcripts or thinking traces leak into the developer's view.</div>
+        </div>
+      </div>
+
+      <div class="col thinking">
+        <div class="col-head"><span class="ck">report.md preview</span><span class="cv">11 sections</span></div>
+        <div class="col-body">
+          <div class="report-prev">
+            <div class="h">Bug 4 · Option order sensitivity</div>
+            <div class="meta">report.md · 247 lines · run 1778649108-c88f333</div>
+            <div class="sec"><span class="k">Status</span><span class="v ok">FIX recommended · confidence 0.84</span></div>
+            <div class="sec"><span class="k">Root cause</span><span class="v">Parser calls <code>sort()</code> on options before resolving callbacks.</span></div>
+            <div class="sec"><span class="k">Evidence</span><span class="v"><code>src/click/argument.py:142</code> introduces a sort the API never promised.</span></div>
+            <div class="sec"><span class="k">Proposed fix</span><span class="v">Remove the sort. Preserve declaration order through parse.</span></div>
+            <div class="sec"><span class="k">Validation</span><span class="v ok">All 847 tests pass · regression test added</span></div>
+            <div class="sec"><span class="k">Next action</span><span class="v">Review the diff and merge</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col output">
+        <div class="col-head"><span class="ck">Output</span><span class="cv">report.md</span></div>
+        <div class="col-body">
+          <div class="fact"><span class="k">Length</span><span class="v">247 lines, 11 sections</span></div>
+          <div class="fact"><span class="k">Read time</span><span class="v">~90 seconds</span></div>
+          <div class="fact"><span class="k">Ship time</span><span class="v">~5 minutes after first read</span></div>
+          <div class="fact"><span class="k">Audit trail</span><span class="v">12 artifacts under <code>.rca-mas/runs/&lt;ID&gt;/</code></span></div>
+          <div class="note">If a downstream reviewer wants the full thinking trace, every raw response is logged in <code>*.raw.json</code>.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════
+       STAGE 7 · FINALE
+       ═══════════════════════════════════════════════════════ -->
+  <div class="stage" data-i="7">
+    <div class="finale">
+      <div></div>
+      <div class="finale-card">
+        <span class="badge">Done · ready to ship</span>
+        <h2>Five minutes of developer attention.<br><span>Zero rabbit holes.</span></h2>
+        <p>One bug investigated, fixed, verified and documented. The developer reads the report, approves the diff, merges the regression test. Total cost: <strong>$6 per bug.</strong></p>
+        <div class="finale-stats">
+          <div class="finale-stat"><div class="n">5 min</div><div class="l">dev time</div></div>
+          <div class="finale-stat"><div class="n">$6</div><div class="l">total cost</div></div>
+          <div class="finale-stat"><div class="n">848</div><div class="l">tests passing</div></div>
+          <div class="finale-stat"><div class="n">12</div><div class="l">artifacts saved</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FOOTER NAV -->
+  <div class="footnav">
+    <button type="button" id="prev-btn">← Previous</button>
+    <div class="counter">Stage <strong id="cur">0</strong> of <strong>7</strong> · <span class="hint">use <span class="kbd">←</span> <span class="kbd">→</span> to navigate</span></div>
+    <button type="button" class="next" id="next-btn">Next →</button>
+  </div>
+
+  </div>
+  <!-- /TAB 1 -->
+
+  <!-- ═══════════════════════════════════════════════════════
+       TAB 3 · ARCHITECTURE HLD
+       ═══════════════════════════════════════════════════════ -->
+  <div class="tabpane" id="architecture">
+
+    <div class="arch-head">
+      <span class="tag">Architecture · HLD</span>
+      <h2>How a bug becomes a <span>verified fix.</span></h2>
+      <p>Boxes are steps. Arrows carry the handoff. The diamond is the only branch — if confidence is too low, the system reports honestly instead of guessing.</p>
+    </div>
+
+    <div class="hh-wrap">
+      <div class="hh-canvas">
+
+        <!-- nodes -->
+        <div class="hh-node start hh-bug">
+          <span class="name">QA reports a Bug</span>
+          <span class="sub">bug.md file or GitHub Issue</span>
+        </div>
+
+        <div class="hh-node bash hh-brief">
+          <span class="tag">Bash · no AI</span>
+          <span class="name">Briefing</span>
+          <span class="sub">scans the project for clues</span>
+        </div>
+
+        <div class="hh-node hh-diag">
+          <span class="tag">Agent 1</span>
+          <span class="name">Diagnose</span>
+          <span class="sub">finds the root cause</span>
+        </div>
+
+        <div class="hh-decision">
+          <div class="inner">
+            <span class="q">Confident<br>enough?<span class="cond">conf &ge; 0.5</span></span>
+          </div>
+        </div>
+
+        <div class="hh-node hh-fix">
+          <span class="tag">Agent 2</span>
+          <span class="name">Fix</span>
+          <span class="sub">writes the code change</span>
+        </div>
+
+        <div class="hh-node hh-verify">
+          <span class="tag">Agent 2.5</span>
+          <span class="name">Verify</span>
+          <span class="sub">applies the fix in a sandbox, runs the tests</span>
+        </div>
+
+        <div class="hh-node end hh-dev">
+          <span class="name">Developer</span>
+          <span class="sub">reads the report, approves, ships</span>
+        </div>
+
+        <div class="hh-node no-fix hh-nofix">
+          <span class="tag">Agent 2</span>
+          <span class="name">NO_FIX report</span>
+          <span class="sub">explains what evidence is missing instead of guessing</span>
+        </div>
+
+        <!-- main horizontal arrows -->
+        <div class="hh-arr h hh-a1"><span class="lbl">bug</span></div>
+        <div class="hh-arr h hh-a2"><span class="lbl">scan</span></div>
+        <div class="hh-arr h hh-a3"><span class="lbl">cause</span></div>
+        <div class="hh-arr h hh-a4"><span class="lbl yes">Yes</span></div>
+        <div class="hh-arr h hh-a5"><span class="lbl">patch</span></div>
+        <div class="hh-arr h hh-a6"><span class="lbl">pass</span></div>
+
+        <!-- fallback path -->
+        <div class="hh-arr v down hh-a7"><span class="lbl no">No</span></div>
+        <div class="hh-arr h noarrow hh-a8"><span class="lbl">why</span></div>
+        <div class="hh-arr v up hh-a9"></div>
+
+      </div>
+
+      <div class="hld-bottom">
+        <div class="fc-legend">
+          <div class="item"><div class="sw start"></div>Start</div>
+          <div class="item"><div class="sw process"></div>Process step</div>
+          <div class="item"><div class="sw decision"></div>Decision point</div>
+          <div class="item"><div class="sw no-fix"></div>Fallback path</div>
+          <div class="item"><div class="sw end"></div>End</div>
+        </div>
+
+        <!-- subtle confidence-band callout -->
+        <div class="conf-band">
+          <div class="lbl">Confidence bands</div>
+          <div class="scale">
+            <div class="seg no"><span class="rng">&lt; 0.5</span><span class="what">Auto NO_FIX · no patch attempted</span></div>
+            <div class="seg weak"><span class="rng">0.5 – 0.6</span><span class="what">FIX with weak_evidence flag · capped at 0.5, risk ≥ medium, review notes mandatory</span></div>
+            <div class="seg ok"><span class="rng">≥ 0.6</span><span class="what">Normal FIX · earned by 3+ direct observations and a passed self-critique. Developer still reviews before merge.</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+  <!-- /TAB 3 -->
+
+  <!-- ═══════════════════════════════════════════════════════
+       TAB 4 · VALUE PROPOSITION
+       ═══════════════════════════════════════════════════════ -->
+  <div class="tabpane" id="valueprop">
+    <div class="vp-wrap">
+
+      <div class="vp-head">
+        <span class="tag">Value Proposition</span>
+        <h2>Why this is <span>different.</span></h2>
+        <p>Developers spend 30 to 60 minutes per bug just understanding it before writing a single line of fix. This system compresses that investigation into 3 to 8 minutes, fully automated.</p>
+      </div>
+
+      <div class="vp-tagline">
+        <div class="lbl">The one-liner</div>
+        <div class="quote">A <em>structured pipeline</em> that fails loudly when uncertain instead of being confidently wrong.</div>
+      </div>
+
+      <div class="vp-section-h">What we added on top of Claude Code</div>
+
+      <div class="tech-grid">
+
+        <!-- 1. Context Engineering -->
+        <div class="tech-card">
+          <div class="hd">
+            <span class="badge">Context Engineering</span>
+            <span class="num">01</span>
+          </div>
+          <div class="impact">Stops noise from one stage <em>corrupting reasoning</em> in the next.</div>
+          <div class="t">Each agent only sees what it needs<span class="sub-t">not the whole transcript like vanilla Claude Code</span></div>
+          <div class="diagram">
+            <div class="dg-funnel">
+              <div class="bar b1"><span>Bug + Briefing</span><span class="sz">~10K tokens</span></div>
+              <div class="bar b2"><span>Investigator explores</span><span class="sz">repo · 30K</span></div>
+              <div class="bar b3"><span>Synthesiser writes verdict</span><span class="sz">checkpoint · 3K</span></div>
+              <div class="bar b4"><span>Fix-writer</span><span class="sz">diagnosis · 2K</span></div>
+            </div>
+          </div>
+          <p>The fix-writer never sees the investigator's 30K-token exploration — only a clean, validated diagnosis. <strong>Each stage hands forward a curated handoff, not a transcript.</strong></p>
+        </div>
+
+        <!-- 2. Prompt Engineering / Structured ledger -->
+        <div class="tech-card">
+          <div class="hd">
+            <span class="badge">Prompt Engineering</span>
+            <span class="num">02</span>
+          </div>
+          <div class="impact">Forces the model to <em>justify confidence with evidence</em> before it can stop.</div>
+          <div class="t">The investigator must show its work, every turn<span class="sub-t">a fixed form it has to fill out before doing anything else</span></div>
+          <div class="diagram">
+            <div class="dg-ledger">
+              <div class="ll"><strong>Hypothesis</strong><span class="v">sort() reorders options · argument.py:142</span></div>
+              <div class="ll"><strong>Evidence</strong><span class="v">Read-verified at HEAD</span></div>
+              <div class="ll"><strong>Confidence</strong><span class="v">0.84 · backed by 4 observations</span></div>
+              <div class="ll"><strong>Next</strong><span class="v">verify call-chain in core.py</span></div>
+            </div>
+          </div>
+          <p>Before any action, the agent fills a short form: <strong>guess, evidence, confidence, next step</strong>. No "let me think about this" drift — structured progress every turn.</p>
+        </div>
+
+        <!-- 3. JSON contract between agents -->
+        <div class="tech-card">
+          <div class="hd">
+            <span class="badge">JSON Contract</span>
+            <span class="num">03</span>
+          </div>
+          <div class="impact">The system <em>fails loudly</em> instead of being confidently wrong.</div>
+          <div class="t">Each agent's output is validated before the next agent reads it<span class="sub-t">no free-text drifting between stages</span></div>
+          <div class="diagram">
+            <div class="dg-gate">
+              <div class="box in">LLM output</div>
+              <div class="gate">✓</div>
+              <div class="col">
+                <div class="box out">valid diagnosis</div>
+                <div class="box rej">repair · then honest "I don't know"</div>
+              </div>
+            </div>
+          </div>
+          <p>Every handoff is a JSON contract with a required confidence score. Invalid output gets one repair pass, then a <strong>fail-closed placeholder with confidence 0.0</strong>. No fabricated diagnosis or patch ever reaches the developer.</p>
+        </div>
+
+        <!-- 4. Bash collectors first → cost reduction -->
+        <div class="tech-card">
+          <div class="hd">
+            <span class="badge">Pre-Processing</span>
+            <span class="num">04</span>
+          </div>
+          <div class="impact">Saves <em>8 to 12 LLM turns per run</em> — cheaper, faster, more focused.</div>
+          <div class="t">Plain bash does the cheap work before the AI starts<span class="sub-t">cuts cost and time substantially</span></div>
+          <div class="diagram">
+            <div class="dg-wrap">
+              <div class="outer"><span class="lbl">Bash · git history, imports, error grep, test runner</span><span class="pc">~3s · $0</span></div>
+              <div class="mid"><span>LLM starts already oriented</span><span class="pc">~$0.50/run</span></div>
+              <div class="outer"><span class="lbl">Bash · schema check, worktree, test execution</span><span class="pc">~5s · $0</span></div>
+            </div>
+          </div>
+          <p>Bash pre-digests the repo: <code>git blame</code>, import tracing, error grep — all before a model call. Schema check, worktree, tests on the back end too. <strong>The AI only does the part that actually needs intelligence.</strong></p>
+        </div>
+
+        <!-- 5. Guarded validation -->
+        <div class="tech-card">
+          <div class="hd">
+            <span class="badge">Gated Verification</span>
+            <span class="num">05</span>
+          </div>
+          <div class="impact">A patch reaches the developer <em>only after real tests pass</em>, never on the model's word.</div>
+          <div class="t">No patch reaches the developer without passing every gate<span class="sub-t">one failure stops the chain and reports honestly</span></div>
+          <div class="diagram">
+            <div class="dg-guard">
+              <div class="step gated"><span class="ic gate">1</span>apply</div>
+              <span class="arr">→</span>
+              <div class="step"><span class="ic">✓</span>existing tests</div>
+              <span class="arr">→</span>
+              <div class="step gated"><span class="ic gate">2</span>write test</div>
+              <span class="arr">→</span>
+              <div class="step"><span class="ic">✓</span>new test</div>
+            </div>
+          </div>
+          <p>Patch applied in an <strong>isolated copy of the repo</strong>, existing tests run, agent writes one regression test, that test runs too. Any failure halts the chain. <strong>Your working tree is never touched.</strong></p>
+        </div>
+
+        <!-- 6. Specialised agents per task -->
+        <div class="tech-card">
+          <div class="hd">
+            <span class="badge">Specialised Agents</span>
+            <span class="num">06</span>
+          </div>
+          <div class="impact">Each specialist has its own budget, so <em>the verdict never gets cut off mid-thought</em>.</div>
+          <div class="t">Four agents, each doing one thing well<span class="sub-t">instead of one agent juggling everything</span></div>
+          <div class="diagram">
+            <div class="dg-team">
+              <div class="role"><div class="ic">1a</div><div class="who">Investigator</div><div class="does">explores</div></div>
+              <div class="role"><div class="ic">1b</div><div class="who">Synthesiser</div><div class="does">writes verdict</div></div>
+              <div class="role"><div class="ic">2</div><div class="who">Fix-writer</div><div class="does">codes the patch</div></div>
+              <div class="role"><div class="ic">2.5</div><div class="who">Verifier</div><div class="does">runs the tests</div></div>
+            </div>
+          </div>
+          <p>One agent juggling everything can run out of budget mid-conclusion. <strong>Four specialists with their own budgets and rules</strong> means the investigator gets time to explore and the synthesiser always gets a clean shot at the verdict.</p>
+        </div>
+
+        <!-- 7. Reproducible audit trail (wide card) -->
+        <div class="tech-card wide">
+          <div class="hd">
+            <span class="badge">Audit Trail</span>
+            <span class="num">07</span>
+          </div>
+          <div class="impact"><em>Every decision is reproducible</em> — compliance and code-review can read it directly.</div>
+          <div class="t">Every run leaves a complete paper trail<span class="sub-t">a reviewer can reconstruct exactly what happened, why and at what cost</span></div>
+          <div class="diagram">
+            <div class="dg-trail">
+              <div class="row"><span class="nm">briefing.md</span><span class="what">pre-LLM repo scan</span><span class="sz">~10 KB</span></div>
+              <div class="row"><span class="nm">diagnosis.json</span><span class="what">root cause + confidence + evidence</span><span class="sz">validated</span></div>
+              <div class="row"><span class="nm">solution.json + fix.diff</span><span class="what">proposed change</span><span class="sz">validated</span></div>
+              <div class="row"><span class="nm">validation.json</span><span class="what">tests passed, commands run, regression risk</span><span class="sz">validated</span></div>
+              <div class="row"><span class="nm">report.md + log.jsonl + cost_summary.json</span><span class="what">human-readable + raw events + cost</span><span class="sz">final</span></div>
+            </div>
+          </div>
+          <p>Every run writes a dated folder under <code>.rca-mas/runs/</code>: bug report, briefing, every JSON handoff, raw LLM responses, diffs, test output, structured event log. <strong>If someone challenges a fix, show them every step that led to it.</strong></p>
+        </div>
+
+        <!-- 8. Security & injection defence (wide) -->
+        <div class="tech-card wide">
+          <div class="hd">
+            <span class="badge">Security &amp; Defence</span>
+            <span class="num">08</span>
+          </div>
+          <div class="impact">A QA-written bug report <em>cannot trick the agent</em> into reading secrets or running network commands.</div>
+          <div class="t">Every prompt treats untrusted input as data, not instructions<span class="sub-t">credential files, network commands and write access are denied at multiple layers</span></div>
+          <div class="diagram">
+            <div class="dg-shield">
+              <div class="denied">
+                <div class="item">.env / .pem / .key</div>
+                <div class="item">"ignore previous instructions"</div>
+                <div class="item">curl / wget / ssh</div>
+                <div class="item">writes to working tree</div>
+              </div>
+              <div class="sh">🛡</div>
+              <div class="allowed">
+                <div class="item">read source files</div>
+                <div class="item">git log / blame / diff</div>
+                <div class="item">grep / glob / find</div>
+                <div class="item">write inside run folder</div>
+              </div>
+            </div>
+          </div>
+          <p>Untrusted-data block in every prompt, path validation against <code>git ls-files</code>, credential and network commands denied at the permission layer, schema validation blocking injected outputs from sneaking into the next stage. <strong>Defence in depth, not one fragile prompt rule.</strong></p>
+        </div>
+
+      </div>
+
+      <div class="vp-section-h">FAQs</div>
+
+      <div class="vp-qa">
+
+        <div class="vp-q">
+          <div class="q"><span class="qm">?</span>Is this just prompting Claude?</div>
+          <div class="a">No. The briefing phase is <strong>pure bash with zero LLM</strong>. It runs git blame, import tracing and error grep before any model call. Agent 1 gets <strong>pre-digested facts, not a raw repo</strong>. Agent 2 never sees the repo at all, only a <strong>schema-validated diagnosis</strong>. The pipeline is deterministic around the model calls, not inside them.</div>
+        </div>
+
+        <div class="vp-q">
+          <div class="q"><span class="qm">?</span>What stops it from making up file paths or functions?</div>
+          <div class="a">The diagnosis prompt <strong>explicitly forbids inventing files, commits, functions or evidence</strong> not in the checkpoint. <strong>Confidence is capped at <code>0.4</code> if evidence quality is weak</strong>. The output schema requires <code>files_examined[]</code> so there is an <strong>auditable evidence trail</strong>. It is not foolproof but it is structurally constrained.</div>
+        </div>
+
+        <div class="vp-q">
+          <div class="q"><span class="qm">?</span>What if the diagnosis is wrong?</div>
+          <div class="a">The confidence score surfaces it. <strong>Below threshold triggers a <code>WEAK_EVIDENCE</code> flag</strong>. Agent 2 is then told the evidence is weak and must reflect that in its own fix confidence. The final report shows <strong>confidence end to end</strong>. A reviewer who sees <code>0.42</code> confidence knows to <strong>treat it as a lead, not a conclusion</strong>.</div>
+        </div>
+
+        <div class="vp-q">
+          <div class="q"><span class="qm">?</span>What is the context window strategy?</div>
+          <div class="a">Each agent <strong>only receives the previous stage's output</strong>, not the full conversation history. This keeps each agent's context clean and <strong>prevents compounding errors across stages</strong>. Same principle as good retrieval. <strong>Do not give the model what it does not need.</strong></div>
+        </div>
+
+        <div class="vp-q">
+          <div class="q"><span class="qm">?</span>Why multiple agents instead of one big prompt?</div>
+          <div class="a">Investigation and conclusion are <strong>different cognitive tasks with conflicting incentives</strong>. One agent running out of turns mid-conclusion will produce a cut-off or rushed output. Splitting into <strong>Agent 1a</strong> (many turns, free investigation) and <strong>Agent 1b</strong> (one turn, pure synthesis) means <strong>the conclusion always gets a dedicated budget</strong>.</div>
+        </div>
+
+        <div class="vp-q">
+          <div class="q"><span class="qm">?</span>Can it miss the real cause if the chain runs through files Agent 1 did not surface?</div>
+          <div class="a">Yes. If the real cause lives in a file with <strong>no recent commits, no import path and no error string</strong> linking it to the symptom, Agent 1 can miss it and Agent 2 will patch the wrong layer. <strong>Worktree validation catches this only if your test suite covers the affected behaviour</strong>. For deep multi-file cascades the developer review step is still doing real work. The system fails loudly when uncertain. It does not pretend to be infallible.</div>
+        </div>
+
+      </div>
+
+      <div class="vp-caveat">
+        <div class="ic">!</div>
+        <div class="body">
+          <div class="h">The honest caveat</div>
+          <div class="b">The underlying reasoning is still Claude Sonnet. We are not claiming a smarter model. We are claiming <strong>a more reliable process</strong>. Structured inputs, validated outputs, explicit confidence scoring and a test-execution gate. The AI can still be wrong, but when it is wrong the system is designed to tell you rather than hide it.</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+  <!-- /TAB 4 -->
+
+  <!-- ═══════════════════════════════════════════════════════
+       TAB 5 · GET STARTED (one-time VS Code setup)
+       ═══════════════════════════════════════════════════════ -->
+  <div class="tabpane" id="getstarted">
+    <div class="gs-wrap">
+
+      <div class="gs-head">
+        <span class="tag">Get Started</span>
+        <h2>Two ways to wire it into <span>your repo.</span></h2>
+        <p>Assuming Claude Code is already set up in VS Code, integration is a copy-paste, not a build. Pick the lane that matches how you work. Both reach the same finish line.</p>
+      </div>
+
+      <div class="gs-lanes">
+
+        <!-- LEFT LANE: NON-TECH / DRAG & DROP -->
+        <div class="gs-lane">
+          <div class="gs-lane-h">
+            <span class="badge">No terminal</span>
+            <div class="t">Drag &amp; drop<span class="sub-t">Use VS Code's file explorer</span></div>
+          </div>
+
+          <div class="gs-mini">
+            <div class="n">1</div>
+            <div class="body">
+              <div class="title">Drop the <code>rca-mas/</code> folder into your repo</div>
+              <div class="desc">Drag the entire folder into the <strong>root of your target repo</strong> using VS Code's file explorer. That is the install.</div>
+              <div class="gs-drop">
+                <span class="chip"><span class="folder">📁</span>rca-mas/</span>
+                <span class="arr-into">→</span>
+                <span class="dest">your-repo/</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="gs-mini">
+            <div class="n">2</div>
+            <div class="body">
+              <div class="title">Add the chat snippet to <code>CLAUDE.md</code></div>
+              <div class="desc">Open <code>rca-mas/templates/CLAUDE.md.snippet</code>, copy it, paste it at the bottom of your repo's <code>CLAUDE.md</code>. Create one at the repo root if it does not exist.</div>
+              <div class="gs-drop">
+                <span class="chip"><span class="file">📄</span>CLAUDE.md.snippet</span>
+                <span class="arr-into">→</span>
+                <span class="chip"><span class="file">📄</span>CLAUDE.md</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="gs-mini">
+            <div class="n">3</div>
+            <div class="body">
+              <div class="title">Open Claude Code chat and paste the bug</div>
+              <div class="desc">In VS Code, open the Claude Code chat panel. Type <em>rca-mas:</em> and paste your bug ticket, stack trace or description. <strong>Claude Code writes <code>bug.md</code> and runs the pipeline for you.</strong></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- RIGHT LANE: TECHNICAL / TERMINAL -->
+        <div class="gs-lane terminal">
+          <div class="gs-lane-h">
+            <span class="badge">Terminal</span>
+            <div class="t">Four commands<span class="sub-t">Copy, paste, done</span></div>
+          </div>
+
+          <div class="gs-mini">
+            <div class="n">1</div>
+            <div class="body">
+              <div class="title">Copy the agent into the repo root</div>
+              <div class="desc">From your target repo's root directory:</div>
+              <div class="gs-cmd"><span class="cmt"># inside your target repo</span><br>cp -r <span class="str">&lt;path-to&gt;/rca-mas/</span> <span class="kw">./rca-mas/</span></div>
+            </div>
+          </div>
+
+          <div class="gs-mini">
+            <div class="n">2</div>
+            <div class="body">
+              <div class="title">Append the chat snippet to <code>CLAUDE.md</code></div>
+              <div class="desc">One command, creates <code>CLAUDE.md</code> if missing:</div>
+              <div class="gs-cmd">cat <span class="str">rca-mas/templates/CLAUDE.md.snippet</span> &gt;&gt; <span class="kw">CLAUDE.md</span></div>
+            </div>
+          </div>
+
+          <div class="gs-mini">
+            <div class="n">3</div>
+            <div class="body">
+              <div class="title">Ignore the agent's working files</div>
+              <div class="desc">Keep run artifacts out of git:</div>
+              <div class="gs-cmd"><span class="cmt"># append to .gitignore</span><br>echo <span class="str">'rca-mas/'</span> &gt;&gt; .gitignore<br>echo <span class="str">'.rca-mas/'</span> &gt;&gt; .gitignore</div>
+            </div>
+          </div>
+
+          <div class="gs-mini">
+            <div class="n">4</div>
+            <div class="body">
+              <div class="title">Run the agent from the terminal</div>
+              <div class="desc">Save your bug as <code>bug.md</code> in the repo root, then run the entry script directly:</div>
+              <div class="gs-cmd"><span class="cmt"># report-only (safe, never edits code)</span><br>bash ./rca-mas/rca-mas.sh <span class="str">bug.md</span><br><br><span class="cmt"># with validation (applies fix in isolated worktree, runs tests)</span><br>bash ./rca-mas/rca-mas.sh <span class="str">bug.md</span> <span class="kw">--validate</span></div>
+              <div class="desc"><strong>Optional convenience:</strong> drop a one-line wrapper into the repo root so future runs are shorter.</div>
+              <div class="gs-cmd"><span class="cmt"># create run-rca.sh in the repo root</span><br>cat &gt; run-rca.sh &lt;&lt; <span class="str">'EOF'</span><br>#!/usr/bin/env bash<br>bash ./rca-mas/rca-mas.sh <span class="str">"$@"</span><br>EOF<br>chmod +x run-rca.sh<br><br><span class="cmt"># then any future run is just:</span><br>./run-rca.sh <span class="str">bug.md</span> <span class="kw">--validate</span></div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- CONVERGE: both lanes finish here -->
+      <div class="gs-converge">
+        <div class="merge-ic">✓</div>
+        <div class="body">
+          <div class="h">Both lanes finish here</div>
+          <div class="t">In Claude Code chat, type <code>rca-mas: &lt;paste the bug&gt;</code></div>
+          <div class="sub">The agent scans the repo, diagnoses the root cause, proposes a fix and runs the tests. Final report lands at <strong>.rca-mas/runs/latest/report.md</strong>. No config, no env vars, no build step.</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+  <!-- /TAB 5 -->
+
+  <!-- ═══════════════════════════════════════════════════════
+       TAB 6 · KNOBS & CUSTOM CHANGES
+       ═══════════════════════════════════════════════════════ -->
+  <div class="tabpane" id="knobs">
+    <div class="kb-wrap">
+
+      <div class="kb-head">
+        <span class="tag">Knobs &amp; Custom Changes</span>
+        <h2>Files you can <span>safely change.</span></h2>
+        <p>Every tunable parameter, agent instruction and validation rule lives in plain text. No code edits required. Change a file, save, re-run the agent.</p>
+      </div>
+
+      <div class="kb-group-h">Tune for your project</div>
+      <div class="kb-group-sub">These two are where 90% of customisation happens. Start here.</div>
+
+      <!-- CONFIG -->
+      <div class="kb-section">
+        <div class="kb-section-h">Configuration <span class="ct">1 file</span></div>
+        <div class="kb-grid">
+          <div class="kb-card tune">
+            <span class="ic">⚙</span>
+            <div class="body">
+              <span class="path">config/defaults.env</span>
+              <div class="desc">The single dial-board for the whole system. Every number the agents care about lives here in plain text.</div>
+              <div class="ctrl"><strong>You control</strong> the model, turn and time budgets, cost caps, confidence thresholds, git lookback, worktree path</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- AGENT PROMPTS -->
+      <div class="kb-section">
+        <div class="kb-section-h">Agent prompts <span class="ct">7 files</span></div>
+        <div class="kb-grid">
+          <div class="kb-card tune">
+            <span class="ic">1a</span>
+            <div class="body">
+              <span class="path">prompts/investigation.md</span>
+              <div class="desc"><strong>How the investigator thinks.</strong> Tells Agent 1a what tools it can use, what to record every turn, and the 3 checks it must pass before concluding.</div>
+              <div class="ctrl"><strong>You control</strong> how the agent investigates, how strict its self-critique is, what counts as enough evidence</div>
+            </div>
+          </div>
+          <div class="kb-card tune">
+            <span class="ic">1a</span>
+            <div class="body">
+              <span class="path">prompts/investigation_write.md</span>
+              <div class="desc"><strong>How the investigator writes its notes for the next agent.</strong> Defines the checkpoint JSON shape — including the verbatim fix-location code that lets Agent 2 write a diff without re-reading the repo.</div>
+              <div class="ctrl"><strong>You control</strong> which fields land in the handoff, what evidence must be cited, how much code travels with the verdict</div>
+            </div>
+          </div>
+          <div class="kb-card tune">
+            <span class="ic">1b</span>
+            <div class="body">
+              <span class="path">prompts/diagnosis.md</span>
+              <div class="desc"><strong>How the synthesiser writes the verdict.</strong> Tells Agent 1b to produce schema-valid JSON, never invent files, and cap confidence at 0.4 when the upstream evidence was weak.</div>
+              <div class="ctrl"><strong>You control</strong> what the diagnosis must say, how confidence is computed, what the agent cannot invent</div>
+            </div>
+          </div>
+          <div class="kb-card tune">
+            <span class="ic">2</span>
+            <div class="body">
+              <span class="path">prompts/solution.md</span>
+              <div class="desc"><strong>How the fix-writer decides between FIX and NO_FIX.</strong> Sets the diff format rules, the weak-evidence cap (max confidence 0.5, risk medium or high), and what a reviewer-facing note must contain.</div>
+              <div class="ctrl"><strong>You control</strong> when to ship a patch versus refuse, diff strictness, risk and review-note rules for borderline cases</div>
+            </div>
+          </div>
+          <div class="kb-card tune">
+            <span class="ic">2.5</span>
+            <div class="body">
+              <span class="path">prompts/validation.md</span>
+              <div class="desc"><strong>How the verifier writes a regression test.</strong> One test only, must fail on unfixed code, must pass on the fix, in the project's own framework.</div>
+              <div class="ctrl"><strong>You control</strong> what counts as a good regression test, which frameworks are acceptable, how the test file gets added</div>
+            </div>
+          </div>
+          <div class="kb-card tune">
+            <span class="ic">↻</span>
+            <div class="body">
+              <span class="path">prompts/agent1b_repair.md · agent2_repair.md</span>
+              <div class="desc"><strong>The "try again" prompts.</strong> Used when the first JSON output fails schema validation — the agent gets one repair pass before the system writes a fail-closed placeholder.</div>
+              <div class="ctrl"><strong>You control</strong> how the agent is asked to fix its own broken output before the pipeline gives up</div>
+            </div>
+          </div>
+          <div class="kb-card tune">
+            <span class="ic">↻</span>
+            <div class="body">
+              <span class="path">prompts/agent1a_force_summary.md · agent1a_recover_from_evidence.md</span>
+              <div class="desc"><strong>The safety-net prompts.</strong> Force a clean summary when Agent 1a runs out of turns, or rebuild findings from the evidence transcript if quality was weak.</div>
+              <div class="ctrl"><strong>You control</strong> how the pipeline recovers when the investigation stalls, so the next agent never sees a half-finished report</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="kb-group-h">Looking under the hood</div>
+      <div class="kb-group-sub">You rarely need to touch these. They define how the pipeline reads the repo and what the agents must hand each other. Open them only if you are extending the system to a new language, framework or schema field.</div>
+
+      <div class="kb-advanced">
+
+      <!-- COLLECTORS -->
+      <div class="kb-section">
+        <div class="kb-section-h">Briefing collectors <span class="ct">4 files</span></div>
+        <div class="kb-grid">
+          <div class="kb-card">
+            <span class="ic">git</span>
+            <div class="body">
+              <span class="path">collectors/git.sh</span>
+              <div class="desc">Recent merges, <code>git log</code> and <code>git blame</code> for mentioned files. Lookback window controlled by <code>RCA_GIT_LOOKBACK</code>.</div>
+            </div>
+          </div>
+          <div class="kb-card">
+            <span class="ic">dep</span>
+            <div class="body">
+              <span class="path">collectors/deps.sh</span>
+              <div class="desc">Top-level import tracing for Python, JS/TS, Go. Add a language by adding a case branch and the right regex.</div>
+            </div>
+          </div>
+          <div class="kb-card">
+            <span class="ic">err</span>
+            <div class="body">
+              <span class="path">collectors/errors.sh</span>
+              <div class="desc">Fixed-string grep across the repo for each quoted error. Exclusions (node_modules, .venv, etc.) and output cap (<code>RCA_ERROR_GREP_LIMIT</code>) live here.</div>
+            </div>
+          </div>
+          <div class="kb-card">
+            <span class="ic">tst</span>
+            <div class="body">
+              <span class="path">collectors/testrunner.sh</span>
+              <div class="desc">Detects the test command from project config (<code>pytest.ini</code>, <code>package.json</code>, <code>go.mod</code>, etc.). Add a framework by adding a detection branch.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SCHEMAS -->
+      <div class="kb-section">
+        <div class="kb-section-h">JSON schemas <span class="ct">4 files · structural contract</span></div>
+        <div class="kb-grid">
+          <div class="kb-card">
+            <span class="ic">{ }</span>
+            <div class="body">
+              <span class="path">schemas/checkpoint.schema.json</span>
+              <div class="desc">Agent 1a → 1b handoff shape. Required fields, evidence-item structure, confidence range.</div>
+            </div>
+          </div>
+          <div class="kb-card">
+            <span class="ic">{ }</span>
+            <div class="body">
+              <span class="path">schemas/diagnosis.schema.json</span>
+              <div class="desc">Final diagnosis shape: hypotheses with evidence items, affected files, call chain, files examined, confidence reasoning, fix context.</div>
+            </div>
+          </div>
+          <div class="kb-card">
+            <span class="ic">{ }</span>
+            <div class="body">
+              <span class="path">schemas/solution.schema.json</span>
+              <div class="desc">Agent 2 output shape. Enforces <code>FIX</code> requires non-empty <code>fixes[]</code> and a <code>recommended_fix_id</code>; <code>NO_FIX</code> requires a reason.</div>
+            </div>
+          </div>
+          <div class="kb-card">
+            <span class="ic">{ }</span>
+            <div class="body">
+              <span class="path">schemas/validation.schema.json</span>
+              <div class="desc">Agent 2.5 output shape. Status enum (TESTS_PASSED, TESTS_FAILED, VALIDATION_FAILED, etc.), commands run, failures, regression risk.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ENTRY + TEMPLATES -->
+      <div class="kb-section">
+        <div class="kb-section-h">Entry &amp; chat templates <span class="ct">2 files</span></div>
+        <div class="kb-grid">
+          <div class="kb-card">
+            <span class="ic">→</span>
+            <div class="body">
+              <span class="path">templates/CLAUDE.md.snippet</span>
+              <div class="desc">Drop this into your target repo's <code>CLAUDE.md</code> to teach Claude Code what "use rca-mas to ..." means in chat. Customise trigger phrases, output paths, default flags.</div>
+            </div>
+          </div>
+          <div class="kb-card">
+            <span class="ic">$</span>
+            <div class="body">
+              <span class="path">rca-mas.sh</span>
+              <div class="desc">CLI entry point. Argument parsing, prereq checks, <code>--validate</code> / <code>--issue</code> flags, then hands off to the orchestrator. Add a flag here.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      </div>
+      <!-- /.kb-advanced -->
+
+      <div class="kb-group-h">Framework code</div>
+      <div class="kb-group-sub">Treat as off-limits unless you are rebuilding the orchestrator itself.</div>
+
+      <!-- DO NOT TOUCH -->
+      <div class="kb-section">
+        <div class="kb-section-h">Do not edit casually <span class="ct">orchestrator + libs</span></div>
+        <div class="kb-grid">
+          <div class="kb-card danger">
+            <span class="ic">!</span>
+            <div class="body">
+              <span class="path">scripts/orchestrator.sh</span>
+              <div class="desc">The pipeline controller. Owns run lifecycle, stage gates, quality checks, schema enforcement, validation worktree. Change only with tests passing on every step.</div>
+            </div>
+          </div>
+          <div class="kb-card danger">
+            <span class="ic">!</span>
+            <div class="body">
+              <span class="path">lib/*.sh · scripts/claude_json.sh</span>
+              <div class="desc">Logging, JSON extraction, path resolution, cleanup traps, shared Claude invocation helper. Used by every stage. Treat as framework code.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+  <!-- /TAB 6 -->
+
+</div>
+
+<script>
+// tab switching
+const tabs = document.querySelectorAll('.tab');
+const tabpanes = document.querySelectorAll('.tabpane');
+tabs.forEach(t => {
+  t.addEventListener('click', () => {
+    const target = t.dataset.target;
+    tabs.forEach(x => x.classList.toggle('active', x === t));
+    tabpanes.forEach(p => p.classList.toggle('active', p.id === target));
+    document.body.classList.toggle('mode-architecture', target === 'architecture');
+    document.body.classList.toggle('mode-walkthrough', target === 'walkthrough');
+  });
+});
+
+const stages = document.querySelectorAll('.stage');
+const total = stages.length;
+const progressEl = document.getElementById('progress');
+const curEl = document.getElementById('cur');
+const prevBtn = document.getElementById('prev-btn');
+const nextBtn = document.getElementById('next-btn');
+const startBtn = document.getElementById('start-btn');
+let cur = 0;
+
+// build progress dots
+for(let i=0;i<total;i++){
+  const d = document.createElement('div');
+  d.className = 'step-dot';
+  d.addEventListener('click', ()=>go(i));
+  progressEl.appendChild(d);
+}
+const dots = progressEl.querySelectorAll('.step-dot');
+
+function go(n){
+  cur = Math.max(0, Math.min(total-1, n));
+  stages.forEach((s,i)=>s.classList.toggle('active', i===cur));
+  dots.forEach((d,i)=>{
+    d.classList.remove('active','past');
+    if(i===cur) d.classList.add('active');
+    else if(i<cur) d.classList.add('past');
+  });
+  curEl.textContent = cur;
+  prevBtn.disabled = cur === 0;
+  nextBtn.disabled = cur === total-1;
+  nextBtn.textContent = cur === total-1 ? 'Done ✓' : (cur === 0 ? 'See the steps →' : 'Next →');
+}
+
+go(0);
+
+prevBtn.addEventListener('click', ()=>go(cur-1));
+nextBtn.addEventListener('click', ()=>go(cur+1));
+if(startBtn) startBtn.addEventListener('click', ()=>go(1));
+
+document.addEventListener('keydown', e=>{
+  if(e.target.matches('input,textarea')) return;
+  if(document.body.classList.contains('mode-architecture')) return;
+  if(e.key==='ArrowRight' || e.key===' ' || e.key==='PageDown'){ e.preventDefault(); go(cur+1); }
+  if(e.key==='ArrowLeft' || e.key==='PageUp'){ e.preventDefault(); go(cur-1); }
+  if(e.key==='Home') go(0);
+  if(e.key==='End') go(total-1);
+});
+</script>
+
+</body>
+</html>

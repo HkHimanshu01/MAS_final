@@ -1,4 +1,4 @@
-# RCA Compression MAS — Architecture Reference
+# AI-Powered Bug Diagnosis and Resolution — Architecture Reference
 
 > **STATUS: LOCKED FOR V1.**
 > This is the authoritative architecture. Implementation must match this exactly.
@@ -366,8 +366,8 @@ rca-mas.sh
 | Variable / Prompt text | Location | Default | Effect |
 |---|---|---|---|
 | `RCA_AGENT25_TURNS` | `config/defaults.env` | 15 | Raise for complex test writing |
-| `RCA_AGENT25_TIMEOUT` | `config/defaults.env` | 300 s | Raise if test suite is slow |
-| `RCA_AGENT25_TEST_TIMEOUT` | `config/defaults.env` | 120 s | Raise for large test suites |
+| `RCA_AGENT25_TIMEOUT` | `config/defaults.env` | 1800 s | Raise if test suite is slow |
+| `RCA_AGENT25_TEST_TIMEOUT` | `config/defaults.env` | 1200 s | Raise for large test suites |
 | `RCA_KEEP_WORKTREE` | `config/defaults.env` | 0 | Set to 1 to inspect worktree after run |
 | `RCA_WORKTREE_DIR` | `config/defaults.env` | `../.rca-mas-worktrees` | Change if sibling dir not writable |
 | `RCA_MODEL` | `config/defaults.env` | empty (sonnet-4-6) | `claude-opus-4-7` for all agents |
@@ -511,8 +511,8 @@ RCA_MODEL=claude-opus-4-7 RCA_TURNS_L=70 ./rca-mas.sh bug.md
 | `RCA_AGENT2_TURNS` | 1 | Agent 2 max turns |
 | `RCA_AGENT2_TIMEOUT` | 180 s | Agent 2 wall-clock limit |
 | `RCA_AGENT25_TURNS` | 15 | Agent 2.5 max turns |
-| `RCA_AGENT25_TIMEOUT` | 300 s | Agent 2.5 wall-clock limit |
-| `RCA_AGENT25_TEST_TIMEOUT` | 120 s | Test execution timeout inside worktree |
+| `RCA_AGENT25_TIMEOUT` | 1800 s | Agent 2.5 wall-clock limit |
+| `RCA_AGENT25_TEST_TIMEOUT` | 1200 s | Test execution timeout inside worktree |
 
 ### Confidence thresholds
 

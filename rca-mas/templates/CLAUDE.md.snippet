@@ -1,0 +1,154 @@
+<!--
+  RCA MAS drop-in for target repos.
+
+  HOW TO USE THIS FILE
+  --------------------
+  Append the section below (everything between the BEGIN/END markers)
+  to your target repo's CLAUDE.md. If the repo has no CLAUDE.md, create
+  one at the repo root with just this content.
+
+  After that, Claude Code in chat will recognise any of these phrasings:
+    "use rca-mas to find the issue: <ticket text>"
+    "use rca-mas to investigate <bug.md>"
+    "use rca-mas to diagnose this bug"  (then user pastes ticket)
+    "rca-mas: <ticket / stack trace / description>"
+    "investigate this with rca-mas"
+    "run rca-mas on github issue 42"
+  and run the pipeline against whatever bug input the user provided.
+-->
+
+<!-- BEGIN: RCA MAS instructions ============================================ -->
+
+## RCA MAS — bug investigation tool
+
+This repo bundles RCA MAS at [./rca-mas/](./rca-mas/). It is a multi-agent
+bug investigator: given a bug report (a markdown file, pasted ticket text,
+a stack trace, or a GitHub issue number), it scans this repo, diagnoses
+the root cause, and proposes a fix as a unified diff.
+
+### Trigger detection
+
+Treat **any** of these as a request to run the MAS pipeline:
+
+- The phrase "**rca-mas**" or "**RCA MAS**" anywhere in the user message
+- "**use rca-mas to** {find / investigate / diagnose / resolve / fix / triage} ..."
+- "**run rca-mas on** ..." or "**rca-mas:** ..."
+- "**investigate {this bug | this ticket | this issue}** with rca-mas"
+
+When triggered, follow the steps below. Do not ask for clarification on
+trivial points (like which run flag) — pick the default and proceed.
+
+### Step 1 — Identify the bug input
+
+The bug input is one of:
+
+**(a) A file path** the user named (e.g. `bug.md`, `tickets/PROJ-123.md`,
+`c:/path/to/issue.md`). Use it as-is.
+
+**(b) Inline ticket / bug text** in the user's message. This is the most
+common form. It can look like any of:
+   - A pasted JIRA / Linear / GitHub ticket with headings like
+     "Steps to reproduce", "Expected", "Actual"
+   - A raw stack trace plus a sentence of context
+   - A free-form paragraph describing the bug
+   - A QA Slack message pasted verbatim
+
+  In **all** of these cases, save the user's text (the part of the message
+  that describes the bug, **not** the trigger phrase like "use rca-mas to
+  find the issue:") to `.rca-mas/bug.md`, creating the `.rca-mas/`
+  directory if needed:
+
+  ```bash
+  mkdir -p .rca-mas
+  # write the pasted bug text to .rca-mas/bug.md
+  ```
+
+  Then use `.rca-mas/bug.md` as the bug input path. If the pasted text
+  looks thin (no stack trace, no file/function names, < 3 lines),
+  proceed anyway but note in the final summary that the diagnosis may be
+  weak — do not block on asking for more.
+
+**(c) A GitHub issue number** (e.g. "issue 42", "#42", "github issue 42").
+Use `--issue` mode instead of writing a file:
+  ```bash
+  bash ./rca-mas/rca-mas.sh --issue 42
+  ```
+  Add `--repo owner/name` only if the current repo is not the right
+  GitHub remote.
+
+**(d) Re-use the last bug input** if the user says "re-run rca-mas" or
+"try rca-mas again". The previous `.rca-mas/bug.md` (or the last
+explicit path) is the input.
+
+### Step 2 — Run the pipeline
+
+From the repo root, in **report-only** mode (the default — never edits
+the working tree):
+
+```bash
+bash ./rca-mas/rca-mas.sh <bug-input-path>
+```
+
+Wall time is typically 3–8 minutes on a small/medium repo.
+
+### Step 3 — Narrate progress
+
+While the pipeline runs, tail the structured event log so the user can
+see stage transitions:
+
+```bash
+tail -f .rca-mas/runs/latest/log.jsonl
+```
+
+You may translate the JSONL events into one-line status updates
+("Briefing complete · 141 files, tier S", "Agent 1a investigating",
+"Diagnosis written · confidence 0.92", etc.).
+
+### Step 4 — Show the outputs
+
+When the pipeline finishes, show the user:
+
+1. The full report:
+   ```bash
+   cat .rca-mas/runs/latest/report.md
+   ```
+2. The proposed patch (only if `report.md` shows status `FIX`):
+   ```bash
+   cat .rca-mas/runs/latest/patches/fix.diff
+   ```
+3. A one-sentence summary in your own words: root cause, confidence,
+   what the next action is.
+
+### Step 5 — Hand back to the human
+
+Do **not** apply the patch. Print the two commands the user can run
+themselves if they want to apply it:
+
+```bash
+git apply --check .rca-mas/runs/latest/patches/fix.diff   # dry-run
+git apply .rca-mas/runs/latest/patches/fix.diff           # apply
+```
+
+### Variations
+
+- "**resolve / fix the bug**" still means report-only. Only add
+  `--validate` (which applies the patch in an isolated worktree and runs
+  tests) if the user explicitly says "validate", "sandbox", "run the
+  tests", or "apply in isolation".
+- "**show me the last rca-mas report**" → `cat .rca-mas/runs/latest/report.md`
+  without re-running.
+- "**what would rca-mas suggest for ...**" → still run the full pipeline;
+  there is no preview mode.
+
+### Things to never do
+
+- Never edit files under `./rca-mas/` — that's the tool itself.
+- Never investigate `./rca-mas/**` or `./.rca-mas/**` as the bug source.
+  They are tool code and run artifacts.
+- Never commit, push, tag, or open a PR with the patch unless the user
+  explicitly asks. The patch is always for human review.
+- Never invent a bug file path the user did not give you. If the input
+  is ambiguous, default to writing the pasted text to `.rca-mas/bug.md`
+  rather than guessing.
+
+<!-- END: RCA MAS instructions ============================================== -->

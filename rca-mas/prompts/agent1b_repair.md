@@ -29,6 +29,7 @@ Common errors to fix:
 - `root_cause` must be a plain string — not a JSON object, not a stringified JSON blob
 - `run_id` must match the RUN_ID shown in Run Metadata below
 - `introducing_commit` must be null or a string, never omitted
+- `confidence_reasoning` must be a non-empty string explaining what drove confidence up, what drove it down, and which alternative was ruled out; copy from checkpoint if present
 
 ---
 

@@ -1,4 +1,4 @@
-# RCA Compression MAS — Build Plan
+# AI-Powered Bug Diagnosis and Resolution — Build Plan
 
 > **STATUS: LOCKED FOR V1.**
 > Architecture and plan are final. Implementation must follow this exactly.
@@ -17,7 +17,7 @@ A CLI tool that compresses a 30–60 minute bug investigation into a 3–8 minut
 cat .rca-mas/runs/latest/report.md
 ```
 
-**Scope:** Production-ready v1 in 1.5 weeks, 2 hours/day. Bash + git + jq + Claude Code CLI. No API keys, no dashboards, no databases. Agent 2.5 (validation) is built last and cut first if time runs short. Core = Agent 1 + Agent 2 + report.
+**Scope:** Production-ready v1 in 1.5 weeks, 2 hours/day. Bash + git + jq + Claude Code CLI. No API keys, no dashboards, no databases. Full pipeline: Agent 1 (Diagnose) + Agent 2 (Fix) + Agent 2.5 (Verify) + report.
 
 ---
 
@@ -47,7 +47,7 @@ rca-mas/
 │   ├── investigation.md          ← Agent 1a full instructions (free-text investigation)
 │   ├── diagnosis.md              ← Agent 1b full instructions (conclusion, schema-enforced)
 │   ├── solution.md               ← Agent 2 full instructions
-│   └── validation.md             ← Agent 2.5 instructions (optional v1)
+│   └── validation.md             ← Agent 2.5 instructions (verify stage)
 ├── schemas/
 │   ├── diagnosis.schema.json
 │   ├── solution.schema.json
@@ -142,8 +142,8 @@ RCA_MODEL=claude-opus-4-7 ./rca-mas.sh bug.md
 | `RCA_AGENT2_TURNS` | 1 | Max turns for Agent 2 (keep at 1) |
 | `RCA_AGENT2_TIMEOUT` | 180 s | Wall-clock limit for Agent 2 |
 | `RCA_AGENT25_TURNS` | 15 | Max turns for Agent 2.5 |
-| `RCA_AGENT25_TIMEOUT` | 300 s | Wall-clock limit for Agent 2.5 |
-| `RCA_AGENT25_TEST_TIMEOUT` | 120 s | Timeout for running tests inside worktree |
+| `RCA_AGENT25_TIMEOUT` | 1800 s | Wall-clock limit for Agent 2.5 |
+| `RCA_AGENT25_TEST_TIMEOUT` | 1200 s | Timeout for running tests inside worktree |
 | `RCA_CONFIDENCE_STOP` | 0.7 | Agent 1 stops early if confidence exceeds this |
 | `RCA_CONFIDENCE_NOFX` | 0.5 | Agent 2 returns NO_FIX if confidence is below this |
 | `RCA_CONFIDENCE_CHECKPOINT` | 0.4 | Confidence stamped on output when using checkpoint recovery |
@@ -579,15 +579,13 @@ Each prints PASS/FAIL per assertion, exits 1 if any fail. No Claude required.
 | 5 | 3 JSON schemas | **LOCKED** |
 | 6 | `claude_json.sh` + `prompts/investigation.md` + `prompts/diagnosis.md` + `prompts/investigation_write.md` + `prompts/agent1a_force_summary.md` + `prompts/agent1a_recover_from_evidence.md` + `prompts/agent1b_repair.md` + Agent 1a/1b wiring (stream extraction, finalization, quality gate, evidence recovery, checkpoint write with degraded-seed fallback, schema-validated 1b with one-shot repair) | **LOCKED** — all 3 real-repo bugs (3, 4, 5) produce schema-valid diagnoses with confidence 0.82–0.92 matching upstream fixes |
 | 7 | `prompts/solution.md` + `prompts/agent2_repair.md` + Agent 2 wiring (schema-enforced, invocation pattern matches Agent 1b verbatim: `--json-schema`, `--max-turns 5` main / `--max-turns 1` repair, no `--tools` flag) + weak-evidence flag enforced post-extraction + one-shot repair + fail-closed + atomic write + `validate_solution_json` + `patches/fix.diff` extraction | **LOCKED** — same gate as Step 6: end-to-end on bugs 3, 4, 5. All three produced `agent2: ok` with confidence 0.70–0.78, schema_valid=true, no repair needed, zero errors/warns. Patches functionally equivalent to upstream PRs #3079, #3068, #3021 (same file + lines + mechanism in every case) |
-| 8 | `report.sh` with all 11 sections including Cost / Runtime | not started |
-| 9 | `README.md` + all 10 docs complete | not started |
-| 10 | GitHub `--issue` input | not started |
-| 11 | `prompts/validation.md` + Agent 2.5 + worktree lifecycle | not started |
-| 12 | real GitHub bug demo + final docs pass | not started |
+| 8 | `report.sh` with all 11 sections including Cost / Runtime | **LOCKED** |
+| 9 | `README.md` + all 10 docs complete | **LOCKED** |
+| 10 | GitHub `--issue` input | **LOCKED** |
+| 11 | `prompts/validation.md` + Agent 2.5 + worktree lifecycle | **LOCKED** |
+| 12 | real GitHub bug demo + final docs pass | **LOCKED** |
 
-**Next action:** Step 8 — polish `scripts/report.sh` to render all 11 required sections cleanly from the now-complete pipeline outputs (briefing, diagnosis, solution, validation, cost summary). Step 11 (Agent 2.5 validation with worktree + test execution under `--validate`) follows.
-
-**Priority order if time runs short:** report-only path → GitHub issue input → docs → validation polish.
+**Status:** All steps complete. The full pipeline runs end-to-end with `--validate` producing test execution inside a sibling worktree and a generated regression test.
 
 ---
 
@@ -667,7 +665,8 @@ jq '{cost_level, total_duration_seconds, agent1_turns_used}' .rca-mas/runs/lates
 jq -r '.bug_source' .rca-mas/runs/latest/manifest.json   # "github_issue"
 ```
 
-### After Step 11
+### With `--validate`
+
 ```bash
 make run-validate
 ls .rca-mas/runs/latest/patches/

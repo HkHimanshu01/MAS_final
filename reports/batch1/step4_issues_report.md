@@ -4,6 +4,8 @@
 **Repo:** `C:\MAS_final\rca-mas`
 **Auditor:** Claude Sonnet 4.6
 
+> **Historical snapshot.** This report describes the state of the codebase at the completion of Step 4. All 12 build steps (including Agent 2.5 worktree verification under `--validate`) are now locked and complete. See [plan.md](../../plan.md) for current status.
+
 ---
 
 ## 1. Files Changed

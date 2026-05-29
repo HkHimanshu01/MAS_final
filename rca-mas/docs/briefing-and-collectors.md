@@ -61,10 +61,12 @@ Reuses `$_tracked` from Phase 2. Counts lines. Selects turn budget and timeout f
 
 | File count | Tier | MAX_TURNS | TIMEOUT |
 |---|---|---|---|
-| < 100 | XS | 15 | 180s |
-| 100–500 | S | 25 | 300s |
-| 500–2000 | M | 35 | 420s |
-| > 2000 | L | 50 | 600s |
+| < 100 | XS | 200 | 900s |
+| 100–500 | S | 200 | 900s |
+| 500–2000 | M | 200 | 900s |
+| > 2000 | L | 200 | 900s |
+
+Turns are an emergency cap in the current config; per-tier overrides remain available via `RCA_A1A_TURNS_*` and `RCA_A1A_TIMEOUT_*` in `defaults.env`.
 
 ### Phase 4 — Write metadata header
 

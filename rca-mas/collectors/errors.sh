@@ -72,6 +72,7 @@ fi
 _RG_SRC_EXCLUDES=(
   --glob '!.git/**'
   --glob '!.rca-mas/**'
+  --glob '!rca-mas/**'
   --glob '!docs/**' --glob '!doc/**'
   --glob '!test/**' --glob '!tests/**' --glob '!testing/**'
   --glob '!*.rst' --glob '!*.md' --glob '!*.txt'
@@ -85,7 +86,7 @@ _RG_SRC_EXCLUDES=(
 )
 
 _GIT_SRC_EXCLUDES=(
-  ':(exclude).git/**' ':(exclude).rca-mas/**'
+  ':(exclude).git/**' ':(exclude).rca-mas/**' ':(exclude)rca-mas/**'
   ':(exclude)docs/**' ':(exclude)doc/**'
   ':(exclude)test/**' ':(exclude)tests/**' ':(exclude)testing/**'
   ':(exclude)*.rst' ':(exclude)*.md' ':(exclude)*.txt'

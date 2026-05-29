@@ -1,6 +1,6 @@
 # Architecture
 
-RCA MAS is a CLI tool that compresses 30–60 minute manual bug investigations into 3–8 minute automated reports. A QA engineer drops in a bug report (`bug.md`); the tool returns a developer-ready root-cause analysis with a proposed fix.
+AI-Powered Bug Diagnosis and Resolution is a CLI tool that compresses 30–60 minute manual bug investigations into 3–8 minute automated reports. A QA engineer drops in a bug report (`bug.md`); the tool returns a developer-ready root-cause analysis with a proposed fix.
 
 ---
 
@@ -10,16 +10,16 @@ RCA MAS is a CLI tool that compresses 30–60 minute manual bug investigations i
 bug.md
   │
   ▼
-briefing.sh           ← pure bash, zero LLM calls, 2–30s
+briefing.sh           ← pure bash, 4 collectors, zero LLM calls, 2–30s
   │  outputs: briefing.md, errors.txt, MAX_TURNS, TIMEOUT, REPO_TIER
   │
   ▼
-Agent 1a (Investigation) ← Claude Code, free-text, reads repo, writes checkpoint.json
-  │  confidence ≥ 0.7 → stop early and write final checkpoint
+Agent 1a (Investigation) ← Claude Code, free-text, reads repo, writes FINAL FINDINGS
+  │  confidence ≥ 0.7 → stop early; orchestrator writes checkpoint.json from findings + evidence
   │
   ▼
 Agent 1b (Conclusion) ← Claude Code, schema-enforced, reads checkpoint, writes diagnosis.json
-  │  always small budget (5 turns) — synthesis only, no re-investigation
+  │  small synthesis budget (20 turns, 120s) — no re-investigation
   │
   ▼
 Agent 2 (Solution)    ← Claude Code, reads diagnosis.json, writes solution.json + patches
@@ -123,10 +123,10 @@ Pure bash. Reads `bug.md` and scans the target repo. Produces `briefing.md` (str
 Claude Code in agentic loop with no output schema. Reads `briefing.md` and uses Read/Grep/Glob tools to explore the repo. Writes `checkpoint.json` — an intermediate findings file — after reading its first 2–3 files and again as a final summary before stopping. Stops early if confidence exceeds `RCA_CONFIDENCE_STOP` (default 0.7). Turn budget is scaled to repo size via the tier system. Free-text output mode means all turns are available for investigation.
 
 ### Agent 1b — Conclusion
-Claude Code with `--json-schema` enforcement. Reads `checkpoint.json` written by Agent 1a plus the original bug report. Synthesises the checkpoint into the final `diagnosis.json` in 3–5 turns. Does not re-investigate. If Agent 1a timed out before writing a real checkpoint, Agent 1b emits an honest minimal diagnosis rather than hallucinating evidence.
+Claude Code with `--json-schema` enforcement. Reads `checkpoint.json` written by Agent 1a plus the original bug report. Synthesises the checkpoint into the final `diagnosis.json` under a small turn budget (default 20 turns, 120s). Does not re-investigate. If Agent 1a timed out before writing a real checkpoint, Agent 1b emits an honest minimal diagnosis rather than hallucinating evidence.
 
 ### Agent 2 — Solution
-Claude Code. Reads `briefing.md` + `diagnosis.json`. Single pass (1 turn). Writes `solution.json` and patch files as unified diffs. If confidence is below `RCA_CONFIDENCE_NOFX` (default 0.5), writes a `NO_FIX` response instead of producing a bad patch.
+Claude Code. Reads `briefing.md` + `diagnosis.json`. Runs schema-enforced synthesis with no repo tools (default 20 turns, 600s). Writes `solution.json` and patch files as unified diffs. If confidence is below `RCA_CONFIDENCE_NOFX` (default 0.5), writes a `NO_FIX` response instead of producing a bad patch.
 
 ### Agent 2.5 — Validation (optional)
 Claude Code. Invoked only with `--validate` flag. Creates a git worktree sibling to the target repo, applies the patch from `solution.json`, runs the detected test suite, captures output. Writes `validation.json`. Never touches the main working tree.
@@ -138,16 +138,16 @@ Bash. Drives the entire pipeline: sources config, runs briefing, invokes each ag
 
 ## Tier System
 
-Repo size drives Agent 1a's turn budget and wall-clock timeout. Agent 1b always gets a small fixed budget (5 turns, 120s) regardless of tier.
+Repo size drives Agent 1a's turn budget and wall-clock timeout. Agent 1b always gets a small fixed budget (20 turns, 120s) regardless of tier.
 
 | Tier | File Count | Agent 1a turns | Agent 1a timeout |
 |---|---|---|---|
-| XS | < 100 | 20 | 360s |
-| S | 100–499 | 30 | 900s |
-| M | 500–1999 | 45 | 1500s |
-| L | ≥ 2000 | 60 | 2400s |
+| XS | < 100 | 200 | 900s |
+| S | 100–499 | 200 | 900s |
+| M | 500–1999 | 200 | 900s |
+| L | ≥ 2000 | 200 | 900s |
 
-File count is the number of git-tracked files (`git ls-files | wc -l`). All breakpoints and budgets live in `config/defaults.env` and are overridable via environment variables before running.
+Turns are a backstop in the current config; the cost cap (`RCA_A1A_BUDGET_USD`) is the primary throttle, and Agent 1a writes FINAL FINDINGS when confidence reaches `RCA_CONFIDENCE_STOP` (default 0.7). File count is the number of git-tracked files (`git ls-files | wc -l`). All breakpoints and budgets live in `config/defaults.env` and are overridable via environment variables before running.
 
 ---
 
